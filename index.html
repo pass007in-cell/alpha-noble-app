@@ -134,14 +134,73 @@
       <div class="status-msg" id="statusMsg">Connecting to server...</div>
     </div>
 
-    <div id="dashboard">
-      <h2>Welcome!</h2>
-      <p id="welcomeUser"></p>
-      <p id="welcomeArea"></p>
-      <p id="welcomeRole"></p>
-      <button class="logout-btn" onclick="handleLogout()">Logout</button>
-    </div>
+  </div>
+</div>
 
+<!-- CUSTOMER / AREA USER PANEL -->
+<div class="admin-box" id="userBox">
+  <div class="admin-header">
+    <div>
+      <h1>Alpha &amp; Noble</h1>
+      <p style="color:#888; font-size:13px;" id="userAreaLabel"></p>
+    </div>
+    <button class="logout-btn" style="width:auto; margin-top:0;" onclick="handleLogout()">Logout</button>
+  </div>
+
+  <div class="add-user-form">
+    <h3>+ Add New Customer</h3>
+    <div class="error-msg" id="custErrorMsg"></div>
+    <div class="success-msg" id="custSuccessMsg"></div>
+    <div class="form-grid">
+      <div>
+        <label>Customer Name</label>
+        <input type="text" id="custName" placeholder="e.g. Suresh Stores">
+      </div>
+      <div>
+        <label>Phone (optional)</label>
+        <input type="text" id="custPhone" placeholder="e.g. 9876543210">
+      </div>
+      <div>
+        <label>Opening Balance (₹)</label>
+        <input type="number" id="custOpeningBalance" placeholder="0" value="0">
+      </div>
+      <div>
+        <label>Place / Notes (optional)</label>
+        <input type="text" id="custNotes" placeholder="e.g. Near bus stand">
+      </div>
+    </div>
+    <button class="full-btn" id="addCustBtn" onclick="handleAddCustomer()">Add Customer</button>
+  </div>
+
+  <h3 style="color:#1e3c72; margin-bottom:8px;">Customers (<span id="custCount">0</span>)</h3>
+  <input type="text" id="custSearch" placeholder="🔍 Search by name or phone..." style="margin-bottom:10px;" onkeyup="filterCustomers()">
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Name</th><th>Phone</th><th>Balance</th><th></th></tr>
+      </thead>
+      <tbody id="custTableBody">
+        <tr><td colspan="4">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CUSTOMER LEDGER MODAL -->
+<div id="ledgerOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:50; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:480px; max-height:85vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <h2 style="color:#1e3c72; font-size:19px;" id="ledgerCustName">Customer</h2>
+      <span style="cursor:pointer; font-size:22px; color:#999;" onclick="closeLedger()">&times;</span>
+    </div>
+    <p style="color:#777; font-size:13px; margin-bottom:14px;" id="ledgerCustPhone"></p>
+    <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <p style="font-size:13px; color:#555;">Opening Balance</p>
+      <p style="font-size:22px; font-weight:700; color:#1e3c72;" id="ledgerOpeningBalance">₹0</p>
+    </div>
+    <p style="color:#999; font-size:13px; text-align:center; padding:20px 0;">
+      Sale / Collection entries വരുമ്പോൾ ഇവിടെ transaction history കാണിക്കും.
+    </p>
   </div>
 </div>
 
@@ -217,7 +276,11 @@
     setDoc,
     deleteDoc,
     collection,
-    getDocs
+    getDocs,
+    addDoc,
+    query,
+    where,
+    orderBy
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -314,21 +377,25 @@
     await signOut(auth);
     document.getElementById('centerWrap').style.display = 'flex';
     document.getElementById('adminBox').style.display = 'none';
+    document.getElementById('userBox').style.display = 'none';
     document.getElementById('loginSection').style.display = 'block';
-    document.getElementById('dashboard').style.display = 'none';
     document.getElementById('username').value = '';
     document.getElementById('pin').value = '';
   };
 
+  let currentUserData = null;
+
   function showDashboard(userData) {
-    document.getElementById('loginSection').style.display = 'none';
-    document.getElementById('dashboard').style.display = 'block';
-    document.getElementById('welcomeUser').textContent = "Username: " + (userData.username || '-');
-    document.getElementById('welcomeArea').textContent = "Area: " + (userData.area || '-');
-    document.getElementById('welcomeRole').textContent = "Role: " + (userData.role || 'user');
+    currentUserData = userData;
+    document.getElementById('centerWrap').style.display = 'none';
+    document.getElementById('userBox').style.display = 'block';
+    document.getElementById('userAreaLabel').textContent =
+      (userData.username || '-') + " — Area: " + (userData.area || '-');
+    loadCustomersList();
   }
 
   function showAdminPanel(userData) {
+    currentUserData = userData;
     document.getElementById('centerWrap').style.display = 'none';
     document.getElementById('adminBox').style.display = 'block';
     loadUsersList();
@@ -442,6 +509,145 @@
       console.error(err);
       alert("Delete ചെയ്യാൻ പറ്റിയില്ല.");
     }
+  };
+
+  // ---- CUSTOMER: Add ----
+  let allCustomers = [];
+
+  window.handleAddCustomer = async function () {
+    const name = document.getElementById('custName').value.trim();
+    const phone = document.getElementById('custPhone').value.trim();
+    const openingBalance = parseFloat(document.getElementById('custOpeningBalance').value) || 0;
+    const notes = document.getElementById('custNotes').value.trim();
+    const errEl = document.getElementById('custErrorMsg');
+    const okEl = document.getElementById('custSuccessMsg');
+    const btn = document.getElementById('addCustBtn');
+
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    if (!name) {
+      errEl.textContent = "Customer Name നൽകുക";
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Adding...";
+
+    try {
+      await addDoc(collection(db, "customers"), {
+        name: name,
+        phone: phone,
+        area: currentUserData.area,
+        openingBalance: openingBalance,
+        notes: notes,
+        createdBy: currentUserData.username || 'unknown',
+        createdAt: new Date().toISOString()
+      });
+
+      okEl.textContent = `"${name}" വിജയകരമായി ചേർത്തു.`;
+      okEl.style.display = 'block';
+
+      document.getElementById('custName').value = '';
+      document.getElementById('custPhone').value = '';
+      document.getElementById('custOpeningBalance').value = '0';
+      document.getElementById('custNotes').value = '';
+
+      loadCustomersList();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Customer add ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Add Customer";
+    }
+  };
+
+  // ---- CUSTOMER: List (filtered by logged-in user's area) ----
+  async function loadCustomersList() {
+    const tbody = document.getElementById('custTableBody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+
+    try {
+      const q = query(collection(db, "customers"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+
+      allCustomers = [];
+      snap.forEach((docSnap) => {
+        allCustomers.push({ id: docSnap.id, ...docSnap.data() });
+      });
+
+      // Sort alphabetically by name
+      allCustomers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+      renderCustomers(allCustomers);
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading customers.</td></tr>';
+    }
+  }
+
+  function renderCustomers(list) {
+    const tbody = document.getElementById('custTableBody');
+    document.getElementById('custCount').textContent = list.length;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="4">No customers found.</td></tr>';
+      return;
+    }
+
+    let rows = '';
+    list.forEach((c) => {
+      const bal = c.openingBalance || 0;
+      rows += `<tr>
+        <td style="cursor:pointer; color:#1e3c72; font-weight:600;" onclick="openLedger('${c.id}')">${c.name || '-'}</td>
+        <td>${c.phone || '-'}</td>
+        <td>₹${bal.toLocaleString('en-IN')}</td>
+        <td><button class="del-btn" onclick="handleDeleteCustomer('${c.id}')">Remove</button></td>
+      </tr>`;
+    });
+    tbody.innerHTML = rows;
+  }
+
+  window.filterCustomers = function () {
+    const term = document.getElementById('custSearch').value.trim().toLowerCase();
+    if (!term) {
+      renderCustomers(allCustomers);
+      return;
+    }
+    const filtered = allCustomers.filter(c =>
+      (c.name || '').toLowerCase().includes(term) ||
+      (c.phone || '').toLowerCase().includes(term)
+    );
+    renderCustomers(filtered);
+  };
+
+  window.handleDeleteCustomer = async function (custId) {
+    if (!confirm("ഈ customer-നെ ഒഴിവാക്കണോ?")) return;
+    try {
+      await deleteDoc(doc(db, "customers", custId));
+      loadCustomersList();
+    } catch (err) {
+      console.error(err);
+      alert("Delete ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  // ---- CUSTOMER: Ledger view ----
+  window.openLedger = function (custId) {
+    const c = allCustomers.find(x => x.id === custId);
+    if (!c) return;
+    document.getElementById('ledgerCustName').textContent = c.name || '-';
+    document.getElementById('ledgerCustPhone').textContent = c.phone ? ('📞 ' + c.phone) : '';
+    document.getElementById('ledgerOpeningBalance').textContent = '₹' + (c.openingBalance || 0).toLocaleString('en-IN');
+    document.getElementById('ledgerOverlay').style.display = 'flex';
+  };
+
+  window.closeLedger = function () {
+    document.getElementById('ledgerOverlay').style.display = 'none';
   };
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
