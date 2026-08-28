@@ -170,6 +170,16 @@
       </div>
     </div>
     <button class="full-btn" id="addCustBtn" onclick="handleAddCustomer()">Add Customer</button>
+
+    <div style="margin-top:16px; padding-top:16px; border-top:1px dashed #ccc;">
+      <label style="margin-bottom:8px;">📂 Bulk Upload (CSV file)</label>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        CSV columns (ക്രമത്തിൽ): Name, Phone, OpeningBalance, Notes — ആദ്യ വരി header ആയാൽ automatic ആയി skip ചെയ്യും.
+      </p>
+      <input type="file" id="csvFileInput" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#2e7d32;" onclick="handleCsvUpload()">Upload CSV</button>
+      <div id="csvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+    </div>
   </div>
 
   <h3 style="color:#1e3c72; margin-bottom:8px;">Customers (<span id="custCount">0</span>)</h3>
@@ -648,6 +658,107 @@
 
   window.closeLedger = function () {
     document.getElementById('ledgerOverlay').style.display = 'none';
+  };
+
+  // ---- CUSTOMER: Bulk CSV Upload ----
+  function parseCsvLine(line) {
+    // Simple CSV split (handles basic quoted commas)
+    const result = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === ',' && !inQuotes) {
+        result.push(cur.trim());
+        cur = '';
+      } else {
+        cur += ch;
+      }
+    }
+    result.push(cur.trim());
+    return result;
+  }
+
+  window.handleCsvUpload = async function () {
+    const fileInput = document.getElementById('csvFileInput');
+    const statusEl = document.getElementById('csvStatus');
+    const file = fileInput.files[0];
+
+    if (!file) {
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV file select ചെയ്യുക.";
+      return;
+    }
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Reading file...";
+
+    try {
+      const text = await file.text();
+      let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+
+      if (lines.length === 0) {
+        statusEl.style.color = '#d32f2f';
+        statusEl.textContent = "File empty ആണ്.";
+        return;
+      }
+
+      // Detect and skip header row
+      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
+      if (firstCols[0] && (firstCols[0].includes('name'))) {
+        lines = lines.slice(1);
+      }
+
+      if (lines.length === 0) {
+        statusEl.style.color = '#d32f2f';
+        statusEl.textContent = "Data rows കണ്ടെത്തിയില്ല.";
+        return;
+      }
+
+      statusEl.textContent = `Uploading 0 / ${lines.length}...`;
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const name = (cols[0] || '').trim();
+        const phone = (cols[1] || '').trim();
+        const openingBalance = parseFloat(cols[2]) || 0;
+        const notes = (cols[3] || '').trim();
+
+        if (!name) { failCount++; continue; }
+
+        try {
+          await addDoc(collection(db, "customers"), {
+            name: name,
+            phone: phone,
+            area: currentUserData.area,
+            openingBalance: openingBalance,
+            notes: notes,
+            createdBy: currentUserData.username || 'unknown',
+            createdAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+
+        statusEl.textContent = `Uploading ${i + 1} / ${lines.length}...`;
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${successCount} customers added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      fileInput.value = '';
+      loadCustomersList();
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
+    }
   };
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
