@@ -147,6 +147,12 @@
     <button class="logout-btn" style="width:auto; margin-top:0;" onclick="handleLogout()">Logout</button>
   </div>
 
+  <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee;">
+    <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Customers</button>
+    <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale Entry</button>
+  </div>
+
+  <div id="tabCustomers">
   <div class="add-user-form">
     <h3>+ Add New Customer</h3>
     <div class="error-msg" id="custErrorMsg"></div>
@@ -194,6 +200,56 @@
       </tbody>
     </table>
   </div>
+  </div>
+
+  <div id="tabSale" style="display:none;">
+    <div class="add-user-form">
+      <h3>🧾 New Sale Entry</h3>
+      <div class="error-msg" id="saleErrorMsg"></div>
+      <div class="success-msg" id="saleSuccessMsg"></div>
+
+      <label>Customer</label>
+      <select id="saleCustomer" style="margin-bottom:16px;">
+        <option value="">-- Select Customer --</option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Product</label>
+          <input type="text" id="saleProduct" placeholder="e.g. Rice 25kg">
+        </div>
+        <div>
+          <label>Date</label>
+          <input type="date" id="saleDate">
+        </div>
+        <div>
+          <label>Quantity</label>
+          <input type="number" id="saleQty" placeholder="1" value="1" oninput="calcSaleAmount()">
+        </div>
+        <div>
+          <label>Rate (₹ per unit)</label>
+          <input type="number" id="saleRate" placeholder="0" value="0" oninput="calcSaleAmount()">
+        </div>
+      </div>
+
+      <label>Total Amount (₹)</label>
+      <input type="number" id="saleAmount" placeholder="0" value="0">
+
+      <button class="full-btn" id="addSaleBtn" onclick="handleAddSale()">Save Sale</button>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th></tr>
+        </thead>
+        <tbody id="saleTableBody">
+          <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- CUSTOMER LEDGER MODAL -->
@@ -204,13 +260,18 @@
       <span style="cursor:pointer; font-size:22px; color:#999;" onclick="closeLedger()">&times;</span>
     </div>
     <p style="color:#777; font-size:13px; margin-bottom:14px;" id="ledgerCustPhone"></p>
-    <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <p style="font-size:13px; color:#555;">Opening Balance</p>
-      <p style="font-size:22px; font-weight:700; color:#1e3c72;" id="ledgerOpeningBalance">₹0</p>
+    <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
+      <div>
+        <p style="font-size:12px; color:#555;">Opening Balance</p>
+        <p style="font-size:17px; font-weight:700; color:#555;" id="ledgerOpeningBalance">₹0</p>
+      </div>
+      <div>
+        <p style="font-size:12px; color:#555;">Current Balance</p>
+        <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="ledgerCurrentBalance">₹0</p>
+      </div>
     </div>
-    <p style="color:#999; font-size:13px; text-align:center; padding:20px 0;">
-      Sale / Collection entries വരുമ്പോൾ ഇവിടെ transaction history കാണിക്കും.
-    </p>
+    <h3 style="color:#1e3c72; font-size:15px; margin-bottom:8px;">Transactions</h3>
+    <div id="ledgerTransactions" style="font-size:13px; color:#999; text-align:center; padding:16px 0;">Loading...</div>
   </div>
 </div>
 
@@ -647,13 +708,49 @@
   };
 
   // ---- CUSTOMER: Ledger view ----
-  window.openLedger = function (custId) {
+  window.openLedger = async function (custId) {
     const c = allCustomers.find(x => x.id === custId);
     if (!c) return;
+    const opening = c.openingBalance || 0;
+
     document.getElementById('ledgerCustName').textContent = c.name || '-';
     document.getElementById('ledgerCustPhone').textContent = c.phone ? ('📞 ' + c.phone) : '';
-    document.getElementById('ledgerOpeningBalance').textContent = '₹' + (c.openingBalance || 0).toLocaleString('en-IN');
+    document.getElementById('ledgerOpeningBalance').textContent = '₹' + opening.toLocaleString('en-IN');
+    document.getElementById('ledgerCurrentBalance').textContent = '₹' + opening.toLocaleString('en-IN');
+    document.getElementById('ledgerTransactions').innerHTML = 'Loading...';
     document.getElementById('ledgerOverlay').style.display = 'flex';
+
+    try {
+      const q = query(collection(db, "sales"), where("customerId", "==", custId));
+      const snap = await getDocs(q);
+
+      let sales = [];
+      snap.forEach(docSnap => sales.push(docSnap.data()));
+      sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      let totalSales = 0;
+      let rows = '';
+      sales.forEach(s => {
+        totalSales += (s.amount || 0);
+        rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+          <div>
+            <div style="font-weight:600; color:#333;">${s.product || '-'}</div>
+            <div style="color:#999; font-size:12px;">${s.date || ''} · Qty: ${s.qty || '-'}</div>
+          </div>
+          <div style="color:#c62828; font-weight:600;">+₹${(s.amount || 0).toLocaleString('en-IN')}</div>
+        </div>`;
+      });
+
+      const currentBalance = opening + totalSales;
+      document.getElementById('ledgerCurrentBalance').textContent = '₹' + currentBalance.toLocaleString('en-IN');
+
+      document.getElementById('ledgerTransactions').innerHTML = rows ||
+        '<p style="color:#999; text-align:center; padding:10px 0;">Transactions ഒന്നും ഇല്ല.</p>';
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById('ledgerTransactions').innerHTML = '<p style="color:#d32f2f; text-align:center;">Error loading transactions.</p>';
+    }
   };
 
   window.closeLedger = function () {
@@ -760,6 +857,161 @@
       statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
     }
   };
+
+  // ---- TAB SWITCHING ----
+  window.switchTab = function (tab) {
+    const custTab = document.getElementById('tabCustomers');
+    const saleTab = document.getElementById('tabSale');
+    const custBtn = document.getElementById('tabCustomersBtn');
+    const saleBtn = document.getElementById('tabSaleBtn');
+
+    if (tab === 'customers') {
+      custTab.style.display = 'block';
+      saleTab.style.display = 'none';
+      custBtn.style.color = '#1e3c72';
+      custBtn.style.borderBottomColor = '#1e3c72';
+      saleBtn.style.color = '#888';
+      saleBtn.style.borderBottomColor = 'transparent';
+    } else {
+      custTab.style.display = 'none';
+      saleTab.style.display = 'block';
+      saleBtn.style.color = '#1e3c72';
+      saleBtn.style.borderBottomColor = '#1e3c72';
+      custBtn.style.color = '#888';
+      custBtn.style.borderBottomColor = 'transparent';
+      populateSaleCustomerDropdown();
+      document.getElementById('saleDate').valueAsDate = new Date();
+      loadTodaysSales();
+    }
+  };
+
+  window.calcSaleAmount = function () {
+    const qty = parseFloat(document.getElementById('saleQty').value) || 0;
+    const rate = parseFloat(document.getElementById('saleRate').value) || 0;
+    document.getElementById('saleAmount').value = (qty * rate).toFixed(2);
+  };
+
+  function populateSaleCustomerDropdown() {
+    const sel = document.getElementById('saleCustomer');
+    sel.innerHTML = '<option value="">-- Select Customer --</option>';
+    allCustomers.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '');
+      sel.appendChild(opt);
+    });
+  }
+
+  // ---- SALE: Add ----
+  window.handleAddSale = async function () {
+    const custId = document.getElementById('saleCustomer').value;
+    const product = document.getElementById('saleProduct').value.trim();
+    const date = document.getElementById('saleDate').value;
+    const qty = parseFloat(document.getElementById('saleQty').value) || 0;
+    const rate = parseFloat(document.getElementById('saleRate').value) || 0;
+    const amount = parseFloat(document.getElementById('saleAmount').value) || 0;
+    const errEl = document.getElementById('saleErrorMsg');
+    const okEl = document.getElementById('saleSuccessMsg');
+    const btn = document.getElementById('addSaleBtn');
+
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    if (!custId) {
+      errEl.textContent = "Customer select ചെയ്യുക";
+      errEl.style.display = 'block';
+      return;
+    }
+    if (!product) {
+      errEl.textContent = "Product name നൽകുക";
+      errEl.style.display = 'block';
+      return;
+    }
+    if (amount <= 0) {
+      errEl.textContent = "Amount 0-ൽ കൂടുതൽ ആയിരിക്കണം";
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const cust = allCustomers.find(c => c.id === custId);
+
+    btn.disabled = true;
+    btn.textContent = "Saving...";
+
+    try {
+      await addDoc(collection(db, "sales"), {
+        customerId: custId,
+        customerName: cust ? cust.name : '-',
+        area: currentUserData.area,
+        product: product,
+        qty: qty,
+        rate: rate,
+        amount: amount,
+        date: date,
+        enteredBy: currentUserData.username || 'unknown',
+        createdAt: new Date().toISOString()
+      });
+
+      okEl.textContent = `Sale saved: ${cust ? cust.name : ''} — ₹${amount}`;
+      okEl.style.display = 'block';
+
+      document.getElementById('saleProduct').value = '';
+      document.getElementById('saleQty').value = '1';
+      document.getElementById('saleRate').value = '0';
+      document.getElementById('saleAmount').value = '0';
+
+      loadTodaysSales();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Sale save ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Save Sale";
+    }
+  };
+
+  // ---- SALE: Today's list ----
+  async function loadTodaysSales() {
+    const tbody = document.getElementById('saleTableBody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const q = query(
+        collection(db, "sales"),
+        where("area", "==", currentUserData.area),
+        where("date", "==", todayStr)
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="4">ഇന്ന് sales ഒന്നും ഇല്ല.</td></tr>';
+        return;
+      }
+
+      let rows = '';
+      let total = 0;
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        total += (d.amount || 0);
+        rows += `<tr>
+          <td>${d.customerName || '-'}</td>
+          <td>${d.product || '-'}</td>
+          <td>${d.qty || '-'}</td>
+          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
+        </tr>`;
+      });
+      rows += `<tr style="font-weight:700; background:#f5f7fa;">
+        <td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td>
+      </tr>`;
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading sales.</td></tr>';
+    }
+  }
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
