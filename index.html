@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ml">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Alpha & Noble</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(135deg, #1e3c72, #2a5298);
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .center-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 40px);
+  }
+  .login-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 32px 24px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  }
+  .admin-box {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    display: none;
+  }
+  .logo { text-align: center; margin-bottom: 24px; }
+  .logo h1 { color: #1e3c72; font-size: 26px; font-weight: 700; }
+  .logo p { color: #888; font-size: 13px; margin-top: 4px; }
+  label { display: block; font-size: 13px; color: #333; margin-bottom: 6px; font-weight: 600; }
+  select, input {
+    width: 100%; padding: 12px; margin-bottom: 16px;
+    border: 1.5px solid #ddd; border-radius: 8px; font-size: 15px;
+    outline: none; transition: border-color 0.2s;
+  }
+  select:focus, input:focus { border-color: #2a5298; }
+  button {
+    padding: 13px; background: #1e3c72; color: #fff; border: none;
+    border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:active { background: #16294f; }
+  button:disabled { background: #999; }
+  .full-btn { width: 100%; }
+  .error-msg {
+    color: #d32f2f; font-size: 13px; margin-bottom: 12px; text-align: center;
+    display: none; padding: 8px; background: #ffebee; border-radius: 6px;
+  }
+  .success-msg {
+    color: #2e7d32; font-size: 13px; margin-bottom: 12px; text-align: center;
+    display: none; padding: 8px; background: #e8f5e9; border-radius: 6px;
+  }
+  .status-msg { text-align: center; color: #666; font-size: 13px; margin-top: 14px; }
+  #dashboard { display: none; text-align: center; color: #333; }
+  #dashboard h2 { color: #1e3c72; margin-bottom: 8px; }
+  #dashboard p { margin-bottom: 4px; color: #555; }
+  .logout-btn { margin-top: 20px; background: #b71c1c; width: 100%; }
+
+  .admin-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 20px; flex-wrap: wrap; gap: 10px;
+  }
+  .admin-header h1 { color: #1e3c72; font-size: 22px; }
+  .add-user-form {
+    background: #f5f7fa; border-radius: 10px; padding: 18px;
+    margin-bottom: 24px;
+  }
+  .add-user-form h3 { color: #1e3c72; margin-bottom: 14px; font-size: 16px; }
+  .form-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px;
+  }
+  @media (max-width: 500px) {
+    .form-grid { grid-template-columns: 1fr; }
+  }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th, td {
+    text-align: left; padding: 10px 8px; font-size: 14px;
+    border-bottom: 1px solid #eee;
+  }
+  th { color: #1e3c72; font-size: 12px; text-transform: uppercase; }
+  .role-badge {
+    display: inline-block; padding: 3px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 600;
+  }
+  .role-admin { background: #fff3e0; color: #e65100; }
+  .role-user { background: #e3f2fd; color: #1565c0; }
+  .del-btn {
+    background: #ffebee; color: #c62828; padding: 6px 12px;
+    font-size: 12px; border-radius: 6px;
+  }
+  .table-wrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+
+<div class="center-wrap" id="centerWrap">
+  <div class="login-box" id="loginBox">
+
+    <div id="loginSection">
+      <div class="logo">
+        <h1>Alpha &amp; Noble</h1>
+        <p>Sales Manager App</p>
+      </div>
+
+      <div class="error-msg" id="errorMsg"></div>
+
+      <label for="areaSelect">Area</label>
+      <select id="areaSelect">
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+        <option value="ADMIN">Admin</option>
+      </select>
+
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="Username" autocomplete="off">
+
+      <label for="pin">PIN</label>
+      <input type="password" id="pin" placeholder="4-6 characters" autocomplete="off">
+
+      <button id="loginBtn" class="full-btn" onclick="handleLogin()">Login</button>
+      <div class="status-msg" id="statusMsg">Connecting to server...</div>
+    </div>
+
+    <div id="dashboard">
+      <h2>Welcome!</h2>
+      <p id="welcomeUser"></p>
+      <p id="welcomeArea"></p>
+      <p id="welcomeRole"></p>
+      <button class="logout-btn" onclick="handleLogout()">Logout</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ADMIN PANEL -->
+<div class="admin-box" id="adminBox">
+  <div class="admin-header">
+    <h1>Admin Panel — User Management</h1>
+    <button class="logout-btn" style="width:auto; margin-top:0;" onclick="handleLogout()">Logout</button>
+  </div>
+
+  <div class="add-user-form">
+    <h3>+ Add New User</h3>
+    <div class="error-msg" id="adminErrorMsg"></div>
+    <div class="success-msg" id="adminSuccessMsg"></div>
+    <div class="form-grid">
+      <div>
+        <label>Username</label>
+        <input type="text" id="newUsername" placeholder="e.g. rajesh">
+      </div>
+      <div>
+        <label>Area</label>
+        <select id="newArea">
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+      <div>
+        <label>PIN (6 characters min)</label>
+        <input type="password" id="newPin" placeholder="123456" autocomplete="off">
+      </div>
+      <div>
+        <label>Role</label>
+        <select id="newRole">
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+      </div>
+    </div>
+    <button class="full-btn" id="addUserBtn" onclick="handleAddUser()">Add User</button>
+  </div>
+
+  <h3 style="color:#1e3c72; margin-bottom:8px;">All Users</h3>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Username</th><th>Area</th><th>Role</th><th></th></tr>
+      </thead>
+      <tbody id="usersTableBody">
+        <tr><td colspan="4">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import {
+    getAuth,
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    setPersistence,
+    browserLocalPersistence,
+    inMemoryPersistence
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+  import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    deleteDoc,
+    collection,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDYLVrQP4Rn72hIPati16Z5-nQ-zisRWY4",
+    authDomain: "alpha-noble-app.firebaseapp.com",
+    projectId: "alpha-noble-app",
+    storageBucket: "alpha-noble-app.firebasestorage.app",
+    messagingSenderId: "299919163868",
+    appId: "1:299919163868:web:b556ed16b127d689b1cf19",
+    measurementId: "G-JNPFDE21TG"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Try local persistence; if it fails (restricted storage contexts),
+  // fall back to in-memory so login doesn't hang forever.
+  setPersistence(auth, browserLocalPersistence).catch(() => {
+    setPersistence(auth, inMemoryPersistence).catch(() => {});
+  });
+
+  function withTimeout(promise, ms, label) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout:' + label)), ms))
+    ]);
+  }
+
+  const statusMsg = document.getElementById('statusMsg');
+  statusMsg.textContent = "Server connected. Please login.";
+
+  function toEmail(username, area) {
+    const clean = username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    return `${clean}_${area.toLowerCase()}@alphanoble.app`;
+  }
+
+  window.handleLogin = async function () {
+    const area = document.getElementById('areaSelect').value;
+    const username = document.getElementById('username').value.trim();
+    const pin = document.getElementById('pin').value.trim();
+    const errorMsg = document.getElementById('errorMsg');
+    const loginBtn = document.getElementById('loginBtn');
+
+    errorMsg.style.display = 'none';
+
+    if (!username || !pin) {
+      errorMsg.textContent = "Username, PIN എന്നിവ നൽകുക";
+      errorMsg.style.display = 'block';
+      return;
+    }
+
+    loginBtn.disabled = true;
+    loginBtn.textContent = "Logging in...";
+
+    try {
+      const email = toEmail(username, area);
+      const userCredential = await withTimeout(
+        signInWithEmailAndPassword(auth, email, pin), 15000, 'login'
+      );
+      const uid = userCredential.user.uid;
+
+      const userDocRef = doc(db, "users", uid);
+      const userDocSnap = await withTimeout(getDoc(userDocRef), 15000, 'profile');
+
+      let userData = { username: username, area: area, role: "user" };
+      if (userDocSnap.exists()) {
+        userData = userDocSnap.data();
+      }
+
+      if (userData.role === 'admin') {
+        showAdminPanel(userData);
+      } else {
+        showDashboard(userData);
+      }
+
+    } catch (err) {
+      console.error(err);
+      let msg = "Login പരാജയപ്പെട്ടു. വീണ്ടും ശ്രമിക്കുക.";
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password') {
+        msg = "Username അല്ലെങ്കിൽ PIN തെറ്റാണ്.";
+      } else if (err.message && err.message.startsWith('timeout')) {
+        msg = "Connection slow ആണ്. Chrome browser-ൽ open ചെയ്ത് വീണ്ടും ശ്രമിക്കുക.";
+      }
+      errorMsg.textContent = msg;
+      errorMsg.style.display = 'block';
+    } finally {
+      loginBtn.disabled = false;
+      loginBtn.textContent = "Login";
+    }
+  };
+
+  window.handleLogout = async function () {
+    await signOut(auth);
+    document.getElementById('centerWrap').style.display = 'flex';
+    document.getElementById('adminBox').style.display = 'none';
+    document.getElementById('loginSection').style.display = 'block';
+    document.getElementById('dashboard').style.display = 'none';
+    document.getElementById('username').value = '';
+    document.getElementById('pin').value = '';
+  };
+
+  function showDashboard(userData) {
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    document.getElementById('welcomeUser').textContent = "Username: " + (userData.username || '-');
+    document.getElementById('welcomeArea').textContent = "Area: " + (userData.area || '-');
+    document.getElementById('welcomeRole').textContent = "Role: " + (userData.role || 'user');
+  }
+
+  function showAdminPanel(userData) {
+    document.getElementById('centerWrap').style.display = 'none';
+    document.getElementById('adminBox').style.display = 'block';
+    loadUsersList();
+  }
+
+  // ---- ADMIN: Add User ----
+  window.handleAddUser = async function () {
+    const username = document.getElementById('newUsername').value.trim();
+    const area = document.getElementById('newArea').value;
+    const pin = document.getElementById('newPin').value.trim();
+    const role = document.getElementById('newRole').value;
+    const errEl = document.getElementById('adminErrorMsg');
+    const okEl = document.getElementById('adminSuccessMsg');
+    const btn = document.getElementById('addUserBtn');
+
+    errEl.style.display = 'none';
+    okEl.style.display = 'none';
+
+    if (!username || !pin) {
+      errEl.textContent = "Username, PIN എന്നിവ നൽകുക";
+      errEl.style.display = 'block';
+      return;
+    }
+    if (pin.length < 6) {
+      errEl.textContent = "PIN കുറഞ്ഞത് 6 അക്കം വേണം";
+      errEl.style.display = 'block';
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = "Adding...";
+
+    // Use a secondary Firebase app instance so the admin's own login session
+    // does not get replaced by the newly created user's session.
+    const secondaryApp = initializeApp(firebaseConfig, "Secondary_" + Date.now());
+    const secondaryAuth = getAuth(secondaryApp);
+
+    try {
+      const email = toEmail(username, area);
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, email, pin);
+      const newUid = cred.user.uid;
+
+      await setDoc(doc(db, "users", newUid), {
+        username: username,
+        area: area,
+        role: role,
+        createdAt: new Date().toISOString()
+      });
+
+      await signOut(secondaryAuth);
+      await deleteApp(secondaryApp);
+
+      okEl.textContent = `User "${username}" (${area}) വിജയകരമായി ചേർത്തു.`;
+      okEl.style.display = 'block';
+
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newPin').value = '';
+
+      loadUsersList();
+
+    } catch (err) {
+      console.error(err);
+      let msg = "User add ചെയ്യാൻ പറ്റിയില്ല.";
+      if (err.code === 'auth/email-already-in-use') {
+        msg = "ഈ Username ഈ Area-യിൽ നിലവിലുണ്ട്.";
+      }
+      errEl.textContent = msg;
+      errEl.style.display = 'block';
+      try { await deleteApp(secondaryApp); } catch (e) {}
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Add User";
+    }
+  };
+
+  // ---- ADMIN: List Users ----
+  async function loadUsersList() {
+    const tbody = document.getElementById('usersTableBody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+
+    try {
+      const snap = await getDocs(collection(db, "users"));
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="4">No users found.</td></tr>';
+        return;
+      }
+      let rows = '';
+      snap.forEach((docSnap) => {
+        const d = docSnap.data();
+        const roleClass = d.role === 'admin' ? 'role-admin' : 'role-user';
+        rows += `<tr>
+          <td>${d.username || '-'}</td>
+          <td>${d.area || '-'}</td>
+          <td><span class="role-badge ${roleClass}">${d.role || 'user'}</span></td>
+          <td><button class="del-btn" onclick="handleDeleteUser('${docSnap.id}')">Remove</button></td>
+        </tr>`;
+      });
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading users.</td></tr>';
+    }
+  }
+
+  window.handleDeleteUser = async function (uid) {
+    if (!confirm("ഈ user-ന്റെ profile ഒഴിവാക്കണോ? (Login access പൂർണ്ണമായി ഒഴിവാക്കാൻ Firebase Console-ൽ Authentication-ലും delete ചെയ്യണം)")) return;
+    try {
+      await deleteDoc(doc(db, "users", uid));
+      loadUsersList();
+    } catch (err) {
+      console.error(err);
+      alert("Delete ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  document.getElementById('pin').addEventListener('keyup', function(e) {
+    if (e.key === 'Enter') window.handleLogin();
+  });
+</script>
+
+</body>
+</html>
