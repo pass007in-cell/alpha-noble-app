@@ -637,6 +637,7 @@
     <button id="tabAdminGodownBtn" onclick="switchAdminTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
     <button id="tabAdminProductBtn" onclick="switchAdminTab('product')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Product</button>
     <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
+    <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Reports</button>
   </div>
 
   <div id="tabAdminUsers">
@@ -820,6 +821,86 @@
     </div>
 
   </div>
+
+  <div id="tabAdminReports" style="display:none;">
+    <div class="add-user-form">
+      <h3>📊 All-Areas Reports</h3>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="adminReportFrom">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="adminReportTo">
+        </div>
+      </div>
+      <button class="full-btn" onclick="generateAdminReport()">Generate Report</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px;">
+      <div style="background:#fff3e0; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#e65100; font-weight:600;">SALES (ALL AREAS)</p>
+        <p style="font-size:18px; font-weight:700; color:#e65100;" id="adminRepSalesTotal">₹0</p>
+      </div>
+      <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION (ALL AREAS)</p>
+        <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="adminRepCollTotal">₹0</p>
+      </div>
+      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE (ALL AREAS)</p>
+        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="adminRepPurchaseTotal">₹0</p>
+      </div>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Area-wise Summary</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Area</th><th>Sales</th><th>Collection</th><th>Purchase</th></tr></thead>
+        <tbody id="adminRepAreaBody"><tr><td colspan="4">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
+        <tbody id="adminRepSalesBody"><tr><td colspan="6">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
+        <tbody id="adminRepCollBody"><tr><td colspan="5">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
+        <tbody id="adminRepPurchaseBody"><tr><td colspan="5">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, all Areas)</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
+        <tbody id="adminRepLotBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">🚚 Vehicle Stock (all Areas)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Area</th><th>Product</th><th>Vehicle</th><th>Qty</th></tr></thead>
+        <tbody id="adminRepVehicleStockBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script type="module">
@@ -997,7 +1078,7 @@
     loadUsersList();
   }
 
-  const allAdminTabs = ['users', 'godown', 'product', 'data'];
+  const allAdminTabs = ['users', 'godown', 'product', 'data', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1015,6 +1096,12 @@
     });
     if (tab === 'godown') loadAdminGodowns();
     else if (tab === 'product') loadAdminProducts();
+    else if (tab === 'reports') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!document.getElementById('adminReportFrom').value) document.getElementById('adminReportFrom').value = todayStr;
+      if (!document.getElementById('adminReportTo').value) document.getElementById('adminReportTo').value = todayStr;
+      generateAdminReport();
+    }
   };
 
   // ---- ADMIN: Add User ----
@@ -2571,6 +2658,121 @@
       }).join('');
       document.getElementById('repVehicleStockBody').innerHTML = vsRows ||
         '<tr><td colspan="3">Vehicle stock ഒന്നും ഇല്ല.</td></tr>';
+
+    } catch (err) {
+      console.error(err);
+      alert("Report load ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  // ---- ADMIN: ALL-AREAS REPORT ----
+  window.generateAdminReport = async function () {
+    const from = document.getElementById('adminReportFrom').value;
+    const to = document.getElementById('adminReportTo').value;
+
+    if (!from || !to) {
+      alert("From Date, To Date രണ്ടും select ചെയ്യുക.");
+      return;
+    }
+
+    document.getElementById('adminRepSalesBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    document.getElementById('adminRepCollBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    document.getElementById('adminRepPurchaseBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    document.getElementById('adminRepAreaBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('adminRepLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('adminRepVehicleStockBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+
+    try {
+      const [salesSnap, purchaseSnap, collSnap, vsSnap] = await Promise.all([
+        getDocs(collection(db, "sales")),
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "collections")),
+        getDocs(collection(db, "vehicleStock"))
+      ]);
+
+      const inRange = (d) => d && d >= from && d <= to;
+
+      let sales = [], purchases = [], colls = [];
+      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) sales.push(d); });
+      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) purchases.push(d); });
+      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) colls.push(d); });
+
+      sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      purchases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      colls.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      // Overall totals
+      const salesTotal = sales.reduce((s, d) => s + (d.amount || 0), 0);
+      const purchaseTotal = purchases.reduce((s, d) => s + (d.amount || 0), 0);
+      const collTotal = colls.reduce((s, d) => s + (d.amount || 0), 0);
+
+      document.getElementById('adminRepSalesTotal').textContent = '₹' + salesTotal.toLocaleString('en-IN');
+      document.getElementById('adminRepPurchaseTotal').textContent = '₹' + purchaseTotal.toLocaleString('en-IN');
+      document.getElementById('adminRepCollTotal').textContent = '₹' + collTotal.toLocaleString('en-IN');
+
+      // Area-wise summary
+      const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
+      let areaRows = areas.map(area => {
+        const aSales = sales.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
+        const aColl = colls.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
+        const aPurch = purchases.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
+        return `<tr><td><strong>${area}</strong></td><td>₹${aSales.toLocaleString('en-IN')}</td><td>₹${aColl.toLocaleString('en-IN')}</td><td>₹${aPurch.toLocaleString('en-IN')}</td></tr>`;
+      }).join('');
+      document.getElementById('adminRepAreaBody').innerHTML = areaRows;
+
+      // Sales table
+      let salesRows = sales.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      document.getElementById('adminRepSalesBody').innerHTML = salesRows ||
+        '<tr><td colspan="6">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+
+      // Purchase table
+      let purchaseRows = purchases.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      document.getElementById('adminRepPurchaseBody').innerHTML = purchaseRows ||
+        '<tr><td colspan="5">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
+
+      // Collection table
+      let collRows = colls.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      document.getElementById('adminRepCollBody').innerHTML = collRows ||
+        '<tr><td colspan="5">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+
+      // Lot Balance — all areas, grouped by Area+Product+Godown
+      const lotMap = {};
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.godown || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      const lotEntries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
+      let lotRows = lotEntries.map(([key, qty]) => {
+        const [area, product, godown] = key.split('|');
+        return `<tr><td>${area}</td><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('adminRepLotBody').innerHTML = lotRows ||
+        '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+
+      // Vehicle Stock — all areas
+      const vsMap = {};
+      vsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.vehicle || '-');
+        vsMap[key] = (vsMap[key] || 0) + (d.qty || 0);
+      });
+      const vsEntries = Object.entries(vsMap).sort((a, b) => a[0].localeCompare(b[0]));
+      let vsRows = vsEntries.map(([key, qty]) => {
+        const [area, product, vehicle] = key.split('|');
+        return `<tr><td>${area}</td><td>${product}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('adminRepVehicleStockBody').innerHTML = vsRows ||
+        '<tr><td colspan="4">Vehicle stock ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
       console.error(err);
