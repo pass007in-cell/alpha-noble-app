@@ -154,15 +154,15 @@
   </div>
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
-    <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Customers</button>
+    <button id="tabPurchaseBtn" onclick="switchTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Purchase</button>
     <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale Entry</button>
     <button id="tabCollectionBtn" onclick="switchTab('collection')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Collection</button>
-    <button id="tabPurchaseBtn" onclick="switchTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Purchase</button>
+    <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
-    <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Reports</button>
+    <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
   </div>
 
-  <div id="tabCustomers">
+  <div id="tabCustomers" style="display:none;">
   <div class="add-user-form">
     <h3>+ Add New Customer</h3>
     <div class="error-msg" id="custErrorMsg"></div>
@@ -190,16 +190,6 @@
       Private Customer (Retailer അല്ല) — save ചെയ്യുമ്പോൾ "PVT-" prefix automatic ആയി ചേർക്കും
     </label>
     <button class="full-btn" id="addCustBtn" onclick="handleAddCustomer()">Add Customer</button>
-
-    <div style="margin-top:16px; padding-top:16px; border-top:1px dashed #ccc;">
-      <label style="margin-bottom:8px;">📂 Bulk Upload (CSV file)</label>
-      <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        CSV columns (ക്രമത്തിൽ): Name, Phone, OpeningBalance, Notes — ആദ്യ വരി header ആയാൽ automatic ആയി skip ചെയ്യും.
-      </p>
-      <input type="file" id="csvFileInput" accept=".csv" style="margin-bottom:10px;">
-      <button class="full-btn" style="background:#2e7d32;" onclick="handleCsvUpload()">Upload CSV</button>
-      <div id="csvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
-    </div>
   </div>
 
   <h3 style="color:#1e3c72; margin-bottom:8px;">Customers (<span id="custCount">0</span>)</h3>
@@ -461,7 +451,7 @@
     </div>
   </div>
 
-  <div id="tabReports" style="display:none;">
+  <div id="tabReports">
     <div class="add-user-form">
       <h3>📊 Reports</h3>
       <div class="form-grid">
@@ -482,13 +472,13 @@
         <p style="font-size:12px; color:#e65100; font-weight:600;">SALES</p>
         <p style="font-size:18px; font-weight:700; color:#e65100;" id="repSalesTotal">₹0</p>
       </div>
-      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE</p>
-        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">₹0</p>
-      </div>
       <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
         <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION</p>
         <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="repCollTotal">₹0</p>
+      </div>
+      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE</p>
+        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">₹0</p>
       </div>
     </div>
 
@@ -500,6 +490,14 @@
       </table>
     </div>
 
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
+        <tbody id="repCollBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
+
     <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
@@ -508,11 +506,14 @@
       </table>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Current Stock)</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Godown-വാരിയായി, ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
+    </p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
-        <tbody id="repCollBody"><tr><td colspan="4">—</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
+        <tbody id="repLotBody"><tr><td colspan="3">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -697,6 +698,23 @@
     </div>
 
     <div class="add-user-form">
+      <h3>📂 Bulk Upload — Customers (CSV)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        CSV columns (ക്രമത്തിൽ): Name, Phone, OpeningBalance, Notes — ആദ്യ വരി header ആയാൽ automatic ആയി skip ചെയ്യും.
+      </p>
+      <label>Area</label>
+      <select id="customerCsvArea" style="margin-bottom:10px;">
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+      <input type="file" id="customerCsvInput" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#2e7d32;" onclick="handleCustomerCsvUploadAdmin()">Upload Customers CSV</button>
+      <div id="customerCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+    </div>
+
+    <div class="add-user-form">
       <h3>📂 Bulk Upload — Old Sales (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, CustomerName, Product, Godown, Qty, Rate, Amount<br>
@@ -871,13 +889,14 @@
 
   let currentUserData = null;
 
-  function showDashboard(userData) {
+  async function showDashboard(userData) {
     currentUserData = userData;
     document.getElementById('centerWrap').style.display = 'none';
     document.getElementById('userBox').style.display = 'block';
     document.getElementById('userAreaLabel').textContent =
       (userData.username || '-') + " — Area: " + (userData.area || '-');
-    loadCustomersList();
+    await loadCustomersList(); // preload customers (used by Sale/Collection dropdowns too)
+    switchTab('reports');
   }
 
   function showAdminPanel(userData) {
@@ -1280,88 +1299,8 @@
     return result;
   }
 
-  window.handleCsvUpload = async function () {
-    const fileInput = document.getElementById('csvFileInput');
-    const statusEl = document.getElementById('csvStatus');
-    const file = fileInput.files[0];
-
-    if (!file) {
-      statusEl.style.color = '#d32f2f';
-      statusEl.textContent = "CSV file select ചെയ്യുക.";
-      return;
-    }
-
-    statusEl.style.color = '#555';
-    statusEl.textContent = "Reading file...";
-
-    try {
-      const text = await file.text();
-      let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-
-      if (lines.length === 0) {
-        statusEl.style.color = '#d32f2f';
-        statusEl.textContent = "File empty ആണ്.";
-        return;
-      }
-
-      // Detect and skip header row
-      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
-      if (firstCols[0] && (firstCols[0].includes('name'))) {
-        lines = lines.slice(1);
-      }
-
-      if (lines.length === 0) {
-        statusEl.style.color = '#d32f2f';
-        statusEl.textContent = "Data rows കണ്ടെത്തിയില്ല.";
-        return;
-      }
-
-      statusEl.textContent = `Uploading 0 / ${lines.length}...`;
-
-      let successCount = 0;
-      let failCount = 0;
-
-      for (let i = 0; i < lines.length; i++) {
-        const cols = parseCsvLine(lines[i]);
-        const name = (cols[0] || '').trim();
-        const phone = (cols[1] || '').trim();
-        const openingBalance = parseFloat(cols[2]) || 0;
-        const notes = (cols[3] || '').trim();
-
-        if (!name) { failCount++; continue; }
-
-        try {
-          await addDoc(collection(db, "customers"), {
-            name: name,
-            phone: phone,
-            area: currentUserData.area,
-            openingBalance: openingBalance,
-            notes: notes,
-            createdBy: currentUserData.username || 'unknown',
-            createdAt: new Date().toISOString()
-          });
-          successCount++;
-        } catch (e) {
-          failCount++;
-        }
-
-        statusEl.textContent = `Uploading ${i + 1} / ${lines.length}...`;
-      }
-
-      statusEl.style.color = '#2e7d32';
-      statusEl.textContent = `Done! ${successCount} customers added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
-      fileInput.value = '';
-      loadCustomersList();
-
-    } catch (err) {
-      console.error(err);
-      statusEl.style.color = '#d32f2f';
-      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
-    }
-  };
-
   // ---- TAB SWITCHING ----
-  const allTabs = ['customers', 'sale', 'collection', 'purchase', 'vehicle', 'reports'];
+  const allTabs = ['purchase', 'sale', 'collection', 'customers', 'vehicle', 'reports'];
 
   window.switchTab = function (tab) {
     allTabs.forEach(t => {
@@ -1401,6 +1340,7 @@
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('reportFrom').value) document.getElementById('reportFrom').value = todayStr;
       if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
+      generateReport();
     }
   };
 
@@ -2243,6 +2183,7 @@
     document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     document.getElementById('repCollBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repLotBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
 
     try {
       const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
@@ -2291,6 +2232,24 @@
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
         '<tr><td colspan="4">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+
+      // Lot Balance (current stock, not date-filtered) — aggregate remainingQty by Product+Godown
+      const lotMap = {};
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.product || '-') + '|' + (d.godown || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      const lotEntries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
+      let lotRows = lotEntries.map(([key, qty]) => {
+        const [product, godown] = key.split('|');
+        return `<tr><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('repLotBody').innerHTML = lotRows ||
+        '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
       console.error(err);
@@ -2344,6 +2303,86 @@
   };
 
   // ---- ADMIN: BULK UPLOAD OLD SALES (CSV) ----
+  // ---- ADMIN: BULK UPLOAD CUSTOMERS (CSV) ----
+  window.handleCustomerCsvUploadAdmin = async function () {
+    const fileInput = document.getElementById('customerCsvInput');
+    const statusEl = document.getElementById('customerCsvStatus');
+    const area = document.getElementById('customerCsvArea').value;
+    const file = fileInput.files[0];
+
+    if (!file) {
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV file select ചെയ്യുക.";
+      return;
+    }
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Reading file...";
+
+    try {
+      const text = await file.text();
+      let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+
+      if (lines.length === 0) {
+        statusEl.style.color = '#d32f2f';
+        statusEl.textContent = "File empty ആണ്.";
+        return;
+      }
+
+      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
+      if (firstCols[0] && (firstCols[0].includes('name'))) {
+        lines = lines.slice(1);
+      }
+
+      if (lines.length === 0) {
+        statusEl.style.color = '#d32f2f';
+        statusEl.textContent = "Data rows കണ്ടെത്തിയില്ല.";
+        return;
+      }
+
+      statusEl.textContent = `Uploading 0 / ${lines.length}...`;
+
+      let successCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const name = (cols[0] || '').trim();
+        const phone = (cols[1] || '').trim();
+        const openingBalance = parseFloat(cols[2]) || 0;
+        const notes = (cols[3] || '').trim();
+
+        if (!name) { failCount++; continue; }
+
+        try {
+          await addDoc(collection(db, "customers"), {
+            name: name,
+            phone: phone,
+            area: area,
+            openingBalance: openingBalance,
+            notes: notes,
+            createdBy: currentUserData.username || 'unknown',
+            createdAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+
+        statusEl.textContent = `Uploading ${i + 1} / ${lines.length}...`;
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${successCount} customers added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
+    }
+  };
+
   window.handleSalesCsvUpload = async function () {
     const fileInput = document.getElementById('salesCsvInput');
     const statusEl = document.getElementById('salesCsvStatus');
