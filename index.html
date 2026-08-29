@@ -179,6 +179,10 @@
         <input type="text" id="custNotes" placeholder="e.g. Near bus stand">
       </div>
     </div>
+    <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px; font-weight:400; font-size:14px;">
+      <input type="checkbox" id="custIsPrivate" style="width:auto; margin:0;">
+      Private Customer (Retailer അല്ല) — save ചെയ്യുമ്പോൾ "PVT-" prefix automatic ആയി ചേർക്കും
+    </label>
     <button class="full-btn" id="addCustBtn" onclick="handleAddCustomer()">Add Customer</button>
 
     <div style="margin-top:16px; padding-top:16px; border-top:1px dashed #ccc;">
@@ -213,9 +217,21 @@
       <div class="success-msg" id="saleSuccessMsg"></div>
 
       <label>Customer</label>
-      <select id="saleCustomer" style="margin-bottom:16px;">
+      <select id="saleCustomer" onchange="onSaleCustomerChange()" style="margin-bottom:8px;">
         <option value="">-- Select Customer --</option>
       </select>
+
+      <div id="quickAddCustBox" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
+        <h4 style="color:#1e3c72; font-size:14px; margin-bottom:10px;">+ പുതിയ Customer</h4>
+        <div class="error-msg" id="quickCustErrorMsg"></div>
+        <input type="text" id="quickCustName" placeholder="Customer Name" style="margin-bottom:10px;">
+        <input type="text" id="quickCustPhone" placeholder="Phone (optional)" style="margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:400; font-size:13px;">
+          <input type="checkbox" id="quickCustIsPrivate" style="width:auto; margin:0;">
+          Private Customer ("PVT-" prefix ചേർക്കും)
+        </label>
+        <button class="full-btn" style="background:#2e7d32;" onclick="handleQuickAddCustomer()">Save &amp; Select</button>
+      </div>
 
       <div class="form-grid">
         <div>
@@ -663,10 +679,11 @@
   let allCustomers = [];
 
   window.handleAddCustomer = async function () {
-    const name = document.getElementById('custName').value.trim();
+    let name = document.getElementById('custName').value.trim();
     const phone = document.getElementById('custPhone').value.trim();
     const openingBalance = parseFloat(document.getElementById('custOpeningBalance').value) || 0;
     const notes = document.getElementById('custNotes').value.trim();
+    const isPrivate = document.getElementById('custIsPrivate').checked;
     const errEl = document.getElementById('custErrorMsg');
     const okEl = document.getElementById('custSuccessMsg');
     const btn = document.getElementById('addCustBtn');
@@ -680,6 +697,10 @@
       return;
     }
 
+    if (isPrivate && !name.toUpperCase().startsWith('PVT-')) {
+      name = 'PVT-' + name;
+    }
+
     btn.disabled = true;
     btn.textContent = "Adding...";
 
@@ -690,6 +711,7 @@
         area: currentUserData.area,
         openingBalance: openingBalance,
         notes: notes,
+        isPrivate: isPrivate,
         createdBy: currentUserData.username || 'unknown',
         createdAt: new Date().toISOString()
       });
@@ -701,6 +723,7 @@
       document.getElementById('custPhone').value = '';
       document.getElementById('custOpeningBalance').value = '0';
       document.getElementById('custNotes').value = '';
+      document.getElementById('custIsPrivate').checked = false;
 
       loadCustomersList();
 
@@ -714,24 +737,32 @@
     }
   };
 
-  // ---- CUSTOMER: List (filtered by logged-in user's area) ----
+  // ---- CUSTOMER: List (fetch ALL for sale dropdown; Customers tab shows own area only) ----
   async function loadCustomersList() {
     const tbody = document.getElementById('custTableBody');
     tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
-      const q = query(collection(db, "customers"), where("area", "==", currentUserData.area));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "customers"));
 
       allCustomers = [];
       snap.forEach((docSnap) => {
         allCustomers.push({ id: docSnap.id, ...docSnap.data() });
       });
 
-      // Sort alphabetically by name
-      allCustomers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+      // Own area first, then others; alphabetical within each group
+      // (order used by the Sale Entry dropdown)
+      const myArea = currentUserData.area;
+      allCustomers.sort((a, b) => {
+        const aOwn = a.area === myArea ? 0 : 1;
+        const bOwn = b.area === myArea ? 0 : 1;
+        if (aOwn !== bOwn) return aOwn - bOwn;
+        return (a.name || '').localeCompare(b.name || '');
+      });
 
-      renderCustomers(allCustomers);
+      // Customers tab shows only this user's own area
+      const ownAreaCustomers = allCustomers.filter(c => c.area === myArea);
+      renderCustomers(ownAreaCustomers);
     } catch (err) {
       console.error(err);
       tbody.innerHTML = '<tr><td colspan="4">Error loading customers.</td></tr>';
@@ -762,11 +793,12 @@
 
   window.filterCustomers = function () {
     const term = document.getElementById('custSearch').value.trim().toLowerCase();
+    const ownAreaCustomers = allCustomers.filter(c => c.area === currentUserData.area);
     if (!term) {
-      renderCustomers(allCustomers);
+      renderCustomers(ownAreaCustomers);
       return;
     }
-    const filtered = allCustomers.filter(c =>
+    const filtered = ownAreaCustomers.filter(c =>
       (c.name || '').toLowerCase().includes(term) ||
       (c.phone || '').toLowerCase().includes(term)
     );
@@ -972,14 +1004,70 @@
 
   function populateSaleCustomerDropdown() {
     const sel = document.getElementById('saleCustomer');
-    sel.innerHTML = '<option value="">-- Select Customer --</option>';
+    sel.innerHTML = '<option value="">-- Select Customer --</option><option value="__new__" style="font-weight:700; color:#2e7d32;">+ Add New Customer</option>';
     allCustomers.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '');
+      const areaTag = c.area === currentUserData.area ? '' : ` [${c.area}]`;
+      opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '') + areaTag;
       sel.appendChild(opt);
     });
   }
+
+  window.onSaleCustomerChange = function () {
+    const sel = document.getElementById('saleCustomer');
+    const quickBox = document.getElementById('quickAddCustBox');
+    if (sel.value === '__new__') {
+      quickBox.style.display = 'block';
+    } else {
+      quickBox.style.display = 'none';
+    }
+  };
+
+  window.handleQuickAddCustomer = async function () {
+    let name = document.getElementById('quickCustName').value.trim();
+    const phone = document.getElementById('quickCustPhone').value.trim();
+    const isPrivate = document.getElementById('quickCustIsPrivate').checked;
+    const errEl = document.getElementById('quickCustErrorMsg');
+
+    errEl.style.display = 'none';
+
+    if (!name) {
+      errEl.textContent = "Customer Name നൽകുക";
+      errEl.style.display = 'block';
+      return;
+    }
+
+    if (isPrivate && !name.toUpperCase().startsWith('PVT-')) {
+      name = 'PVT-' + name;
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "customers"), {
+        name: name,
+        phone: phone,
+        area: currentUserData.area,
+        openingBalance: 0,
+        notes: '',
+        isPrivate: isPrivate,
+        createdBy: currentUserData.username || 'unknown',
+        createdAt: new Date().toISOString()
+      });
+
+      allCustomers.push({ id: docRef.id, name, phone, area: currentUserData.area, openingBalance: 0, isPrivate });
+      populateSaleCustomerDropdown();
+      document.getElementById('saleCustomer').value = docRef.id;
+      document.getElementById('quickAddCustBox').style.display = 'none';
+      document.getElementById('quickCustName').value = '';
+      document.getElementById('quickCustPhone').value = '';
+      document.getElementById('quickCustIsPrivate').checked = false;
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
 
   // ---- SALE: Add ----
   window.handleAddSale = async function () {
@@ -996,7 +1084,7 @@
     errEl.style.display = 'none';
     okEl.style.display = 'none';
 
-    if (!custId) {
+    if (!custId || custId === '__new__') {
       errEl.textContent = "Customer select ചെയ്യുക";
       errEl.style.display = 'block';
       return;
