@@ -116,7 +116,7 @@
       <div class="error-msg" id="errorMsg"></div>
 
       <label for="areaSelect">Area</label>
-      <select id="areaSelect">
+      <select id="areaSelect" onchange="onAreaChange()">
         <option value="MKD">MKD - Mannarkkad</option>
         <option value="PKD">PKD - Palakkad</option>
         <option value="MLT">MLT - Melattur</option>
@@ -125,7 +125,9 @@
       </select>
 
       <label for="username">Username</label>
-      <input type="text" id="username" placeholder="Username" autocomplete="off">
+      <select id="username">
+        <option value="">-- Select Username --</option>
+      </select>
 
       <label for="pin">PIN</label>
       <input type="password" id="pin" placeholder="4-6 characters" autocomplete="off">
@@ -147,9 +149,11 @@
     <button class="logout-btn" style="width:auto; margin-top:0;" onclick="handleLogout()">Logout</button>
   </div>
 
-  <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee;">
+  <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale Entry</button>
+    <button id="tabGodownBtn" onclick="switchTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
+    <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
   </div>
 
   <div id="tabCustomers">
@@ -247,6 +251,58 @@
         <tbody id="saleTableBody">
           <tr><td colspan="4">Loading...</td></tr>
         </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tabGodown" style="display:none;">
+    <div class="add-user-form">
+      <h3>🏬 Add Godown</h3>
+      <div class="error-msg" id="godownErrorMsg"></div>
+      <div class="success-msg" id="godownSuccessMsg"></div>
+      <div class="form-grid">
+        <div>
+          <label>Godown Name</label>
+          <input type="text" id="godownName" placeholder="e.g. Main Godown">
+        </div>
+        <div>
+          <label>Location (optional)</label>
+          <input type="text" id="godownLocation" placeholder="e.g. Near market">
+        </div>
+      </div>
+      <button class="full-btn" id="addGodownBtn" onclick="handleAddGodown()">Add Godown</button>
+    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Godowns</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Location</th><th></th></tr></thead>
+        <tbody id="godownTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tabVehicle" style="display:none;">
+    <div class="add-user-form">
+      <h3>🚚 Add Vehicle</h3>
+      <div class="error-msg" id="vehicleErrorMsg"></div>
+      <div class="success-msg" id="vehicleSuccessMsg"></div>
+      <div class="form-grid">
+        <div>
+          <label>Vehicle Number</label>
+          <input type="text" id="vehicleNumber" placeholder="e.g. KL-09-AB-1234">
+        </div>
+        <div>
+          <label>Driver Name (optional)</label>
+          <input type="text" id="vehicleDriver" placeholder="e.g. Rajan">
+        </div>
+      </div>
+      <button class="full-btn" id="addVehicleBtn" onclick="handleAddVehicle()">Add Vehicle</button>
+    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Vehicles</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Number</th><th>Driver</th><th></th></tr></thead>
+        <tbody id="vehicleTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -388,6 +444,27 @@
     const clean = username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     return `${clean}_${area.toLowerCase()}@alphanoble.app`;
   }
+
+  window.onAreaChange = async function () {
+    const area = document.getElementById('areaSelect').value;
+    const usernameSel = document.getElementById('username');
+    usernameSel.innerHTML = '<option value="">Loading...</option>';
+    try {
+      const q = query(collection(db, "users"), where("area", "==", area));
+      const snap = await getDocs(q);
+      let opts = '<option value="">-- Select Username --</option>';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        opts += `<option value="${d.username}">${d.username}</option>`;
+      });
+      usernameSel.innerHTML = opts;
+    } catch (err) {
+      console.error(err);
+      usernameSel.innerHTML = '<option value="">-- Select Username --</option>';
+    }
+  };
+
+  onAreaChange();
 
   window.handleLogin = async function () {
     const area = document.getElementById('areaSelect').value;
@@ -859,29 +936,31 @@
   };
 
   // ---- TAB SWITCHING ----
-  window.switchTab = function (tab) {
-    const custTab = document.getElementById('tabCustomers');
-    const saleTab = document.getElementById('tabSale');
-    const custBtn = document.getElementById('tabCustomersBtn');
-    const saleBtn = document.getElementById('tabSaleBtn');
+  const allTabs = ['customers', 'sale', 'godown', 'vehicle'];
 
-    if (tab === 'customers') {
-      custTab.style.display = 'block';
-      saleTab.style.display = 'none';
-      custBtn.style.color = '#1e3c72';
-      custBtn.style.borderBottomColor = '#1e3c72';
-      saleBtn.style.color = '#888';
-      saleBtn.style.borderBottomColor = 'transparent';
-    } else {
-      custTab.style.display = 'none';
-      saleTab.style.display = 'block';
-      saleBtn.style.color = '#1e3c72';
-      saleBtn.style.borderBottomColor = '#1e3c72';
-      custBtn.style.color = '#888';
-      custBtn.style.borderBottomColor = 'transparent';
+  window.switchTab = function (tab) {
+    allTabs.forEach(t => {
+      const panel = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
+      const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn');
+      if (t === tab) {
+        panel.style.display = 'block';
+        btn.style.color = '#1e3c72';
+        btn.style.borderBottomColor = '#1e3c72';
+      } else {
+        panel.style.display = 'none';
+        btn.style.color = '#888';
+        btn.style.borderBottomColor = 'transparent';
+      }
+    });
+
+    if (tab === 'sale') {
       populateSaleCustomerDropdown();
       document.getElementById('saleDate').valueAsDate = new Date();
       loadTodaysSales();
+    } else if (tab === 'godown') {
+      loadGodowns();
+    } else if (tab === 'vehicle') {
+      loadVehicles();
     }
   };
 
@@ -1012,6 +1091,116 @@
       tbody.innerHTML = '<tr><td colspan="4">Error loading sales.</td></tr>';
     }
   }
+
+  // ---- GODOWN ----
+  window.handleAddGodown = async function () {
+    const name = document.getElementById('godownName').value.trim();
+    const location = document.getElementById('godownLocation').value.trim();
+    const errEl = document.getElementById('godownErrorMsg');
+    const okEl = document.getElementById('godownSuccessMsg');
+    const btn = document.getElementById('addGodownBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    if (!name) { errEl.textContent = "Godown Name നൽകുക"; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = "Adding...";
+    try {
+      await addDoc(collection(db, "godowns"), {
+        name: name, location: location, area: currentUserData.area,
+        createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+      okEl.textContent = `"${name}" ചേർത്തു.`; okEl.style.display = 'block';
+      document.getElementById('godownName').value = '';
+      document.getElementById('godownLocation').value = '';
+      loadGodowns();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല."; errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Godown";
+    }
+  };
+
+  async function loadGodowns() {
+    const tbody = document.getElementById('godownTableBody');
+    tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    try {
+      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="3">Godowns ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        rows += `<tr><td>${d.name || '-'}</td><td>${d.location || '-'}</td>
+          <td><button class="del-btn" onclick="handleDeleteGodown('${docSnap.id}')">Remove</button></td></tr>`;
+      });
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="3">Error loading.</td></tr>';
+    }
+  }
+
+  window.handleDeleteGodown = async function (id) {
+    if (!confirm("ഈ godown ഒഴിവാക്കണോ?")) return;
+    try { await deleteDoc(doc(db, "godowns", id)); loadGodowns(); }
+    catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // ---- VEHICLE ----
+  window.handleAddVehicle = async function () {
+    const number = document.getElementById('vehicleNumber').value.trim();
+    const driver = document.getElementById('vehicleDriver').value.trim();
+    const errEl = document.getElementById('vehicleErrorMsg');
+    const okEl = document.getElementById('vehicleSuccessMsg');
+    const btn = document.getElementById('addVehicleBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    if (!number) { errEl.textContent = "Vehicle Number നൽകുക"; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = "Adding...";
+    try {
+      await addDoc(collection(db, "vehicles"), {
+        number: number, driver: driver, area: currentUserData.area,
+        createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+      okEl.textContent = `"${number}" ചേർത്തു.`; okEl.style.display = 'block';
+      document.getElementById('vehicleNumber').value = '';
+      document.getElementById('vehicleDriver').value = '';
+      loadVehicles();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല."; errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Vehicle";
+    }
+  };
+
+  async function loadVehicles() {
+    const tbody = document.getElementById('vehicleTableBody');
+    tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    try {
+      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="3">Vehicles ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        rows += `<tr><td>${d.number || '-'}</td><td>${d.driver || '-'}</td>
+          <td><button class="del-btn" onclick="handleDeleteVehicle('${docSnap.id}')">Remove</button></td></tr>`;
+      });
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="3">Error loading.</td></tr>';
+    }
+  }
+
+  window.handleDeleteVehicle = async function (id) {
+    if (!confirm("ഈ vehicle ഒഴിവാക്കണോ?")) return;
+    try { await deleteDoc(doc(db, "vehicles", id)); loadVehicles(); }
+    catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
