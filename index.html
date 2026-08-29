@@ -100,6 +100,10 @@
     font-size: 12px; border-radius: 6px;
   }
   .table-wrap { overflow-x: auto; }
+  .lot-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
+  .lot-row select { flex:2; margin-bottom:0; width:auto; }
+  .lot-row input { flex:1; margin-bottom:0; width:auto; }
+  .lot-row .lot-remove { cursor:pointer; color:#c62828; font-size:18px; padding:0 4px; }
 </style>
 </head>
 <body>
@@ -152,8 +156,10 @@
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale Entry</button>
+    <button id="tabCollectionBtn" onclick="switchTab('collection')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Collection</button>
     <button id="tabPurchaseBtn" onclick="switchTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Purchase</button>
     <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
+    <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Reports</button>
   </div>
 
   <div id="tabCustomers">
@@ -237,7 +243,7 @@
       <div class="form-grid">
         <div>
           <label>Item / Product</label>
-          <select id="saleProduct">
+          <select id="saleProduct" onchange="refreshAvailableLots()">
             <option value="">-- Select Product --</option>
           </select>
         </div>
@@ -247,7 +253,7 @@
         </div>
         <div>
           <label>Godown</label>
-          <select id="saleGodown">
+          <select id="saleGodown" onchange="refreshAvailableLots()">
             <option value="">-- Select Godown --</option>
           </select>
         </div>
@@ -259,7 +265,7 @@
         </div>
         <div>
           <label>Quantity</label>
-          <input type="number" id="saleQty" placeholder="1" value="1" oninput="calcSaleAmount()">
+          <input type="number" id="saleQty" placeholder="1" value="1" oninput="calcSaleAmount(); checkLotQtyTotal();">
         </div>
         <div>
           <label>Unit Price (₹)</label>
@@ -283,6 +289,20 @@
         </div>
       </div>
 
+      <div style="margin: 10px 0 16px;">
+        <label style="display:flex; align-items:center; gap:8px; font-weight:400; font-size:14px; margin-bottom:12px;">
+          <input type="checkbox" id="saleIsAdvance" style="width:auto; margin:0;" onchange="toggleAdvanceSale()">
+          Advance Sale <span style="color:#999; font-weight:400;">(Purchase ഇതുവരെ ചെയ്തിട്ടില്ല)</span>
+        </label>
+
+        <div id="lotSection">
+          <label>Purchase Lot(s) <span style="color:#999; font-weight:400;">(qty split ചെയ്യാം)</span></label>
+          <div id="lotRows"></div>
+          <button type="button" onclick="addLotRow()" style="background:none; border:1.5px dashed #1e3c72; color:#1e3c72; padding:9px 14px; font-size:13px; width:auto;">+ Add Lot</button>
+          <div id="lotQtyWarning" style="font-size:12px; color:#d32f2f; margin-top:8px; display:none;"></div>
+        </div>
+      </div>
+
       <div style="display:flex; gap:10px;">
         <button style="flex:1;" id="addSaleBtn" onclick="handleAddSale()">Save Sale</button>
         <button style="flex:1; background:#999;" type="button" onclick="clearSaleForm()">Clear</button>
@@ -298,6 +318,66 @@
         <tbody id="saleTableBody">
           <tr><td colspan="4">Loading...</td></tr>
         </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tabCollection" style="display:none;">
+    <div class="add-user-form">
+      <h3>💰 New Collection Entry</h3>
+      <div class="error-msg" id="collErrorMsg"></div>
+      <div class="success-msg" id="collSuccessMsg"></div>
+
+      <label>Customer</label>
+      <select id="collCustomer" onchange="onCollCustomerChange()" style="margin-bottom:8px;">
+        <option value="">-- Select Customer --</option>
+      </select>
+      <button type="button" style="background:none; border:1.5px dashed #2e7d32; color:#2e7d32; width:100%; padding:10px; margin-bottom:16px; font-size:14px;" onclick="toggleQuickAddCustColl()">+ പുതിയ Customer Add ചെയ്യുക</button>
+
+      <div id="quickAddCustBoxColl" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
+        <h4 style="color:#1e3c72; font-size:14px; margin-bottom:10px;">+ പുതിയ Customer</h4>
+        <div class="error-msg" id="quickCustErrorMsgColl"></div>
+        <input type="text" id="quickCustNameColl" placeholder="Customer Name" style="margin-bottom:10px;">
+        <input type="text" id="quickCustPhoneColl" placeholder="Phone (optional)" style="margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:400; font-size:13px;">
+          <input type="checkbox" id="quickCustIsPrivateColl" style="width:auto; margin:0;">
+          Private Customer ("PVT-" prefix ചേർക്കും)
+        </label>
+        <button class="full-btn" style="background:#2e7d32;" onclick="handleQuickAddCustomerColl()">Save &amp; Select</button>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label>Amount (₹)</label>
+          <input type="number" id="collAmount" placeholder="0" value="0">
+        </div>
+        <div>
+          <label>Date</label>
+          <input type="date" id="collDate">
+        </div>
+        <div>
+          <label>Mode</label>
+          <select id="collMode">
+            <option value="Cash">Cash</option>
+            <option value="Bank">Bank Transfer</option>
+            <option value="UPI">UPI</option>
+            <option value="Cheque">Cheque</option>
+          </select>
+        </div>
+        <div>
+          <label>Notes (optional)</label>
+          <input type="text" id="collNotes" placeholder="e.g. Ref number">
+        </div>
+      </div>
+
+      <button class="full-btn" id="addCollBtn" onclick="handleAddCollection()">Save Collection</button>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Collections</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
+        <tbody id="collTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -383,6 +463,62 @@
       </table>
     </div>
   </div>
+
+  <div id="tabReports" style="display:none;">
+    <div class="add-user-form">
+      <h3>📊 Reports</h3>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="reportFrom">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="reportTo">
+        </div>
+      </div>
+      <button class="full-btn" onclick="generateReport()">Generate Report</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px;">
+      <div style="background:#fff3e0; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#e65100; font-weight:600;">SALES</p>
+        <p style="font-size:18px; font-weight:700; color:#e65100;" id="repSalesTotal">₹0</p>
+      </div>
+      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE</p>
+        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">₹0</p>
+      </div>
+      <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION</p>
+        <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="repCollTotal">₹0</p>
+      </div>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Amount</th></tr></thead>
+        <tbody id="repSalesBody"><tr><td colspan="4">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Date</th><th>Product</th><th>Supplier</th><th>Amount</th></tr></thead>
+        <tbody id="repPurchaseBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
+        <tbody id="repCollBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- CUSTOMER LEDGER MODAL -->
@@ -419,6 +555,7 @@
     <button id="tabAdminUsersBtn" onclick="switchAdminTab('users')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Users</button>
     <button id="tabAdminGodownBtn" onclick="switchAdminTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
     <button id="tabAdminProductBtn" onclick="switchAdminTab('product')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Product</button>
+    <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
   </div>
 
   <div id="tabAdminUsers">
@@ -529,6 +666,62 @@
       </table>
     </div>
   </div>
+
+  <div id="tabAdminData" style="display:none;">
+
+    <div class="add-user-form" style="background:#fff3e0;">
+      <h3 style="color:#e65100;">⚠️ Bulk Delete (Test Data)</h3>
+      <p style="font-size:13px; color:#777; margin-bottom:14px;">
+        Test ചെയ്യാൻ ഉപയോഗിച്ച data ഒറ്റയടിക്ക് നീക്കാൻ. <strong>ഈ action permanent ആണ്, തിരിച്ചെടുക്കാൻ പറ്റില്ല.</strong>
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>Data Type</label>
+          <select id="deleteDataType">
+            <option value="customers">Customers</option>
+            <option value="sales">Sales</option>
+            <option value="purchases">Purchases</option>
+            <option value="collections">Collections</option>
+          </select>
+        </div>
+        <div>
+          <label>Area</label>
+          <select id="deleteDataArea">
+            <option value="ALL">-- All Areas --</option>
+            <option value="MKD">MKD - Mannarkkad</option>
+            <option value="PKD">PKD - Palakkad</option>
+            <option value="MLT">MLT - Melattur</option>
+            <option value="NLB">NLB - Nilambur</option>
+          </select>
+        </div>
+      </div>
+      <button class="full-btn" style="background:#c62828;" onclick="handleBulkDelete()">🗑️ Delete Selected Data</button>
+      <div id="bulkDeleteStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+    </div>
+
+    <div class="add-user-form">
+      <h3>📂 Bulk Upload — Old Sales (CSV)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, CustomerName, Product, Godown, Qty, Rate, Amount<br>
+        CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും. ഈ sales "Advance Sale" ആയാണ് save ആകുന്നത് (stock lot deduction ഇല്ല).
+      </p>
+      <input type="file" id="salesCsvInput" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#2e7d32;" onclick="handleSalesCsvUpload()">Upload Sales CSV</button>
+      <div id="salesCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+    </div>
+
+    <div class="add-user-form">
+      <h3>📂 Bulk Upload — Old Purchases (CSV)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Supplier, Qty, Rate, Amount<br>
+        ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).
+      </p>
+      <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
+      <div id="purchaseCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+    </div>
+
+  </div>
 </div>
 
 <script type="module">
@@ -547,6 +740,8 @@
     doc,
     getDoc,
     setDoc,
+    updateDoc,
+    increment,
     deleteDoc,
     collection,
     getDocs,
@@ -695,7 +890,7 @@
     loadUsersList();
   }
 
-  const allAdminTabs = ['users', 'godown', 'product'];
+  const allAdminTabs = ['users', 'godown', 'product', 'data'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -980,27 +1175,43 @@
     document.getElementById('ledgerOverlay').style.display = 'flex';
 
     try {
-      const q = query(collection(db, "sales"), where("customerId", "==", custId));
-      const snap = await getDocs(q);
+      const salesQ = query(collection(db, "sales"), where("customerId", "==", custId));
+      const collQ = query(collection(db, "collections"), where("customerId", "==", custId));
+      const [salesSnap, collSnap] = await Promise.all([getDocs(salesQ), getDocs(collQ)]);
 
       let sales = [];
-      snap.forEach(docSnap => sales.push(docSnap.data()));
-      sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      salesSnap.forEach(docSnap => sales.push({ ...docSnap.data(), _type: 'sale' }));
+      let colls = [];
+      collSnap.forEach(docSnap => colls.push({ ...docSnap.data(), _type: 'collection' }));
 
-      let totalSales = 0;
+      let allTxns = [...sales, ...colls];
+      allTxns.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      let totalSales = 0, totalColl = 0;
       let rows = '';
-      sales.forEach(s => {
-        totalSales += (s.amount || 0);
-        rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
-          <div>
-            <div style="font-weight:600; color:#333;">${s.product || '-'}</div>
-            <div style="color:#999; font-size:12px;">${s.date || ''} · Qty: ${s.qty || '-'}</div>
-          </div>
-          <div style="color:#c62828; font-weight:600;">+₹${(s.amount || 0).toLocaleString('en-IN')}</div>
-        </div>`;
+      allTxns.forEach(t => {
+        if (t._type === 'sale') {
+          totalSales += (t.amount || 0);
+          rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+            <div>
+              <div style="font-weight:600; color:#333;">${t.product || '-'}</div>
+              <div style="color:#999; font-size:12px;">${t.date || ''} · Qty: ${t.qty || '-'} · Sale</div>
+            </div>
+            <div style="color:#c62828; font-weight:600;">+₹${(t.amount || 0).toLocaleString('en-IN')}</div>
+          </div>`;
+        } else {
+          totalColl += (t.amount || 0);
+          rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+            <div>
+              <div style="font-weight:600; color:#333;">Collection (${t.mode || '-'})</div>
+              <div style="color:#999; font-size:12px;">${t.date || ''}</div>
+            </div>
+            <div style="color:#2e7d32; font-weight:600;">-₹${(t.amount || 0).toLocaleString('en-IN')}</div>
+          </div>`;
+        }
       });
 
-      const currentBalance = opening + totalSales;
+      const currentBalance = opening + totalSales - totalColl;
       document.getElementById('ledgerCurrentBalance').textContent = '₹' + currentBalance.toLocaleString('en-IN');
 
       document.getElementById('ledgerTransactions').innerHTML = rows ||
@@ -1118,7 +1329,7 @@
   };
 
   // ---- TAB SWITCHING ----
-  const allTabs = ['customers', 'sale', 'purchase', 'vehicle'];
+  const allTabs = ['customers', 'sale', 'collection', 'purchase', 'vehicle', 'reports'];
 
   window.switchTab = function (tab) {
     allTabs.forEach(t => {
@@ -1142,6 +1353,10 @@
       populateSaleVehicleDropdown();
       document.getElementById('saleDate').valueAsDate = new Date();
       loadTodaysSales();
+    } else if (tab === 'collection') {
+      populateCollCustomerDropdown();
+      document.getElementById('collDate').valueAsDate = new Date();
+      loadTodaysCollections();
     } else if (tab === 'purchase') {
       populatePurchaseProductDropdown();
       populatePurchaseGodownDropdown();
@@ -1150,6 +1365,10 @@
       loadTodaysPurchases();
     } else if (tab === 'vehicle') {
       loadVehicles();
+    } else if (tab === 'reports') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!document.getElementById('reportFrom').value) document.getElementById('reportFrom').value = todayStr;
+      if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
     }
   };
 
@@ -1161,7 +1380,7 @@
     const gross = qty * rate;
     const discAmt = discRate > 0 ? (gross * discRate / 100) : (parseFloat(document.getElementById('saleDiscAmt').value) || 0);
     document.getElementById('saleDiscAmt').value = discAmt.toFixed(2);
-    document.getElementById('saleAmount').value = (gross - discAmt + freight).toFixed(2);
+    document.getElementById('saleAmount').value = (gross - discAmt - freight).toFixed(2);
   };
 
   window.clearSaleForm = function () {
@@ -1176,6 +1395,10 @@
     document.getElementById('saleFreight').value = '0';
     document.getElementById('saleAmount').value = '0';
     document.getElementById('quickAddCustBox').style.display = 'none';
+    document.getElementById('saleIsAdvance').checked = false;
+    document.getElementById('lotSection').style.display = 'block';
+    document.getElementById('lotRows').innerHTML = '';
+    document.getElementById('lotQtyWarning').style.display = 'none';
   };
 
   async function populateSaleProductDropdown() {
@@ -1328,6 +1551,39 @@
       return;
     }
 
+    const isAdvance = document.getElementById('saleIsAdvance').checked;
+    let lotAllocations = [];
+
+    if (!isAdvance) {
+      const lotSelects = document.querySelectorAll('.lotSelect');
+      const lotQtyInputs = document.querySelectorAll('.lotQty');
+
+      if (lotSelects.length === 0) {
+        errEl.textContent = "Purchase Lot select ചെയ്യുക, അല്ലെങ്കിൽ 'Advance Sale' ആയി mark ചെയ്യുക.";
+        errEl.style.display = 'block';
+        return;
+      }
+
+      let totalLotQty = 0;
+      for (let i = 0; i < lotSelects.length; i++) {
+        const lotId = lotSelects[i].value;
+        const lotQty = parseFloat(lotQtyInputs[i].value) || 0;
+        if (!lotId || lotQty <= 0) {
+          errEl.textContent = "എല്ലാ Lot row-കളിലും Lot ഉം Qty ഉം നൽകുക.";
+          errEl.style.display = 'block';
+          return;
+        }
+        lotAllocations.push({ purchaseId: lotId, qty: lotQty });
+        totalLotQty += lotQty;
+      }
+
+      if (totalLotQty !== qty) {
+        errEl.textContent = `Lot-കളിലെ ആകെ Qty (${totalLotQty}) Sale Qty (${qty}) ന് സമമല്ല.`;
+        errEl.style.display = 'block';
+        return;
+      }
+    }
+
     const cust = allCustomers.find(c => c.id === custId);
 
     btn.disabled = true;
@@ -1348,11 +1604,20 @@
         freight: parseFloat(document.getElementById('saleFreight').value) || 0,
         amount: amount,
         date: date,
+        isAdvance: isAdvance,
+        lots: lotAllocations,
         enteredBy: currentUserData.username || 'unknown',
         createdAt: new Date().toISOString()
       });
 
-      okEl.textContent = `Sale saved: ${cust ? cust.name : ''} — ₹${amount}`;
+      // Deduct sold qty from each purchase lot's remaining stock
+      for (const alloc of lotAllocations) {
+        await updateDoc(doc(db, "purchases", alloc.purchaseId), {
+          remainingQty: increment(-alloc.qty)
+        });
+      }
+
+      okEl.textContent = `Sale saved: ${cust ? cust.name : ''} — ₹${amount}` + (isAdvance ? ' (Advance Sale)' : '');
       okEl.style.display = 'block';
 
       clearSaleForm();
@@ -1653,7 +1918,7 @@
     try {
       await addDoc(collection(db, "purchases"), {
         product: product, godown: godown, vehicle: vehicle, supplier: supplier,
-        area: currentUserData.area, qty: qty, rate: rate, amount: amount, date: date,
+        area: currentUserData.area, qty: qty, remainingQty: qty, rate: rate, amount: amount, date: date,
         enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
       });
 
@@ -1703,6 +1968,458 @@
       tbody.innerHTML = '<tr><td colspan="4">Error loading purchases.</td></tr>';
     }
   }
+
+  // ---- COLLECTION ----
+  function populateCollCustomerDropdown() {
+    const sel = document.getElementById('collCustomer');
+    sel.innerHTML = '<option value="">-- Select Customer --</option><option value="__new__" style="font-weight:700; color:#2e7d32;">+ Add New Customer</option>';
+    allCustomers.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      const areaTag = c.area === currentUserData.area ? '' : ` [${c.area}]`;
+      opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '') + areaTag;
+      sel.appendChild(opt);
+    });
+  }
+
+  window.onCollCustomerChange = function () {
+    const sel = document.getElementById('collCustomer');
+    document.getElementById('quickAddCustBoxColl').style.display = (sel.value === '__new__') ? 'block' : 'none';
+  };
+
+  window.toggleQuickAddCustColl = function () {
+    const box = document.getElementById('quickAddCustBoxColl');
+    box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+  };
+
+  window.handleQuickAddCustomerColl = async function () {
+    let name = document.getElementById('quickCustNameColl').value.trim();
+    const phone = document.getElementById('quickCustPhoneColl').value.trim();
+    const isPrivate = document.getElementById('quickCustIsPrivateColl').checked;
+    const errEl = document.getElementById('quickCustErrorMsgColl');
+    errEl.style.display = 'none';
+
+    if (!name) { errEl.textContent = "Customer Name നൽകുക"; errEl.style.display = 'block'; return; }
+    if (isPrivate && !name.toUpperCase().startsWith('PVT-')) name = 'PVT-' + name;
+
+    try {
+      const docRef = await addDoc(collection(db, "customers"), {
+        name: name, phone: phone, area: currentUserData.area, openingBalance: 0,
+        notes: '', isPrivate: isPrivate, createdBy: currentUserData.username || 'unknown',
+        createdAt: new Date().toISOString()
+      });
+      allCustomers.push({ id: docRef.id, name, phone, area: currentUserData.area, openingBalance: 0, isPrivate });
+      populateCollCustomerDropdown();
+      document.getElementById('collCustomer').value = docRef.id;
+      document.getElementById('quickAddCustBoxColl').style.display = 'none';
+      document.getElementById('quickCustNameColl').value = '';
+      document.getElementById('quickCustPhoneColl').value = '';
+      document.getElementById('quickCustIsPrivateColl').checked = false;
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല."; errEl.style.display = 'block';
+    }
+  };
+
+  window.handleAddCollection = async function () {
+    const custId = document.getElementById('collCustomer').value;
+    const amount = parseFloat(document.getElementById('collAmount').value) || 0;
+    const date = document.getElementById('collDate').value;
+    const mode = document.getElementById('collMode').value;
+    const notes = document.getElementById('collNotes').value.trim();
+    const errEl = document.getElementById('collErrorMsg');
+    const okEl = document.getElementById('collSuccessMsg');
+    const btn = document.getElementById('addCollBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!custId || custId === '__new__') { errEl.textContent = "Customer select ചെയ്യുക"; errEl.style.display = 'block'; return; }
+    if (amount <= 0) { errEl.textContent = "Amount 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
+
+    const cust = allCustomers.find(c => c.id === custId);
+
+    btn.disabled = true; btn.textContent = "Saving...";
+
+    try {
+      await addDoc(collection(db, "collections"), {
+        customerId: custId, customerName: cust ? cust.name : '-', area: currentUserData.area,
+        amount: amount, mode: mode, notes: notes, date: date,
+        enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+
+      okEl.textContent = `Collection saved: ${cust ? cust.name : ''} — ₹${amount}`;
+      okEl.style.display = 'block';
+
+      document.getElementById('collAmount').value = '0';
+      document.getElementById('collNotes').value = '';
+      document.getElementById('collCustomer').value = '';
+      document.getElementById('quickAddCustBoxColl').style.display = 'none';
+
+      loadTodaysCollections();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Collection save ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Save Collection";
+    }
+  };
+
+  async function loadTodaysCollections() {
+    const tbody = document.getElementById('collTableBody');
+    tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const q = query(
+        collection(db, "collections"),
+        where("area", "==", currentUserData.area),
+        where("date", "==", todayStr)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="3">ഇന്ന് collections ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      let total = 0;
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        total += (d.amount || 0);
+        rows += `<tr><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`;
+      });
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="2">Total</td><td>₹${total.toLocaleString('en-IN')}</td></tr>`;
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="3">Error loading collections.</td></tr>';
+    }
+  }
+
+  // ---- ADVANCE SALE / PURCHASE LOT TRACKING ----
+  let availableLots = [];
+
+  window.toggleAdvanceSale = function () {
+    const isAdvance = document.getElementById('saleIsAdvance').checked;
+    document.getElementById('lotSection').style.display = isAdvance ? 'none' : 'block';
+  };
+
+  window.refreshAvailableLots = async function () {
+    const product = document.getElementById('saleProduct').value;
+    const godown = document.getElementById('saleGodown').value;
+    document.getElementById('lotRows').innerHTML = '';
+    availableLots = [];
+
+    if (!product || !godown) return;
+
+    try {
+      const q = query(
+        collection(db, "purchases"),
+        where("area", "==", currentUserData.area),
+        where("product", "==", product),
+        where("godown", "==", godown)
+      );
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, supplier: d.supplier });
+        }
+      });
+      availableLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      if (availableLots.length > 0) addLotRow();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  window.addLotRow = function () {
+    const container = document.getElementById('lotRows');
+    const row = document.createElement('div');
+    row.className = 'lot-row';
+
+    let optionsHtml = '<option value="">-- Select Lot --</option>';
+    availableLots.forEach(l => {
+      optionsHtml += `<option value="${l.id}">${l.date || '-'} · Avail: ${l.remainingQty}${l.supplier ? ' · ' + l.supplier : ''}</option>`;
+    });
+
+    row.innerHTML = `
+      <select class="lotSelect">${optionsHtml}</select>
+      <input type="number" class="lotQty" placeholder="Qty" oninput="checkLotQtyTotal()">
+      <span class="lot-remove" onclick="this.parentElement.remove(); checkLotQtyTotal();">✕</span>
+    `;
+    container.appendChild(row);
+  };
+
+  window.checkLotQtyTotal = function () {
+    const saleQty = parseFloat(document.getElementById('saleQty').value) || 0;
+    const lotQtyInputs = document.querySelectorAll('.lotQty');
+    let total = 0;
+    lotQtyInputs.forEach(inp => total += (parseFloat(inp.value) || 0));
+
+    const warnEl = document.getElementById('lotQtyWarning');
+    if (lotQtyInputs.length > 0 && total !== saleQty) {
+      warnEl.textContent = `Lot-കളിലെ ആകെ Qty (${total}) Sale Qty (${saleQty}) ന് സമമല്ല.`;
+      warnEl.style.display = 'block';
+      return false;
+    } else {
+      warnEl.style.display = 'none';
+      return true;
+    }
+  };
+
+  // ---- REPORTS ----
+  window.generateReport = async function () {
+    const from = document.getElementById('reportFrom').value;
+    const to = document.getElementById('reportTo').value;
+
+    if (!from || !to) {
+      alert("From Date, To Date രണ്ടും select ചെയ്യുക.");
+      return;
+    }
+
+    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+
+    try {
+      const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area))),
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
+        getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area)))
+      ]);
+
+      const inRange = (d) => d && d >= from && d <= to;
+
+      let sales = [], purchases = [], colls = [];
+      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) sales.push(d); });
+      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) purchases.push(d); });
+      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) colls.push(d); });
+
+      sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      purchases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      colls.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      // Totals
+      const salesTotal = sales.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const purchaseTotal = purchases.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const collTotal = colls.reduce((sum, d) => sum + (d.amount || 0), 0);
+
+      document.getElementById('repSalesTotal').textContent = '₹' + salesTotal.toLocaleString('en-IN');
+      document.getElementById('repPurchaseTotal').textContent = '₹' + purchaseTotal.toLocaleString('en-IN');
+      document.getElementById('repCollTotal').textContent = '₹' + collTotal.toLocaleString('en-IN');
+
+      // Sales table
+      let salesRows = sales.map(d => `<tr>
+        <td>${d.date || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      document.getElementById('repSalesBody').innerHTML = salesRows ||
+        '<tr><td colspan="4">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+
+      // Purchase table
+      let purchaseRows = purchases.map(d => `<tr>
+        <td>${d.date || '-'}</td><td>${d.product || '-'}</td><td>${d.supplier || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
+        '<tr><td colspan="4">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
+
+      // Collection table
+      let collRows = colls.map(d => `<tr>
+        <td>${d.date || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      document.getElementById('repCollBody').innerHTML = collRows ||
+        '<tr><td colspan="4">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+
+    } catch (err) {
+      console.error(err);
+      alert("Report load ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  // ---- ADMIN: BULK DELETE ----
+  window.handleBulkDelete = async function () {
+    const dataType = document.getElementById('deleteDataType').value;
+    const area = document.getElementById('deleteDataArea').value;
+    const statusEl = document.getElementById('bulkDeleteStatus');
+
+    const areaLabel = area === 'ALL' ? 'എല്ലാ Areas' : area;
+    if (!confirm(`"${dataType}" (${areaLabel}) ഉള്ള എല്ലാ data-ഉം permanent ആയി delete ചെയ്യണോ?`)) return;
+    if (!confirm(`ഉറപ്പാണോ? ഈ action തിരിച്ചെടുക്കാൻ പറ്റില്ല!`)) return;
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Finding documents...";
+
+    try {
+      let snap;
+      if (area === 'ALL') {
+        snap = await getDocs(collection(db, dataType));
+      } else {
+        snap = await getDocs(query(collection(db, dataType), where("area", "==", area)));
+      }
+
+      const docs = [];
+      snap.forEach(d => docs.push(d.id));
+
+      if (docs.length === 0) {
+        statusEl.style.color = '#555';
+        statusEl.textContent = "Delete ചെയ്യാൻ documents ഒന്നും കണ്ടെത്തിയില്ല.";
+        return;
+      }
+
+      for (let i = 0; i < docs.length; i++) {
+        await deleteDoc(doc(db, dataType, docs[i]));
+        statusEl.textContent = `Deleting ${i + 1} / ${docs.length}...`;
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${docs.length} documents deleted.`;
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Delete ചെയ്യാൻ പറ്റിയില്ല.";
+    }
+  };
+
+  // ---- ADMIN: BULK UPLOAD OLD SALES (CSV) ----
+  window.handleSalesCsvUpload = async function () {
+    const fileInput = document.getElementById('salesCsvInput');
+    const statusEl = document.getElementById('salesCsvStatus');
+    const file = fileInput.files[0];
+
+    if (!file) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "CSV file select ചെയ്യുക."; return; }
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Reading file...";
+
+    try {
+      const text = await file.text();
+      let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
+      if (firstCols[0] && firstCols[0].includes('date')) lines = lines.slice(1);
+
+      if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
+
+      // Preload all customers for name+area matching
+      const custSnap = await getDocs(collection(db, "customers"));
+      const custMap = {};
+      custSnap.forEach(d => {
+        const c = d.data();
+        custMap[(c.name || '').toLowerCase() + '|' + c.area] = d.id;
+      });
+
+      let successCount = 0, failCount = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const date = (cols[0] || '').trim();
+        const area = (cols[1] || '').trim().toUpperCase();
+        const customerName = (cols[2] || '').trim();
+        const product = (cols[3] || '').trim();
+        const godown = (cols[4] || '').trim();
+        const qty = parseFloat(cols[5]) || 0;
+        const rate = parseFloat(cols[6]) || 0;
+        const amount = parseFloat(cols[7]) || 0;
+
+        if (!date || !area || !customerName || amount <= 0) { failCount++; continue; }
+
+        statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
+
+        try {
+          const key = customerName.toLowerCase() + '|' + area;
+          let custId = custMap[key];
+
+          if (!custId) {
+            const newCustRef = await addDoc(collection(db, "customers"), {
+              name: customerName, phone: '', area: area, openingBalance: 0, notes: '',
+              isPrivate: false, createdBy: currentUserData.username || 'unknown',
+              createdAt: new Date().toISOString()
+            });
+            custId = newCustRef.id;
+            custMap[key] = custId;
+          }
+
+          await addDoc(collection(db, "sales"), {
+            customerId: custId, customerName: customerName, area: area, product: product,
+            godown: godown, vehicle: '', qty: qty, rate: rate, discRate: 0, discAmt: 0,
+            freight: 0, amount: amount, date: date, isAdvance: true, lots: [],
+            enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${successCount} sales added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
+    }
+  };
+
+  // ---- ADMIN: BULK UPLOAD OLD PURCHASES (CSV) ----
+  window.handlePurchaseCsvUpload = async function () {
+    const fileInput = document.getElementById('purchaseCsvInput');
+    const statusEl = document.getElementById('purchaseCsvStatus');
+    const file = fileInput.files[0];
+
+    if (!file) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "CSV file select ചെയ്യുക."; return; }
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Reading file...";
+
+    try {
+      const text = await file.text();
+      let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
+      if (firstCols[0] && firstCols[0].includes('date')) lines = lines.slice(1);
+
+      if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
+
+      let successCount = 0, failCount = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const date = (cols[0] || '').trim();
+        const area = (cols[1] || '').trim().toUpperCase();
+        const product = (cols[2] || '').trim();
+        const godown = (cols[3] || '').trim();
+        const supplier = (cols[4] || '').trim();
+        const qty = parseFloat(cols[5]) || 0;
+        const rate = parseFloat(cols[6]) || 0;
+        const amount = parseFloat(cols[7]) || 0;
+
+        if (!date || !area || !product || amount <= 0) { failCount++; continue; }
+
+        statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
+
+        try {
+          await addDoc(collection(db, "purchases"), {
+            product: product, godown: godown, vehicle: '', supplier: supplier,
+            area: area, qty: qty, remainingQty: 0, rate: rate, amount: amount, date: date,
+            enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${successCount} purchases added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
+    }
+  };
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
