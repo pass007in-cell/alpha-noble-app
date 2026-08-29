@@ -101,9 +101,17 @@
   }
   .table-wrap { overflow-x: auto; }
   .lot-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
-  .lot-row select { flex:2; margin-bottom:0; width:auto; }
-  .lot-row input { flex:1; margin-bottom:0; width:auto; }
+  .lot-row select { flex:1; margin-bottom:0; width:auto; }
+  .lot-row input { flex:0 0 80px; margin-bottom:0; width:80px; }
   .lot-row .lot-remove { cursor:pointer; color:#c62828; font-size:18px; padding:0 4px; }
+  .cust-opt { padding:10px 12px; cursor:pointer; border-bottom:1px solid #f0f0f0; font-size:14px; }
+  .cust-opt:active { background:#f0f4fa; }
+  .cust-opt-own { color:#1e3c72; font-weight:600; }
+  .cust-opt-other { color:#888; }
+  .cust-opt-header { padding:6px 12px; font-size:11px; font-weight:700; color:#aaa; background:#fafafa; text-transform:uppercase; }
+  .cust-opt-new { color:#2e7d32; font-weight:700; }
+  .cust-search-box { position:relative; margin-bottom:8px; }
+  .cust-options-box { display:none; position:absolute; z-index:30; top:100%; left:0; right:0; background:#fff; border:1.5px solid #ccc; border-radius:8px; max-height:240px; overflow-y:auto; box-shadow:0 6px 14px rgba(0,0,0,0.15); }
 </style>
 </head>
 <body>
@@ -213,10 +221,13 @@
       <div class="success-msg" id="saleSuccessMsg"></div>
 
       <label>Customer</label>
-      <select id="saleCustomer" onchange="onSaleCustomerChange()" style="margin-bottom:8px;">
-        <option value="">-- Select Customer --</option>
-      </select>
-      <button type="button" style="background:none; border:1.5px dashed #2e7d32; color:#2e7d32; width:100%; padding:10px; margin-bottom:16px; font-size:14px;" onclick="toggleQuickAddCust()">+ പുതിയ Customer Add ചെയ്യുക</button>
+      <div class="cust-search-box">
+        <input type="text" id="saleCustSearchInput" placeholder="🔍 Customer പേര് search ചെയ്യുക..." autocomplete="off"
+          oninput="renderSaleCustOptions()" onfocus="renderSaleCustOptions()" style="margin-bottom:0;">
+        <input type="hidden" id="saleCustomer">
+        <div id="saleCustOptionsBox" class="cust-options-box"></div>
+      </div>
+      <button type="button" style="background:none; border:1.5px dashed #2e7d32; color:#2e7d32; width:100%; padding:10px; margin:8px 0 16px; font-size:14px;" onclick="toggleQuickAddCust()">+ പുതിയ Customer Add ചെയ്യുക</button>
 
       <div id="quickAddCustBox" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
         <h4 style="color:#1e3c72; font-size:14px; margin-bottom:10px;">+ പുതിയ Customer</h4>
@@ -319,10 +330,13 @@
       <div class="success-msg" id="collSuccessMsg"></div>
 
       <label>Customer</label>
-      <select id="collCustomer" onchange="onCollCustomerChange()" style="margin-bottom:8px;">
-        <option value="">-- Select Customer --</option>
-      </select>
-      <div id="collCustBalance" style="display:none; font-size:14px; font-weight:600; margin-bottom:10px;"></div>
+      <div class="cust-search-box">
+        <input type="text" id="collCustSearchInput" placeholder="🔍 Customer പേര് search ചെയ്യുക..." autocomplete="off"
+          oninput="renderCollCustOptions()" onfocus="renderCollCustOptions()" style="margin-bottom:0;">
+        <input type="hidden" id="collCustomer">
+        <div id="collCustOptionsBox" class="cust-options-box"></div>
+      </div>
+      <div id="collCustBalance" style="display:none; font-size:14px; font-weight:600; margin:8px 0 10px;"></div>
       <button type="button" style="background:none; border:1.5px dashed #2e7d32; color:#2e7d32; width:100%; padding:10px; margin-bottom:16px; font-size:14px;" onclick="toggleQuickAddCustColl()">+ പുതിയ Customer Add ചെയ്യുക</button>
 
       <div id="quickAddCustBoxColl" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
@@ -417,11 +431,69 @@
       <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
     </div>
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases</h3>
-    <div class="table-wrap">
+    <div class="table-wrap" style="margin-bottom:24px;">
       <table>
         <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
         <tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
       </table>
+    </div>
+
+    <div class="add-user-form" style="background:#e3f2fd;">
+      <h3 style="color:#1565c0;">🔄 Stock Transfer</h3>
+      <p style="font-size:12px; color:#555; margin-bottom:12px;">
+        ഒരു Purchase Lot-ൽ നിന്ന് സ്റ്റോക്ക് വേറെ Godown-ലേക്ക് (ഉദാ: "PKD-OWN" — ഇത് Admin Panel-ൽ Godown ആയി create ചെയ്യണം) അല്ലെങ്കിൽ വേറെ Vehicle-ലേക്ക് transfer ചെയ്യാം.
+      </p>
+      <div class="error-msg" id="transferErrorMsg"></div>
+      <div class="success-msg" id="transferSuccessMsg"></div>
+
+      <div class="form-grid">
+        <div>
+          <label>Product</label>
+          <select id="transferProduct" onchange="refreshTransferLots()">
+            <option value="">-- Select Product --</option>
+          </select>
+        </div>
+        <div>
+          <label>From Godown</label>
+          <select id="transferFromGodown" onchange="refreshTransferLots()">
+            <option value="">-- Select Godown --</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Source Lot</label>
+      <select id="transferLot" style="margin-bottom:16px;">
+        <option value="">-- Product, Godown select ചെയ്യുക --</option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Transfer Qty</label>
+          <input type="number" id="transferQty" placeholder="0" value="0">
+        </div>
+        <div>
+          <label>Destination Type</label>
+          <select id="transferDestType" onchange="toggleTransferDestType()">
+            <option value="godown">Godown</option>
+            <option value="vehicle">Vehicle</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="transferToGodownWrap">
+        <label>To Godown</label>
+        <select id="transferToGodown" style="margin-bottom:16px;">
+          <option value="">-- Select Godown --</option>
+        </select>
+      </div>
+      <div id="transferToVehicleWrap" style="display:none;">
+        <label>To Vehicle</label>
+        <select id="transferToVehicle" style="margin-bottom:16px;">
+          <option value="">-- Select Vehicle --</option>
+        </select>
+      </div>
+
+      <button class="full-btn" style="background:#1565c0;" onclick="handleStockTransfer()">Transfer Stock</button>
     </div>
   </div>
 
@@ -485,8 +557,8 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Amount</th></tr></thead>
-        <tbody id="repSalesBody"><tr><td colspan="4">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
+        <tbody id="repSalesBody"><tr><td colspan="5">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
 
@@ -506,14 +578,25 @@
       </table>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Current Stock)</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock)</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       Godown-വാരിയായി, ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
     </p>
-    <div class="table-wrap">
+    <div class="table-wrap" style="margin-bottom:20px;">
       <table>
         <thead><tr><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
         <tbody id="repLotBody"><tr><td colspan="3">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">🚚 Vehicle Stock</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Godown-ലേക്ക് അല്ലാതെ, Vehicle-ലേക്ക് transfer ചെയ്ത stock.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Product</th><th>Vehicle</th><th>Qty</th></tr></thead>
+        <tbody id="repVehicleStockBody"><tr><td colspan="3">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -799,6 +882,14 @@
   function toEmail(username, area) {
     const clean = username.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
     return `${clean}_${area.toLowerCase()}@alphanoble.app`;
+  }
+
+  function fmtDate(d) {
+    if (!d || d.indexOf('-') === -1) return d || '-';
+    const parts = d.split('-');
+    if (parts.length !== 3) return d;
+    const [y, m, dd] = parts;
+    return `${dd}-${m}-${y.slice(2)}`;
   }
 
   window.onAreaChange = async function () {
@@ -1246,7 +1337,7 @@
           rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
             <div>
               <div style="font-weight:600; color:#333;">${t.product || '-'}</div>
-              <div style="color:#999; font-size:12px;">${t.date || ''} · Qty: ${t.qty || '-'} · Sale</div>
+              <div style="color:#999; font-size:12px;">${fmtDate(t.date)} · Qty: ${t.qty || '-'} · Sale</div>
             </div>
             <div style="color:#c62828; font-weight:600;">+₹${(t.amount || 0).toLocaleString('en-IN')}</div>
           </div>`;
@@ -1255,7 +1346,7 @@
           rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
             <div>
               <div style="font-weight:600; color:#333;">Collection (${t.mode || '-'})</div>
-              <div style="color:#999; font-size:12px;">${t.date || ''}</div>
+              <div style="color:#999; font-size:12px;">${fmtDate(t.date)}</div>
             </div>
             <div style="color:#2e7d32; font-weight:600;">-₹${(t.amount || 0).toLocaleString('en-IN')}</div>
           </div>`;
@@ -1334,6 +1425,7 @@
       populatePurchaseVehicleDropdown();
       document.getElementById('purchaseDate').valueAsDate = new Date();
       loadTodaysPurchases();
+      populateTransferDropdowns();
     } else if (tab === 'vehicle') {
       loadVehicles();
     } else if (tab === 'reports') {
@@ -1362,6 +1454,7 @@
 
   window.clearSaleForm = function () {
     document.getElementById('saleCustomer').value = '';
+    document.getElementById('saleCustSearchInput').value = '';
     document.getElementById('saleProduct').value = '';
     document.getElementById('saleGodown').value = '';
     document.getElementById('saleVehicle').value = '';
@@ -1425,24 +1518,63 @@
     } catch (err) { console.error(err); }
   }
 
-  function populateSaleCustomerDropdown() {
-    const sel = document.getElementById('saleCustomer');
-    sel.innerHTML = '<option value="">-- Select Customer --</option><option value="__new__" style="font-weight:700; color:#2e7d32;">+ Add New Customer</option>';
-    allCustomers.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      const isOwn = c.area === currentUserData.area;
-      const areaTag = isOwn ? '' : ` [${c.area}]`;
-      opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '') + areaTag;
-      opt.style.color = isOwn ? '#1e3c72' : '#999';
-      sel.appendChild(opt);
-    });
+  function escapeHtml(str) {
+    return (str || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
   }
 
+  function populateSaleCustomerDropdown() {
+    // Kept for compatibility with tab-switch init; actual rendering happens on search/focus
+    document.getElementById('saleCustSearchInput').value = '';
+    document.getElementById('saleCustomer').value = '';
+  }
+
+  window.renderSaleCustOptions = function () {
+    const box = document.getElementById('saleCustOptionsBox');
+    const term = document.getElementById('saleCustSearchInput').value.trim().toLowerCase();
+    const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
+
+    const own = allCustomers.filter(c => c.area === currentUserData.area && matches(c));
+    const other = allCustomers.filter(c => c.area !== currentUserData.area && matches(c));
+
+    let html = `<div class="cust-opt cust-opt-new" onmousedown="selectSaleCustomer('__new__','')">+ Add New Customer</div>`;
+    own.forEach(c => {
+      html += `<div class="cust-opt cust-opt-own" onmousedown="selectSaleCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name}${c.phone ? ' (' + c.phone + ')' : ''}</div>`;
+    });
+    if (other.length > 0) {
+      html += `<div class="cust-opt-header">— മറ്റ് Areas Customers —</div>`;
+      other.forEach(c => {
+        html += `<div class="cust-opt cust-opt-other" onmousedown="selectSaleCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name} [${c.area}]</div>`;
+      });
+    }
+    if (own.length === 0 && other.length === 0) {
+      html += `<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>`;
+    }
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectSaleCustomer = function (id, label) {
+    document.getElementById('saleCustomer').value = id;
+    document.getElementById('saleCustSearchInput').value = (id === '__new__') ? '' : label;
+    document.getElementById('saleCustOptionsBox').style.display = 'none';
+    onSaleCustomerChange();
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#saleCustSearchInput') && !e.target.closest('#saleCustOptionsBox')) {
+      const box = document.getElementById('saleCustOptionsBox');
+      if (box) box.style.display = 'none';
+    }
+    if (!e.target.closest('#collCustSearchInput') && !e.target.closest('#collCustOptionsBox')) {
+      const box2 = document.getElementById('collCustOptionsBox');
+      if (box2) box2.style.display = 'none';
+    }
+  });
+
   window.onSaleCustomerChange = function () {
-    const sel = document.getElementById('saleCustomer');
+    const val = document.getElementById('saleCustomer').value;
     const quickBox = document.getElementById('quickAddCustBox');
-    if (sel.value === '__new__') {
+    if (val === '__new__') {
       quickBox.style.display = 'block';
     } else {
       quickBox.style.display = 'none';
@@ -1486,8 +1618,8 @@
 
       // Refresh full customer list from Firestore (keeps sort order + Customers tab in sync)
       await loadCustomersList();
-      populateSaleCustomerDropdown();
       document.getElementById('saleCustomer').value = docRef.id;
+      document.getElementById('saleCustSearchInput').value = name;
       document.getElementById('quickAddCustBox').style.display = 'none';
       document.getElementById('quickCustName').value = '';
       document.getElementById('quickCustPhone').value = '';
@@ -1947,39 +2079,210 @@
     }
   }
 
-  // ---- COLLECTION ----
-  function populateCollCustomerDropdown() {
-    const sel = document.getElementById('collCustomer');
-    sel.innerHTML = '<option value="">-- Select Customer --</option><option value="__new__" style="font-weight:700; color:#2e7d32;">+ Add New Customer</option>';
-    allCustomers.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c.id;
-      const isOwn = c.area === currentUserData.area;
-      const areaTag = isOwn ? '' : ` [${c.area}]`;
-      opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '') + areaTag;
-      opt.style.color = isOwn ? '#1e3c72' : '#999';
-      sel.appendChild(opt);
-    });
+  // ---- STOCK TRANSFER ----
+  let availableTransferLots = [];
+
+  async function populateTransferDropdowns() {
+    // Product
+    const prodSel = document.getElementById('transferProduct');
+    prodSel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name + (d.unit ? ' (' + d.unit + ')' : '');
+        prodSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+
+    // From/To Godown (same list)
+    const fromGodownSel = document.getElementById('transferFromGodown');
+    const toGodownSel = document.getElementById('transferToGodown');
+    fromGodownSel.innerHTML = '<option value="">-- Select Godown --</option>';
+    toGodownSel.innerHTML = '<option value="">-- Select Godown --</option>';
+    try {
+      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt1 = document.createElement('option');
+        opt1.value = d.name; opt1.textContent = d.name;
+        fromGodownSel.appendChild(opt1);
+        const opt2 = document.createElement('option');
+        opt2.value = d.name; opt2.textContent = d.name;
+        toGodownSel.appendChild(opt2);
+      });
+    } catch (err) { console.error(err); }
+
+    // To Vehicle
+    const toVehicleSel = document.getElementById('transferToVehicle');
+    toVehicleSel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+    try {
+      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.number; opt.textContent = d.number;
+        toVehicleSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
   }
 
+  window.toggleTransferDestType = function () {
+    const type = document.getElementById('transferDestType').value;
+    document.getElementById('transferToGodownWrap').style.display = (type === 'godown') ? 'block' : 'none';
+    document.getElementById('transferToVehicleWrap').style.display = (type === 'vehicle') ? 'block' : 'none';
+  };
+
+  window.refreshTransferLots = async function () {
+    const product = document.getElementById('transferProduct').value;
+    const godown = document.getElementById('transferFromGodown').value;
+    const lotSel = document.getElementById('transferLot');
+    lotSel.innerHTML = '<option value="">-- Select Lot --</option>';
+    availableTransferLots = [];
+
+    if (!product || !godown) return;
+
+    try {
+      const q = query(
+        collection(db, "purchases"),
+        where("area", "==", currentUserData.area),
+        where("product", "==", product),
+        where("godown", "==", godown)
+      );
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          availableTransferLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, rate: d.rate || 0 });
+        }
+      });
+      availableTransferLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      availableTransferLots.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = `${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}`;
+        lotSel.appendChild(opt);
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  window.handleStockTransfer = async function () {
+    const product = document.getElementById('transferProduct').value;
+    const lotId = document.getElementById('transferLot').value;
+    const qty = parseFloat(document.getElementById('transferQty').value) || 0;
+    const destType = document.getElementById('transferDestType').value;
+    const errEl = document.getElementById('transferErrorMsg');
+    const okEl = document.getElementById('transferSuccessMsg');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!product || !lotId) { errEl.textContent = "Product, Source Lot select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Transfer Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+
+    const lot = availableTransferLots.find(l => l.id === lotId);
+    if (!lot) { errEl.textContent = "Lot data കണ്ടെത്തിയില്ല, വീണ്ടും ശ്രമിക്കുക."; errEl.style.display = 'block'; return; }
+    if (qty > lot.remainingQty) { errEl.textContent = `Available Qty (${lot.remainingQty})-ൽ കൂടുതൽ transfer ചെയ്യാൻ പറ്റില്ല.`; errEl.style.display = 'block'; return; }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    try {
+      await updateDoc(doc(db, "purchases", lotId), { remainingQty: increment(-qty) });
+
+      if (destType === 'godown') {
+        const toGodown = document.getElementById('transferToGodown').value;
+        if (!toGodown) { errEl.textContent = "To Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+        await addDoc(collection(db, "purchases"), {
+          product: product, godown: toGodown, vehicle: '', area: currentUserData.area,
+          qty: qty, remainingQty: qty, rate: lot.rate, amount: lot.rate * qty, date: todayStr,
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+        });
+        okEl.textContent = `Stock transfer ചെയ്തു: ${product} → ${toGodown} (Qty: ${qty})`;
+      } else {
+        const toVehicle = document.getElementById('transferToVehicle').value;
+        if (!toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+        await addDoc(collection(db, "vehicleStock"), {
+          product: product, vehicle: toVehicle, area: currentUserData.area,
+          qty: qty, rate: lot.rate, date: todayStr,
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+        });
+        okEl.textContent = `Stock transfer ചെയ്തു: ${product} → Vehicle ${toVehicle} (Qty: ${qty})`;
+      }
+
+      okEl.style.display = 'block';
+      document.getElementById('transferQty').value = '0';
+      refreshTransferLots();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Transfer ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
+
+  // ---- COLLECTION ----
+  function populateCollCustomerDropdown() {
+    document.getElementById('collCustSearchInput').value = '';
+    document.getElementById('collCustomer').value = '';
+    document.getElementById('collCustBalance').style.display = 'none';
+  }
+
+  window.renderCollCustOptions = function () {
+    const box = document.getElementById('collCustOptionsBox');
+    const term = document.getElementById('collCustSearchInput').value.trim().toLowerCase();
+    const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
+
+    const own = allCustomers.filter(c => c.area === currentUserData.area && matches(c));
+    const other = allCustomers.filter(c => c.area !== currentUserData.area && matches(c));
+
+    let html = `<div class="cust-opt cust-opt-new" onmousedown="selectCollCustomer('__new__','')">+ Add New Customer</div>`;
+    own.forEach(c => {
+      html += `<div class="cust-opt cust-opt-own" onmousedown="selectCollCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name}${c.phone ? ' (' + c.phone + ')' : ''}</div>`;
+    });
+    if (other.length > 0) {
+      html += `<div class="cust-opt-header">— മറ്റ് Areas Customers —</div>`;
+      other.forEach(c => {
+        html += `<div class="cust-opt cust-opt-other" onmousedown="selectCollCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name} [${c.area}]</div>`;
+      });
+    }
+    if (own.length === 0 && other.length === 0) {
+      html += `<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>`;
+    }
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectCollCustomer = function (id, label) {
+    document.getElementById('collCustomer').value = id;
+    document.getElementById('collCustSearchInput').value = (id === '__new__') ? '' : label;
+    document.getElementById('collCustOptionsBox').style.display = 'none';
+    onCollCustomerChange();
+  };
+
   window.onCollCustomerChange = async function () {
-    const sel = document.getElementById('collCustomer');
-    document.getElementById('quickAddCustBoxColl').style.display = (sel.value === '__new__') ? 'block' : 'none';
+    const val = document.getElementById('collCustomer').value;
+    document.getElementById('quickAddCustBoxColl').style.display = (val === '__new__') ? 'block' : 'none';
 
     const balEl = document.getElementById('collCustBalance');
-    if (!sel.value || sel.value === '__new__') {
+    if (!val || val === '__new__') {
       balEl.style.display = 'none';
       return;
     }
 
-    const cust = allCustomers.find(c => c.id === sel.value);
+    const cust = allCustomers.find(c => c.id === val);
     if (!cust) { balEl.style.display = 'none'; return; }
 
     balEl.style.display = 'block';
     balEl.textContent = 'Balance ലോഡ് ചെയ്യുന്നു...';
 
     try {
-      const bal = await computeCustomerCurrentBalance(sel.value, cust.openingBalance || 0);
+      const bal = await computeCustomerCurrentBalance(val, cust.openingBalance || 0);
       balEl.textContent = `Current Balance: ₹${bal.toLocaleString('en-IN')}`;
       balEl.style.color = bal > 0 ? '#c62828' : '#2e7d32';
     } catch (err) {
@@ -2011,8 +2314,8 @@
         createdAt: new Date().toISOString()
       });
       await loadCustomersList();
-      populateCollCustomerDropdown();
       document.getElementById('collCustomer').value = docRef.id;
+      document.getElementById('collCustSearchInput').value = name;
       document.getElementById('quickAddCustBoxColl').style.display = 'none';
       document.getElementById('quickCustNameColl').value = '';
       document.getElementById('quickCustPhoneColl').value = '';
@@ -2055,6 +2358,8 @@
       document.getElementById('collAmount').value = '0';
       document.getElementById('collNotes').value = '';
       document.getElementById('collCustomer').value = '';
+      document.getElementById('collCustSearchInput').value = '';
+      document.getElementById('collCustBalance').style.display = 'none';
       document.getElementById('quickAddCustBoxColl').style.display = 'none';
 
       loadTodaysCollections();
@@ -2124,7 +2429,7 @@
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
-          availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, supplier: d.supplier });
+          availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle });
         }
       });
       availableLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2142,7 +2447,7 @@
 
     let optionsHtml = '<option value="">-- Select Lot --</option>';
     availableLots.forEach(l => {
-      optionsHtml += `<option value="${l.id}">${l.date || '-'} · Avail: ${l.remainingQty}${l.supplier ? ' · ' + l.supplier : ''}</option>`;
+      optionsHtml += `<option value="${l.id}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`;
     });
 
     row.innerHTML = `
@@ -2180,7 +2485,7 @@
       return;
     }
 
-    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
     document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     document.getElementById('repCollBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
@@ -2214,21 +2519,21 @@
 
       // Sales table
       let salesRows = sales.map(d => `<tr>
-        <td>${d.date || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
+        <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
       document.getElementById('repSalesBody').innerHTML = salesRows ||
-        '<tr><td colspan="4">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="5">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
 
       // Purchase table
       let purchaseRows = purchases.map(d => `<tr>
-        <td>${d.date || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
+        <td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
       document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
         '<tr><td colspan="4">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
 
       // Collection table
       let collRows = colls.map(d => `<tr>
-        <td>${d.date || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
         '<tr><td colspan="4">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
@@ -2250,6 +2555,22 @@
       }).join('');
       document.getElementById('repLotBody').innerHTML = lotRows ||
         '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
+
+      // Vehicle Stock — aggregate by Product+Vehicle
+      const vsSnap = await getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area)));
+      const vsMap = {};
+      vsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const key = (d.product || '-') + '|' + (d.vehicle || '-');
+        vsMap[key] = (vsMap[key] || 0) + (d.qty || 0);
+      });
+      const vsEntries = Object.entries(vsMap).sort((a, b) => a[0].localeCompare(b[0]));
+      let vsRows = vsEntries.map(([key, qty]) => {
+        const [product, vehicle] = key.split('|');
+        return `<tr><td>${product}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('repVehicleStockBody').innerHTML = vsRows ||
+        '<tr><td colspan="3">Vehicle stock ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
       console.error(err);
