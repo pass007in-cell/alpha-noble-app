@@ -272,8 +272,8 @@
           <input type="number" id="saleRate" placeholder="0" value="0" oninput="calcSaleAmount()">
         </div>
         <div>
-          <label>Discount Rate (%)</label>
-          <input type="number" id="saleDiscRate" placeholder="0" value="0" oninput="calcSaleAmount()">
+          <label>Discount Rate (₹ per unit)</label>
+          <input type="number" id="saleDiscRate" placeholder="0" value="0" oninput="applyDiscRate()">
         </div>
         <div>
           <label>Discount Amount (₹)</label>
@@ -332,6 +332,7 @@
       <select id="collCustomer" onchange="onCollCustomerChange()" style="margin-bottom:8px;">
         <option value="">-- Select Customer --</option>
       </select>
+      <div id="collCustBalance" style="display:none; font-size:14px; font-weight:600; margin-bottom:10px;"></div>
       <button type="button" style="background:none; border:1.5px dashed #2e7d32; color:#2e7d32; width:100%; padding:10px; margin-bottom:16px; font-size:14px;" onclick="toggleQuickAddCustColl()">+ പുതിയ Customer Add ചെയ്യുക</button>
 
       <div id="quickAddCustBoxColl" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
@@ -411,20 +412,16 @@
           </select>
         </div>
         <div>
-          <label>Supplier Name</label>
-          <input type="text" id="purchaseSupplier" placeholder="e.g. ABC Traders">
-        </div>
-        <div>
           <label>Quantity</label>
-          <input type="number" id="purchaseQty" placeholder="1" value="1" oninput="calcPurchaseAmount()">
-        </div>
-        <div>
-          <label>Rate (₹ per unit)</label>
-          <input type="number" id="purchaseRate" placeholder="0" value="0" oninput="calcPurchaseAmount()">
+          <input type="number" id="purchaseQty" placeholder="1" value="1" oninput="calcPurchaseRate()">
         </div>
         <div>
           <label>Total Amount (₹)</label>
-          <input type="number" id="purchaseAmount" placeholder="0" value="0">
+          <input type="number" id="purchaseAmount" placeholder="0" value="0" oninput="calcPurchaseRate()">
+        </div>
+        <div>
+          <label>Unit Price (auto)</label>
+          <input type="number" id="purchaseRate" placeholder="0" value="0" readonly style="background:#eee;">
         </div>
       </div>
       <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
@@ -432,7 +429,7 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Product</th><th>Supplier</th><th>Qty</th><th>Amount</th></tr></thead>
+        <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>
         <tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
       </table>
     </div>
@@ -506,7 +503,7 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Supplier</th><th>Amount</th></tr></thead>
+        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
         <tbody id="repPurchaseBody"><tr><td colspan="4">—</td></tr></tbody>
       </table>
     </div>
@@ -713,7 +710,7 @@
     <div class="add-user-form">
       <h3>📂 Bulk Upload — Old Purchases (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Supplier, Qty, Rate, Amount<br>
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Qty, Rate, Amount<br>
         ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
@@ -1083,6 +1080,9 @@
   };
 
   // ---- CUSTOMER: List (fetch ALL for sale dropdown; Customers tab shows own area only) ----
+  let custSalesTotals = {};
+  let custCollTotals = {};
+
   async function loadCustomersList() {
     const tbody = document.getElementById('custTableBody');
     tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
@@ -1105,6 +1105,22 @@
         return (a.name || '').localeCompare(b.name || '');
       });
 
+      // Aggregate sales & collections for own-area customers, to show accurate running balance
+      custSalesTotals = {};
+      custCollTotals = {};
+      const [salesSnap, collSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("area", "==", myArea))),
+        getDocs(query(collection(db, "collections"), where("area", "==", myArea)))
+      ]);
+      salesSnap.forEach(d => {
+        const s = d.data();
+        custSalesTotals[s.customerId] = (custSalesTotals[s.customerId] || 0) + (s.amount || 0);
+      });
+      collSnap.forEach(d => {
+        const c = d.data();
+        custCollTotals[c.customerId] = (custCollTotals[c.customerId] || 0) + (c.amount || 0);
+      });
+
       // Customers tab shows only this user's own area
       const ownAreaCustomers = allCustomers.filter(c => c.area === myArea);
       renderCustomers(ownAreaCustomers);
@@ -1125,15 +1141,31 @@
 
     let rows = '';
     list.forEach((c) => {
-      const bal = c.openingBalance || 0;
+      const opening = c.openingBalance || 0;
+      const sales = custSalesTotals[c.id] || 0;
+      const colls = custCollTotals[c.id] || 0;
+      const bal = opening + sales - colls;
+      const balColor = bal > 0 ? '#c62828' : (bal < 0 ? '#2e7d32' : '#333');
       rows += `<tr>
         <td style="cursor:pointer; color:#1e3c72; font-weight:600;" onclick="openLedger('${c.id}')">${c.name || '-'}</td>
         <td>${c.phone || '-'}</td>
-        <td>₹${bal.toLocaleString('en-IN')}</td>
+        <td style="color:${balColor}; font-weight:600;">₹${bal.toLocaleString('en-IN')}</td>
         <td><button class="del-btn" onclick="handleDeleteCustomer('${c.id}')">Remove</button></td>
       </tr>`;
     });
     tbody.innerHTML = rows;
+  }
+
+  // Standalone balance lookup for a single customer (any area) — used in Collection entry
+  async function computeCustomerCurrentBalance(custId, opening) {
+    const [salesSnap, collSnap] = await Promise.all([
+      getDocs(query(collection(db, "sales"), where("customerId", "==", custId))),
+      getDocs(query(collection(db, "collections"), where("customerId", "==", custId)))
+    ]);
+    let salesTotal = 0, collTotal = 0;
+    salesSnap.forEach(d => salesTotal += (d.data().amount || 0));
+    collSnap.forEach(d => collTotal += (d.data().amount || 0));
+    return opening + salesTotal - collTotal;
   }
 
   window.filterCustomers = function () {
@@ -1375,12 +1407,17 @@
   window.calcSaleAmount = function () {
     const qty = parseFloat(document.getElementById('saleQty').value) || 0;
     const rate = parseFloat(document.getElementById('saleRate').value) || 0;
-    const discRate = parseFloat(document.getElementById('saleDiscRate').value) || 0;
     const freight = parseFloat(document.getElementById('saleFreight').value) || 0;
+    const discAmt = parseFloat(document.getElementById('saleDiscAmt').value) || 0;
     const gross = qty * rate;
-    const discAmt = discRate > 0 ? (gross * discRate / 100) : (parseFloat(document.getElementById('saleDiscAmt').value) || 0);
-    document.getElementById('saleDiscAmt').value = discAmt.toFixed(2);
     document.getElementById('saleAmount').value = (gross - discAmt - freight).toFixed(2);
+  };
+
+  window.applyDiscRate = function () {
+    const qty = parseFloat(document.getElementById('saleQty').value) || 0;
+    const discRate = parseFloat(document.getElementById('saleDiscRate').value) || 0;
+    document.getElementById('saleDiscAmt').value = (qty * discRate).toFixed(2);
+    calcSaleAmount();
   };
 
   window.clearSaleForm = function () {
@@ -1454,8 +1491,10 @@
     allCustomers.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      const areaTag = c.area === currentUserData.area ? '' : ` [${c.area}]`;
+      const isOwn = c.area === currentUserData.area;
+      const areaTag = isOwn ? '' : ` [${c.area}]`;
       opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '') + areaTag;
+      opt.style.color = isOwn ? '#1e3c72' : '#999';
       sel.appendChild(opt);
     });
   }
@@ -1505,7 +1544,8 @@
         createdAt: new Date().toISOString()
       });
 
-      allCustomers.push({ id: docRef.id, name, phone, area: currentUserData.area, openingBalance: 0, isPrivate });
+      // Refresh full customer list from Firestore (keeps sort order + Customers tab in sync)
+      await loadCustomersList();
       populateSaleCustomerDropdown();
       document.getElementById('saleCustomer').value = docRef.id;
       document.getElementById('quickAddCustBox').style.display = 'none';
@@ -1841,10 +1881,10 @@
   };
 
   // ---- PURCHASE ----
-  window.calcPurchaseAmount = function () {
+  window.calcPurchaseRate = function () {
     const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
-    const rate = parseFloat(document.getElementById('purchaseRate').value) || 0;
-    document.getElementById('purchaseAmount').value = (qty * rate).toFixed(2);
+    const amount = parseFloat(document.getElementById('purchaseAmount').value) || 0;
+    document.getElementById('purchaseRate').value = qty > 0 ? (amount / qty).toFixed(2) : '0';
   };
 
   async function populatePurchaseProductDropdown() {
@@ -1899,7 +1939,6 @@
     const date = document.getElementById('purchaseDate').value;
     const godown = document.getElementById('purchaseGodown').value;
     const vehicle = document.getElementById('purchaseVehicle').value;
-    const supplier = document.getElementById('purchaseSupplier').value.trim();
     const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
     const rate = parseFloat(document.getElementById('purchaseRate').value) || 0;
     const amount = parseFloat(document.getElementById('purchaseAmount').value) || 0;
@@ -1917,7 +1956,7 @@
 
     try {
       await addDoc(collection(db, "purchases"), {
-        product: product, godown: godown, vehicle: vehicle, supplier: supplier,
+        product: product, godown: godown, vehicle: vehicle,
         area: currentUserData.area, qty: qty, remainingQty: qty, rate: rate, amount: amount, date: date,
         enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
       });
@@ -1925,7 +1964,6 @@
       okEl.textContent = `Purchase saved: ${product} — ₹${amount}`;
       okEl.style.display = 'block';
 
-      document.getElementById('purchaseSupplier').value = '';
       document.getElementById('purchaseQty').value = '1';
       document.getElementById('purchaseRate').value = '0';
       document.getElementById('purchaseAmount').value = '0';
@@ -1958,7 +1996,7 @@
       snap.forEach(docSnap => {
         const d = docSnap.data();
         total += (d.amount || 0);
-        rows += `<tr><td>${d.product || '-'}</td><td>${d.supplier || '-'}</td><td>${d.qty || '-'}</td>
+        rows += `<tr><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`;
       });
       rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td></tr>`;
@@ -1976,15 +2014,39 @@
     allCustomers.forEach(c => {
       const opt = document.createElement('option');
       opt.value = c.id;
-      const areaTag = c.area === currentUserData.area ? '' : ` [${c.area}]`;
+      const isOwn = c.area === currentUserData.area;
+      const areaTag = isOwn ? '' : ` [${c.area}]`;
       opt.textContent = c.name + (c.phone ? ' (' + c.phone + ')' : '') + areaTag;
+      opt.style.color = isOwn ? '#1e3c72' : '#999';
       sel.appendChild(opt);
     });
   }
 
-  window.onCollCustomerChange = function () {
+  window.onCollCustomerChange = async function () {
     const sel = document.getElementById('collCustomer');
     document.getElementById('quickAddCustBoxColl').style.display = (sel.value === '__new__') ? 'block' : 'none';
+
+    const balEl = document.getElementById('collCustBalance');
+    if (!sel.value || sel.value === '__new__') {
+      balEl.style.display = 'none';
+      return;
+    }
+
+    const cust = allCustomers.find(c => c.id === sel.value);
+    if (!cust) { balEl.style.display = 'none'; return; }
+
+    balEl.style.display = 'block';
+    balEl.textContent = 'Balance ലോഡ് ചെയ്യുന്നു...';
+
+    try {
+      const bal = await computeCustomerCurrentBalance(sel.value, cust.openingBalance || 0);
+      balEl.textContent = `Current Balance: ₹${bal.toLocaleString('en-IN')}`;
+      balEl.style.color = bal > 0 ? '#c62828' : '#2e7d32';
+    } catch (err) {
+      console.error(err);
+      balEl.textContent = '';
+      balEl.style.display = 'none';
+    }
   };
 
   window.toggleQuickAddCustColl = function () {
@@ -2008,7 +2070,7 @@
         notes: '', isPrivate: isPrivate, createdBy: currentUserData.username || 'unknown',
         createdAt: new Date().toISOString()
       });
-      allCustomers.push({ id: docRef.id, name, phone, area: currentUserData.area, openingBalance: 0, isPrivate });
+      await loadCustomersList();
       populateCollCustomerDropdown();
       document.getElementById('collCustomer').value = docRef.id;
       document.getElementById('quickAddCustBoxColl').style.display = 'none';
@@ -2218,7 +2280,7 @@
 
       // Purchase table
       let purchaseRows = purchases.map(d => `<tr>
-        <td>${d.date || '-'}</td><td>${d.product || '-'}</td><td>${d.supplier || '-'}</td>
+        <td>${d.date || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
       document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
         '<tr><td colspan="4">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
@@ -2389,10 +2451,9 @@
         const area = (cols[1] || '').trim().toUpperCase();
         const product = (cols[2] || '').trim();
         const godown = (cols[3] || '').trim();
-        const supplier = (cols[4] || '').trim();
-        const qty = parseFloat(cols[5]) || 0;
-        const rate = parseFloat(cols[6]) || 0;
-        const amount = parseFloat(cols[7]) || 0;
+        const qty = parseFloat(cols[4]) || 0;
+        const rate = parseFloat(cols[5]) || 0;
+        const amount = parseFloat(cols[6]) || 0;
 
         if (!date || !area || !product || amount <= 0) { failCount++; continue; }
 
@@ -2400,7 +2461,7 @@
 
         try {
           await addDoc(collection(db, "purchases"), {
-            product: product, godown: godown, vehicle: '', supplier: supplier,
+            product: product, godown: godown, vehicle: '',
             area: area, qty: qty, remainingQty: 0, rate: rate, amount: amount, date: date,
             enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
           });
