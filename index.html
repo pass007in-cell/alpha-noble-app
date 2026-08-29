@@ -152,7 +152,7 @@
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale Entry</button>
-    <button id="tabGodownBtn" onclick="switchTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
+    <button id="tabPurchaseBtn" onclick="switchTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Purchase</button>
     <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
   </div>
 
@@ -220,6 +220,7 @@
       <select id="saleCustomer" onchange="onSaleCustomerChange()" style="margin-bottom:8px;">
         <option value="">-- Select Customer --</option>
       </select>
+      <button type="button" style="background:none; border:1.5px dashed #2e7d32; color:#2e7d32; width:100%; padding:10px; margin-bottom:16px; font-size:14px;" onclick="toggleQuickAddCust()">+ പുതിയ Customer Add ചെയ്യുക</button>
 
       <div id="quickAddCustBox" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
         <h4 style="color:#1e3c72; font-size:14px; margin-bottom:10px;">+ പുതിയ Customer</h4>
@@ -235,27 +236,57 @@
 
       <div class="form-grid">
         <div>
-          <label>Product</label>
-          <input type="text" id="saleProduct" placeholder="e.g. Rice 25kg">
+          <label>Item / Product</label>
+          <select id="saleProduct">
+            <option value="">-- Select Product --</option>
+          </select>
         </div>
         <div>
           <label>Date</label>
           <input type="date" id="saleDate">
         </div>
         <div>
+          <label>Godown</label>
+          <select id="saleGodown">
+            <option value="">-- Select Godown --</option>
+          </select>
+        </div>
+        <div>
+          <label>Vehicle (optional)</label>
+          <select id="saleVehicle">
+            <option value="">-- Select Vehicle --</option>
+          </select>
+        </div>
+        <div>
           <label>Quantity</label>
           <input type="number" id="saleQty" placeholder="1" value="1" oninput="calcSaleAmount()">
         </div>
         <div>
-          <label>Rate (₹ per unit)</label>
+          <label>Unit Price (₹)</label>
           <input type="number" id="saleRate" placeholder="0" value="0" oninput="calcSaleAmount()">
+        </div>
+        <div>
+          <label>Discount Rate (%)</label>
+          <input type="number" id="saleDiscRate" placeholder="0" value="0" oninput="calcSaleAmount()">
+        </div>
+        <div>
+          <label>Discount Amount (₹)</label>
+          <input type="number" id="saleDiscAmt" placeholder="0" value="0" oninput="calcSaleAmount()">
+        </div>
+        <div>
+          <label>Freight (₹)</label>
+          <input type="number" id="saleFreight" placeholder="0" value="0" oninput="calcSaleAmount()">
+        </div>
+        <div>
+          <label>Net Amount (₹)</label>
+          <input type="number" id="saleAmount" placeholder="0" value="0">
         </div>
       </div>
 
-      <label>Total Amount (₹)</label>
-      <input type="number" id="saleAmount" placeholder="0" value="0">
-
-      <button class="full-btn" id="addSaleBtn" onclick="handleAddSale()">Save Sale</button>
+      <div style="display:flex; gap:10px;">
+        <button style="flex:1;" id="addSaleBtn" onclick="handleAddSale()">Save Sale</button>
+        <button style="flex:1; background:#999;" type="button" onclick="clearSaleForm()">Clear</button>
+      </div>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales</h3>
@@ -271,28 +302,58 @@
     </div>
   </div>
 
-  <div id="tabGodown" style="display:none;">
+  <div id="tabPurchase" style="display:none;">
     <div class="add-user-form">
-      <h3>🏬 Add Godown</h3>
-      <div class="error-msg" id="godownErrorMsg"></div>
-      <div class="success-msg" id="godownSuccessMsg"></div>
+      <h3>📦 New Purchase Entry</h3>
+      <div class="error-msg" id="purchaseErrorMsg"></div>
+      <div class="success-msg" id="purchaseSuccessMsg"></div>
       <div class="form-grid">
         <div>
-          <label>Godown Name</label>
-          <input type="text" id="godownName" placeholder="e.g. Main Godown">
+          <label>Product</label>
+          <select id="purchaseProduct">
+            <option value="">-- Select Product --</option>
+          </select>
         </div>
         <div>
-          <label>Location (optional)</label>
-          <input type="text" id="godownLocation" placeholder="e.g. Near market">
+          <label>Date</label>
+          <input type="date" id="purchaseDate">
+        </div>
+        <div>
+          <label>Godown</label>
+          <select id="purchaseGodown">
+            <option value="">-- Select Godown --</option>
+          </select>
+        </div>
+        <div>
+          <label>Vehicle (optional)</label>
+          <select id="purchaseVehicle">
+            <option value="">-- Select Vehicle --</option>
+          </select>
+        </div>
+        <div>
+          <label>Supplier Name</label>
+          <input type="text" id="purchaseSupplier" placeholder="e.g. ABC Traders">
+        </div>
+        <div>
+          <label>Quantity</label>
+          <input type="number" id="purchaseQty" placeholder="1" value="1" oninput="calcPurchaseAmount()">
+        </div>
+        <div>
+          <label>Rate (₹ per unit)</label>
+          <input type="number" id="purchaseRate" placeholder="0" value="0" oninput="calcPurchaseAmount()">
+        </div>
+        <div>
+          <label>Total Amount (₹)</label>
+          <input type="number" id="purchaseAmount" placeholder="0" value="0">
         </div>
       </div>
-      <button class="full-btn" id="addGodownBtn" onclick="handleAddGodown()">Add Godown</button>
+      <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
     </div>
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Godowns</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Name</th><th>Location</th><th></th></tr></thead>
-        <tbody id="godownTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Supplier</th><th>Qty</th><th>Amount</th></tr></thead>
+        <tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -350,10 +411,17 @@
 <!-- ADMIN PANEL -->
 <div class="admin-box" id="adminBox">
   <div class="admin-header">
-    <h1>Admin Panel — User Management</h1>
+    <h1>Admin Panel</h1>
     <button class="logout-btn" style="width:auto; margin-top:0;" onclick="handleLogout()">Logout</button>
   </div>
 
+  <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
+    <button id="tabAdminUsersBtn" onclick="switchAdminTab('users')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Users</button>
+    <button id="tabAdminGodownBtn" onclick="switchAdminTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
+    <button id="tabAdminProductBtn" onclick="switchAdminTab('product')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Product</button>
+  </div>
+
+  <div id="tabAdminUsers">
   <div class="add-user-form">
     <h3>+ Add New User</h3>
     <div class="error-msg" id="adminErrorMsg"></div>
@@ -398,6 +466,68 @@
         <tr><td colspan="4">Loading...</td></tr>
       </tbody>
     </table>
+  </div>
+  </div>
+
+  <div id="tabAdminGodown" style="display:none;">
+    <div class="add-user-form">
+      <h3>🏬 Add Godown</h3>
+      <div class="error-msg" id="godownErrorMsg"></div>
+      <div class="success-msg" id="godownSuccessMsg"></div>
+      <div class="form-grid">
+        <div>
+          <label>Godown Name</label>
+          <input type="text" id="godownName" placeholder="e.g. Main Godown">
+        </div>
+        <div>
+          <label>Area</label>
+          <select id="godownArea">
+            <option value="MKD">MKD - Mannarkkad</option>
+            <option value="PKD">PKD - Palakkad</option>
+            <option value="MLT">MLT - Melattur</option>
+            <option value="NLB">NLB - Nilambur</option>
+          </select>
+        </div>
+        <div>
+          <label>Location (optional)</label>
+          <input type="text" id="godownLocation" placeholder="e.g. Near market">
+        </div>
+      </div>
+      <button class="full-btn" id="addGodownBtn" onclick="handleAddGodown()">Add Godown</button>
+    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Godowns</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Area</th><th>Location</th><th></th></tr></thead>
+        <tbody id="godownTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tabAdminProduct" style="display:none;">
+    <div class="add-user-form">
+      <h3>📦 Add Product</h3>
+      <div class="error-msg" id="productErrorMsg"></div>
+      <div class="success-msg" id="productSuccessMsg"></div>
+      <div class="form-grid">
+        <div>
+          <label>Product Name</label>
+          <input type="text" id="productName" placeholder="e.g. Rice 25kg">
+        </div>
+        <div>
+          <label>Unit (optional)</label>
+          <input type="text" id="productUnit" placeholder="e.g. Bag / Kg / Pcs">
+        </div>
+      </div>
+      <button class="full-btn" id="addProductBtn" onclick="handleAddProduct()">Add Product</button>
+    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Products</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th>Unit</th><th></th></tr></thead>
+        <tbody id="productTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 </div>
 
@@ -564,6 +694,26 @@
     document.getElementById('adminBox').style.display = 'block';
     loadUsersList();
   }
+
+  const allAdminTabs = ['users', 'godown', 'product'];
+  window.switchAdminTab = function (tab) {
+    allAdminTabs.forEach(t => {
+      const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
+      const panel = document.getElementById('tab' + key);
+      const btn = document.getElementById('tab' + key + 'Btn');
+      if (t === tab) {
+        panel.style.display = 'block';
+        btn.style.color = '#1e3c72';
+        btn.style.borderBottomColor = '#1e3c72';
+      } else {
+        panel.style.display = 'none';
+        btn.style.color = '#888';
+        btn.style.borderBottomColor = 'transparent';
+      }
+    });
+    if (tab === 'godown') loadAdminGodowns();
+    else if (tab === 'product') loadAdminProducts();
+  };
 
   // ---- ADMIN: Add User ----
   window.handleAddUser = async function () {
@@ -968,7 +1118,7 @@
   };
 
   // ---- TAB SWITCHING ----
-  const allTabs = ['customers', 'sale', 'godown', 'vehicle'];
+  const allTabs = ['customers', 'sale', 'purchase', 'vehicle'];
 
   window.switchTab = function (tab) {
     allTabs.forEach(t => {
@@ -987,10 +1137,17 @@
 
     if (tab === 'sale') {
       populateSaleCustomerDropdown();
+      populateSaleProductDropdown();
+      populateSaleGodownDropdown();
+      populateSaleVehicleDropdown();
       document.getElementById('saleDate').valueAsDate = new Date();
       loadTodaysSales();
-    } else if (tab === 'godown') {
-      loadGodowns();
+    } else if (tab === 'purchase') {
+      populatePurchaseProductDropdown();
+      populatePurchaseGodownDropdown();
+      populatePurchaseVehicleDropdown();
+      document.getElementById('purchaseDate').valueAsDate = new Date();
+      loadTodaysPurchases();
     } else if (tab === 'vehicle') {
       loadVehicles();
     }
@@ -999,8 +1156,74 @@
   window.calcSaleAmount = function () {
     const qty = parseFloat(document.getElementById('saleQty').value) || 0;
     const rate = parseFloat(document.getElementById('saleRate').value) || 0;
-    document.getElementById('saleAmount').value = (qty * rate).toFixed(2);
+    const discRate = parseFloat(document.getElementById('saleDiscRate').value) || 0;
+    const freight = parseFloat(document.getElementById('saleFreight').value) || 0;
+    const gross = qty * rate;
+    const discAmt = discRate > 0 ? (gross * discRate / 100) : (parseFloat(document.getElementById('saleDiscAmt').value) || 0);
+    document.getElementById('saleDiscAmt').value = discAmt.toFixed(2);
+    document.getElementById('saleAmount').value = (gross - discAmt + freight).toFixed(2);
   };
+
+  window.clearSaleForm = function () {
+    document.getElementById('saleCustomer').value = '';
+    document.getElementById('saleProduct').value = '';
+    document.getElementById('saleGodown').value = '';
+    document.getElementById('saleVehicle').value = '';
+    document.getElementById('saleQty').value = '1';
+    document.getElementById('saleRate').value = '0';
+    document.getElementById('saleDiscRate').value = '0';
+    document.getElementById('saleDiscAmt').value = '0';
+    document.getElementById('saleFreight').value = '0';
+    document.getElementById('saleAmount').value = '0';
+    document.getElementById('quickAddCustBox').style.display = 'none';
+  };
+
+  async function populateSaleProductDropdown() {
+    const sel = document.getElementById('saleProduct');
+    sel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name + (d.unit ? ' (' + d.unit + ')' : '');
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+
+  async function populateSaleGodownDropdown() {
+    const sel = document.getElementById('saleGodown');
+    sel.innerHTML = '<option value="">-- Select Godown --</option>';
+    try {
+      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+
+  async function populateSaleVehicleDropdown() {
+    const sel = document.getElementById('saleVehicle');
+    sel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+    try {
+      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.number;
+        opt.textContent = d.number;
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
 
   function populateSaleCustomerDropdown() {
     const sel = document.getElementById('saleCustomer');
@@ -1022,6 +1245,11 @@
     } else {
       quickBox.style.display = 'none';
     }
+  };
+
+  window.toggleQuickAddCust = function () {
+    const quickBox = document.getElementById('quickAddCustBox');
+    quickBox.style.display = (quickBox.style.display === 'none' || !quickBox.style.display) ? 'block' : 'none';
   };
 
   window.handleQuickAddCustomer = async function () {
@@ -1111,8 +1339,13 @@
         customerName: cust ? cust.name : '-',
         area: currentUserData.area,
         product: product,
+        godown: document.getElementById('saleGodown').value,
+        vehicle: document.getElementById('saleVehicle').value,
         qty: qty,
         rate: rate,
+        discRate: parseFloat(document.getElementById('saleDiscRate').value) || 0,
+        discAmt: parseFloat(document.getElementById('saleDiscAmt').value) || 0,
+        freight: parseFloat(document.getElementById('saleFreight').value) || 0,
         amount: amount,
         date: date,
         enteredBy: currentUserData.username || 'unknown',
@@ -1122,10 +1355,7 @@
       okEl.textContent = `Sale saved: ${cust ? cust.name : ''} — ₹${amount}`;
       okEl.style.display = 'block';
 
-      document.getElementById('saleProduct').value = '';
-      document.getElementById('saleQty').value = '1';
-      document.getElementById('saleRate').value = '0';
-      document.getElementById('saleAmount').value = '0';
+      clearSaleForm();
 
       loadTodaysSales();
 
@@ -1181,8 +1411,10 @@
   }
 
   // ---- GODOWN ----
+  // ---- ADMIN: GODOWN ----
   window.handleAddGodown = async function () {
     const name = document.getElementById('godownName').value.trim();
+    const area = document.getElementById('godownArea').value;
     const location = document.getElementById('godownLocation').value.trim();
     const errEl = document.getElementById('godownErrorMsg');
     const okEl = document.getElementById('godownSuccessMsg');
@@ -1194,13 +1426,13 @@
     btn.disabled = true; btn.textContent = "Adding...";
     try {
       await addDoc(collection(db, "godowns"), {
-        name: name, location: location, area: currentUserData.area,
+        name: name, location: location, area: area,
         createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
       });
       okEl.textContent = `"${name}" ചേർത്തു.`; okEl.style.display = 'block';
       document.getElementById('godownName').value = '';
       document.getElementById('godownLocation').value = '';
-      loadGodowns();
+      loadAdminGodowns();
     } catch (err) {
       console.error(err);
       errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല."; errEl.style.display = 'block';
@@ -1209,18 +1441,71 @@
     }
   };
 
-  async function loadGodowns() {
+  async function loadAdminGodowns() {
     const tbody = document.getElementById('godownTableBody');
-    tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
-      const snap = await getDocs(q);
-      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="3">Godowns ഒന്നും ഇല്ല.</td></tr>'; return; }
+      const snap = await getDocs(collection(db, "godowns"));
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="4">Godowns ഒന്നും ഇല്ല.</td></tr>'; return; }
       let rows = '';
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        rows += `<tr><td>${d.name || '-'}</td><td>${d.location || '-'}</td>
+        rows += `<tr><td>${d.name || '-'}</td><td>${d.area || '-'}</td><td>${d.location || '-'}</td>
           <td><button class="del-btn" onclick="handleDeleteGodown('${docSnap.id}')">Remove</button></td></tr>`;
+      });
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
+    }
+  }
+
+  window.handleDeleteGodown = async function (id) {
+    if (!confirm("ഈ godown ഒഴിവാക്കണോ?")) return;
+    try { await deleteDoc(doc(db, "godowns", id)); loadAdminGodowns(); }
+    catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // ---- ADMIN: PRODUCT ----
+  window.handleAddProduct = async function () {
+    const name = document.getElementById('productName').value.trim();
+    const unit = document.getElementById('productUnit').value.trim();
+    const errEl = document.getElementById('productErrorMsg');
+    const okEl = document.getElementById('productSuccessMsg');
+    const btn = document.getElementById('addProductBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    if (!name) { errEl.textContent = "Product Name നൽകുക"; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = "Adding...";
+    try {
+      await addDoc(collection(db, "products"), {
+        name: name, unit: unit,
+        createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+      okEl.textContent = `"${name}" ചേർത്തു.`; okEl.style.display = 'block';
+      document.getElementById('productName').value = '';
+      document.getElementById('productUnit').value = '';
+      loadAdminProducts();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല."; errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Product";
+    }
+  };
+
+  async function loadAdminProducts() {
+    const tbody = document.getElementById('productTableBody');
+    tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="3">Products ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        rows += `<tr><td>${d.name || '-'}</td><td>${d.unit || '-'}</td>
+          <td><button class="del-btn" onclick="handleDeleteProduct('${docSnap.id}')">Remove</button></td></tr>`;
       });
       tbody.innerHTML = rows;
     } catch (err) {
@@ -1229,9 +1514,9 @@
     }
   }
 
-  window.handleDeleteGodown = async function (id) {
-    if (!confirm("ഈ godown ഒഴിവാക്കണോ?")) return;
-    try { await deleteDoc(doc(db, "godowns", id)); loadGodowns(); }
+  window.handleDeleteProduct = async function (id) {
+    if (!confirm("ഈ product ഒഴിവാക്കണോ?")) return;
+    try { await deleteDoc(doc(db, "products", id)); loadAdminProducts(); }
     catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
@@ -1289,6 +1574,135 @@
     try { await deleteDoc(doc(db, "vehicles", id)); loadVehicles(); }
     catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
   };
+
+  // ---- PURCHASE ----
+  window.calcPurchaseAmount = function () {
+    const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
+    const rate = parseFloat(document.getElementById('purchaseRate').value) || 0;
+    document.getElementById('purchaseAmount').value = (qty * rate).toFixed(2);
+  };
+
+  async function populatePurchaseProductDropdown() {
+    const sel = document.getElementById('purchaseProduct');
+    sel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name + (d.unit ? ' (' + d.unit + ')' : '');
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+
+  async function populatePurchaseGodownDropdown() {
+    const sel = document.getElementById('purchaseGodown');
+    sel.innerHTML = '<option value="">-- Select Godown --</option>';
+    try {
+      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+
+  async function populatePurchaseVehicleDropdown() {
+    const sel = document.getElementById('purchaseVehicle');
+    sel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+    try {
+      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.number;
+        opt.textContent = d.number;
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+
+  window.handleAddPurchase = async function () {
+    const product = document.getElementById('purchaseProduct').value;
+    const date = document.getElementById('purchaseDate').value;
+    const godown = document.getElementById('purchaseGodown').value;
+    const vehicle = document.getElementById('purchaseVehicle').value;
+    const supplier = document.getElementById('purchaseSupplier').value.trim();
+    const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
+    const rate = parseFloat(document.getElementById('purchaseRate').value) || 0;
+    const amount = parseFloat(document.getElementById('purchaseAmount').value) || 0;
+    const errEl = document.getElementById('purchaseErrorMsg');
+    const okEl = document.getElementById('purchaseSuccessMsg');
+    const btn = document.getElementById('addPurchaseBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!product) { errEl.textContent = "Product select ചെയ്യുക"; errEl.style.display = 'block'; return; }
+    if (!godown) { errEl.textContent = "Godown select ചെയ്യുക"; errEl.style.display = 'block'; return; }
+    if (amount <= 0) { errEl.textContent = "Amount 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = "Saving...";
+
+    try {
+      await addDoc(collection(db, "purchases"), {
+        product: product, godown: godown, vehicle: vehicle, supplier: supplier,
+        area: currentUserData.area, qty: qty, rate: rate, amount: amount, date: date,
+        enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+
+      okEl.textContent = `Purchase saved: ${product} — ₹${amount}`;
+      okEl.style.display = 'block';
+
+      document.getElementById('purchaseSupplier').value = '';
+      document.getElementById('purchaseQty').value = '1';
+      document.getElementById('purchaseRate').value = '0';
+      document.getElementById('purchaseAmount').value = '0';
+
+      loadTodaysPurchases();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Purchase save ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Save Purchase";
+    }
+  };
+
+  async function loadTodaysPurchases() {
+    const tbody = document.getElementById('purchaseTableBody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const q = query(
+        collection(db, "purchases"),
+        where("area", "==", currentUserData.area),
+        where("date", "==", todayStr)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="4">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      let total = 0;
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        total += (d.amount || 0);
+        rows += `<tr><td>${d.product || '-'}</td><td>${d.supplier || '-'}</td><td>${d.qty || '-'}</td>
+          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`;
+      });
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td></tr>`;
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading purchases.</td></tr>';
+    }
+  }
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
