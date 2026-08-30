@@ -4,6 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Alpha & Noble</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3c72">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
@@ -567,24 +571,24 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead>
-        <tbody id="repSalesBody"><tr><td colspan="6">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="repSalesBody"><tr><td colspan="11">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
-        <tbody id="repCollBody"><tr><td colspan="4">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="repCollBody"><tr><td colspan="6">—</td></tr></tbody>
       </table>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Qty</th></tr></thead>
-        <tbody id="repPurchaseBody"><tr><td colspan="3">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Status</th></tr></thead>
+        <tbody id="repPurchaseBody"><tr><td colspan="7">—</td></tr></tbody>
       </table>
     </div>
 
@@ -899,7 +903,7 @@
     <div class="add-user-form">
       <h3>📂 Bulk Upload — Old Sales (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, CustomerName, Product, Godown, Qty, Rate, Amount<br>
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Product, Godown, VehicleNo, Qty, UnitPrice, Discount, Freight, Amount, Status(pending/approved)<br>
         CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും. ഈ sales "Advance Sale" ആയാണ് save ആകുന്നത് (stock lot deduction ഇല്ല).
       </p>
       <input type="file" id="salesCsvInput" accept=".csv" style="margin-bottom:10px;">
@@ -908,9 +912,20 @@
     </div>
 
     <div class="add-user-form">
+      <h3>📂 Bulk Upload — Old Collections (CSV)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Mode, Amount, Status(pending/approved)<br>
+        CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും.
+      </p>
+      <input type="file" id="collectionCsvInput" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#2e7d32;" onclick="handleCollectionCsvUpload()">Upload Collection CSV</button>
+      <div id="collectionCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+    </div>
+
+    <div class="add-user-form">
       <h3>📂 Bulk Upload — Old Purchases (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Qty<br>
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved)<br>
         ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
@@ -2971,9 +2986,9 @@
       return;
     }
 
-    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
-    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="11">Loading...</td></tr>';
+    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
@@ -3003,29 +3018,41 @@
       document.getElementById('repPurchaseTotal').textContent = purchaseQtyTotal.toLocaleString('en-IN') + ' Qty';
       document.getElementById('repCollTotal').textContent = '₹' + collTotal.toLocaleString('en-IN');
 
-      // Sales table (with Unit Price)
-      let salesRows = sales.map(d => `<tr>
-        <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
-        <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      // Sales table (Date, Area, Customer, Product, Godown, Qty, Unit Price, Discount, Freight, Amount, Status)
+      let salesRows = sales.map(d => {
+        const badge = (d.status || 'pending') === 'pending'
+          ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+        return `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+        <td>${d.qty || '-'}</td><td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
+        <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td><td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td></tr>`;
+      }).join('');
       document.getElementById('repSalesBody').innerHTML = salesRows ||
-        '<tr><td colspan="6">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="11">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
 
-      // Purchase table (qty only)
-      let purchaseRows = purchases.map(d => `<tr>
-        <td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td></tr>`).join('');
+      // Purchase table (Date, Area, Product, Godown, Vehicle, Qty, Status)
+      let purchaseRows = purchases.map(d => {
+        const badge = (d.status || 'pending') === 'pending'
+          ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+        return `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+        <td>${d.vehicle || '-'}</td><td>${d.qty || '-'}</td><td>${badge}</td></tr>`;
+      }).join('');
       document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
-        '<tr><td colspan="3">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="7">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
 
-      // Collection table (Cash highlighted)
+      // Collection table (Date, Area, Customer, Mode, Amount, Status — Cash highlighted)
       let collRows = colls.map(d => {
         const isCash = (d.mode || '').toLowerCase() === 'cash';
+        const badge = (d.status || 'pending') === 'pending'
+          ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
         return `<tr class="${isCash ? 'cash-row' : ''}">
-        <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`;
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td></tr>`;
       }).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
-        '<tr><td colspan="4">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="6">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
 
       // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
       const lotMap = {};
@@ -3138,30 +3165,33 @@
 
       // Sales — area-wise grouped, with Unit Price, Discount, Freight
       renderAreaGrouped('adminRepSalesContainer', sales,
-        ['Date', 'Customer', 'Product', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', ''],
+        ['Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
-            ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
+            ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           return `<tr>
-            <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
+            <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+            <td>${d.qty || '-'}</td>
             <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
             <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td>
             <td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
-            <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
+            <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
+            <td>${badge}</td>
             <td><button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button></td>
           </tr>`;
         }
       );
 
-      // Purchase — area-wise grouped, Qty only
+      // Purchase — area-wise grouped
       renderAreaGrouped('adminRepPurchaseContainer', purchases,
-        ['Date', 'Product', 'Godown', 'Vehicle', 'Qty', ''],
+        ['Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
-            ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
+            ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           return `<tr>
-            <td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
-            <td>${d.qty || '-'} ${badge}</td>
+            <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
+            <td>${d.qty || '-'}</td>
+            <td>${badge}</td>
             <td><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td>
           </tr>`;
         }
@@ -3169,14 +3199,15 @@
 
       // Collection — area-wise grouped, Cash highlighted
       renderAreaGrouped('adminRepCollContainer', colls,
-        ['Date', 'Customer', 'Mode', 'Amount', ''],
+        ['Date', 'Area', 'Customer', 'Mode', 'Amount', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
-            ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
+            ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           const isCash = (d.mode || '').toLowerCase() === 'cash';
           return `<tr class="${isCash ? 'cash-row' : ''}">
-            <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
-            <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
+            <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+            <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
+            <td>${badge}</td>
             <td><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td>
           </tr>`;
         }
@@ -3435,9 +3466,14 @@
         const customerName = (cols[2] || '').trim();
         const product = (cols[3] || '').trim();
         const godown = (cols[4] || '').trim();
-        const qty = parseFloat(cols[5]) || 0;
-        const rate = parseFloat(cols[6]) || 0;
-        const amount = parseFloat(cols[7]) || 0;
+        const vehicle = (cols[5] || '').trim();
+        const qty = parseFloat(cols[6]) || 0;
+        const rate = parseFloat(cols[7]) || 0;
+        const discAmt = parseFloat(cols[8]) || 0;
+        const freight = parseFloat(cols[9]) || 0;
+        const amount = parseFloat(cols[10]) || 0;
+        const statusRaw = (cols[11] || '').trim().toLowerCase();
+        const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
         if (!date || !area || !customerName || amount <= 0) { failCount++; continue; }
 
@@ -3459,8 +3495,8 @@
 
           await addDoc(collection(db, "sales"), {
             customerId: custId, customerName: customerName, area: area, product: product,
-            godown: godown, vehicle: '', qty: qty, rate: rate, discRate: 0, discAmt: 0,
-            freight: 0, amount: amount, date: date, isAdvance: true, lots: [],
+            godown: godown, vehicle: vehicle, qty: qty, rate: rate, discRate: 0, discAmt: discAmt,
+            freight: freight, amount: amount, date: date, status: status, isAdvance: true, lots: [],
             enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
           });
           successCount++;
@@ -3481,6 +3517,84 @@
   };
 
   // ---- ADMIN: BULK UPLOAD OLD PURCHASES (CSV) ----
+  window.handleCollectionCsvUpload = async function () {
+    const fileInput = document.getElementById('collectionCsvInput');
+    const statusEl = document.getElementById('collectionCsvStatus');
+    const file = fileInput.files[0];
+
+    if (!file) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "CSV file select ചെയ്യുക."; return; }
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Reading file...";
+
+    try {
+      const text = await file.text();
+      let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
+      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
+      if (firstCols[0] && firstCols[0].includes('date')) lines = lines.slice(1);
+
+      if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
+
+      // Preload all customers for name+area matching
+      const custSnap = await getDocs(collection(db, "customers"));
+      const custMap = {};
+      custSnap.forEach(d => {
+        const c = d.data();
+        custMap[(c.name || '').toLowerCase() + '|' + c.area] = d.id;
+      });
+
+      let successCount = 0, failCount = 0;
+
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const date = (cols[0] || '').trim();
+        const area = (cols[1] || '').trim().toUpperCase();
+        const customerName = (cols[2] || '').trim();
+        const mode = (cols[3] || '').trim() || 'Cash';
+        const amount = parseFloat(cols[4]) || 0;
+        const statusRaw = (cols[5] || '').trim().toLowerCase();
+        const status = statusRaw === 'pending' ? 'pending' : 'approved';
+
+        if (!date || !area || !customerName || amount <= 0) { failCount++; continue; }
+
+        statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
+
+        try {
+          const key = customerName.toLowerCase() + '|' + area;
+          let custId = custMap[key];
+
+          if (!custId) {
+            const newCustRef = await addDoc(collection(db, "customers"), {
+              name: customerName, phone: '', area: area, openingBalance: 0, notes: '',
+              isPrivate: false, createdBy: currentUserData.username || 'unknown',
+              createdAt: new Date().toISOString()
+            });
+            custId = newCustRef.id;
+            custMap[key] = custId;
+          }
+
+          await addDoc(collection(db, "collections"), {
+            customerId: custId, customerName: customerName, area: area,
+            amount: amount, mode: mode, notes: '', date: date, status: status,
+            enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${successCount} collections added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
+    }
+  };
+
   window.handlePurchaseCsvUpload = async function () {
     const fileInput = document.getElementById('purchaseCsvInput');
     const statusEl = document.getElementById('purchaseCsvStatus');
@@ -3507,7 +3621,10 @@
         const area = (cols[1] || '').trim().toUpperCase();
         const product = (cols[2] || '').trim();
         const godown = (cols[3] || '').trim();
-        const qty = parseFloat(cols[4]) || 0;
+        const vehicle = (cols[4] || '').trim();
+        const qty = parseFloat(cols[5]) || 0;
+        const statusRaw = (cols[6] || '').trim().toLowerCase();
+        const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
         if (!date || !area || !product || qty <= 0) { failCount++; continue; }
 
@@ -3515,8 +3632,8 @@
 
         try {
           await addDoc(collection(db, "purchases"), {
-            product: product, godown: godown, vehicle: '',
-            area: area, qty: qty, remainingQty: 0, date: date, status: 'approved',
+            product: product, godown: godown, vehicle: vehicle,
+            area: area, qty: qty, remainingQty: (status === 'approved' ? qty : 0), date: date, status: status,
             enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
           });
           successCount++;
@@ -3615,8 +3732,8 @@
 
       const wb = XLSX.utils.book_new();
 
-      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status']];
-      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0, d.status || 'pending']));
+      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status']];
+      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.godown || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0, d.status || 'pending']));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Sales');
 
       const collData = [['Date', 'Area', 'Customer', 'Mode', 'Amount', 'Status']];
@@ -4089,6 +4206,17 @@
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
   });
+</script>
+
+<script>
+  // Register service worker for PWA installability + auto-update behavior
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        console.log('Service worker registration failed:', err);
+      });
+    });
+  }
 </script>
 
 </body>
