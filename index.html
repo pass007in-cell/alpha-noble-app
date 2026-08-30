@@ -333,13 +333,28 @@
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales</h3>
-    <div class="table-wrap">
+    <div class="table-wrap" style="margin-bottom:24px;">
       <table>
         <thead>
           <tr><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr>
         </thead>
         <tbody id="saleTableBody">
           <tr><td colspan="4">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">🔗 Advance Sales (Stock വന്നാൽ link ചെയ്യുക)</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Purchase ചെയ്യുന്നതിന് മുന്നേ ചെയ്ത Sales — stock വന്നതിന് ശേഷം ഇവിടെ നിന്ന് manual ആയി matching Purchase Lot-ലേക്ക് link ചെയ്യാം.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Godown</th><th>Total Qty</th><th>Linked</th><th>Remaining</th><th></th></tr>
+        </thead>
+        <tbody id="advanceSaleTableBody">
+          <tr><td colspan="8">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -661,6 +676,28 @@
   </div>
 </div>
 
+<!-- LINK ADVANCE SALE MODAL -->
+<div id="linkAdvanceOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;">
+    <h3 style="color:#1e3c72; margin-bottom:6px;">🔗 Link Advance Sale</h3>
+    <p style="font-size:13px; color:#777; margin-bottom:14px;" id="linkAdvanceInfo"></p>
+    <div class="error-msg" id="linkAdvanceErrorMsg"></div>
+
+    <label>Purchase Lot</label>
+    <select id="linkAdvanceLot" style="margin-bottom:14px;">
+      <option value="">-- Select Lot --</option>
+    </select>
+
+    <label>Qty to Link</label>
+    <input type="number" id="linkAdvanceQty" value="0" style="margin-bottom:16px;">
+
+    <div style="display:flex; gap:10px;">
+      <button style="flex:1;" onclick="confirmLinkAdvance()">Link</button>
+      <button style="flex:1; background:#999;" onclick="closeLinkAdvance()">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- ADMIN QUICK EDIT MODAL -->
 <div id="quickEditOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:400px;">
@@ -858,6 +895,16 @@
       </p>
       <button class="full-btn" style="background:#2e7d32;" onclick="handleDataBackup()">⬇️ Download Full Backup (JSON)</button>
       <div id="backupStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+    </div>
+
+    <div class="add-user-form" style="background:#fff3e0;">
+      <h3 style="color:#e65100;">♻️ Restore from Backup</h3>
+      <p style="font-size:13px; color:#777; margin-bottom:14px;">
+        മുമ്പ് download ചെയ്ത backup JSON file ഉപയോഗിച്ച് data തിരിച്ച് കൊണ്ടുവരാം. <strong>Backup file-ൽ ഉള്ള records, database-ൽ ഇപ്പോൾ ഉള്ള (അതേ ID ഉള്ള) records overwrite ചെയ്യും.</strong> ശ്രദ്ധയോടെ ഉപയോഗിക്കുക.
+      </p>
+      <input type="file" id="restoreFileInput" accept=".json" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#e65100;" onclick="handleDataRestore()">♻️ Restore from Backup File</button>
+      <div id="restoreStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
     </div>
 
     <div class="add-user-form" style="background:#fff3e0;">
@@ -1615,6 +1662,15 @@
   };
 
   // ---- CUSTOMER: Bulk CSV Upload ----
+  // Strips commas (Indian-style number grouping like "40,000") and ₹ symbols
+  // before parsing, so CSV values like "40,000" don't get truncated to "40".
+  function parseNum(str) {
+    if (str === null || str === undefined) return 0;
+    const cleaned = String(str).replace(/[₹,\s]/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? 0 : n;
+  }
+
   function parseCsvLine(line) {
     // Simple CSV split (handles basic quoted commas)
     const result = [];
@@ -1660,6 +1716,7 @@
       populateSaleVehicleDropdown();
       document.getElementById('saleDate').valueAsDate = new Date();
       loadTodaysSales();
+      loadAdvanceSales();
     } else if (tab === 'collection') {
       populateCollCustomerDropdown();
       document.getElementById('collDate').valueAsDate = new Date();
@@ -2204,6 +2261,140 @@
     } catch (err) {
       console.error(err);
       alert("Delete ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  // ---- ADVANCE SALE → PURCHASE LOT LINKING ----
+  async function loadAdvanceSales() {
+    const tbody = document.getElementById('advanceSaleTableBody');
+    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    try {
+      const q = query(
+        collection(db, "sales"),
+        where("area", "==", currentUserData.area),
+        where("isAdvance", "==", true)
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        tbody.innerHTML = '<tr><td colspan="8">Advance sales ഒന്നും ഇല്ല.</td></tr>';
+        return;
+      }
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+        const remaining = (d.qty || 0) - linkedQty;
+        if (remaining <= 0) return; // fully linked already, shouldn't normally happen since isAdvance would be false
+        rows += `<tr>
+          <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+          <td>${d.qty || 0}</td><td>${linkedQty}</td><td>${remaining}</td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${docSnap.id}')">Link</button></td>
+        </tr>`;
+      });
+      tbody.innerHTML = rows || '<tr><td colspan="8">Advance sales ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>';
+    }
+  }
+
+  let linkAdvanceSaleId = null;
+  let linkAdvanceSaleData = null;
+  let linkAdvanceAvailLots = [];
+
+  window.openLinkAdvance = async function (saleId) {
+    try {
+      const snap = await getDoc(doc(db, "sales", saleId));
+      if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
+      const d = snap.data();
+      linkAdvanceSaleId = saleId;
+      linkAdvanceSaleData = d;
+
+      const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+      const remaining = (d.qty || 0) - linkedQty;
+
+      document.getElementById('linkAdvanceInfo').textContent =
+        `${d.customerName || ''} — ${d.product || ''} (${d.godown || '-'}) — Remaining unlinked: ${remaining}`;
+      document.getElementById('linkAdvanceQty').value = remaining;
+      document.getElementById('linkAdvanceErrorMsg').style.display = 'none';
+
+      const lotSel = document.getElementById('linkAdvanceLot');
+      lotSel.innerHTML = '<option value="">Loading lots...</option>';
+      document.getElementById('linkAdvanceOverlay').style.display = 'flex';
+
+      const godown = d.godown || '';
+      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
+      const lotQ = isSharedGodown
+        ? query(collection(db, "purchases"), where("product", "==", d.product), where("godown", "==", godown))
+        : query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", d.product), where("godown", "==", godown));
+      const lotSnap = await getDocs(lotQ);
+
+      linkAdvanceAvailLots = [];
+      lotSnap.forEach(docSnap => {
+        const ld = docSnap.data();
+        const rem = (ld.remainingQty !== undefined) ? ld.remainingQty : ld.qty;
+        if (rem > 0) linkAdvanceAvailLots.push({ id: docSnap.id, date: ld.date, remainingQty: rem, vehicle: ld.vehicle });
+      });
+      linkAdvanceAvailLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      lotSel.innerHTML = '<option value="">-- Select Lot --</option>' +
+        linkAdvanceAvailLots.map(l => `<option value="${l.id}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`).join('');
+
+      if (linkAdvanceAvailLots.length === 0) {
+        lotSel.innerHTML = '<option value="">Matching lots ഒന്നും ഇല്ല</option>';
+      }
+
+    } catch (err) {
+      console.error(err);
+      alert("Load ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  window.closeLinkAdvance = function () {
+    document.getElementById('linkAdvanceOverlay').style.display = 'none';
+    linkAdvanceSaleId = null;
+    linkAdvanceSaleData = null;
+    linkAdvanceAvailLots = [];
+  };
+
+  window.confirmLinkAdvance = async function () {
+    const lotId = document.getElementById('linkAdvanceLot').value;
+    const qty = parseFloat(document.getElementById('linkAdvanceQty').value) || 0;
+    const errEl = document.getElementById('linkAdvanceErrorMsg');
+    errEl.style.display = 'none';
+
+    if (!lotId) { errEl.textContent = "Lot select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+
+    const lot = linkAdvanceAvailLots.find(l => l.id === lotId);
+    if (!lot) { errEl.textContent = "Lot data കണ്ടെത്തിയില്ല."; errEl.style.display = 'block'; return; }
+    if (qty > lot.remainingQty) { errEl.textContent = `Available Qty (${lot.remainingQty})-ൽ കൂടുതൽ link ചെയ്യാൻ പറ്റില്ല.`; errEl.style.display = 'block'; return; }
+
+    const d = linkAdvanceSaleData;
+    const linkedQtySoFar = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+    const remaining = (d.qty || 0) - linkedQtySoFar;
+    if (qty > remaining) { errEl.textContent = `ഈ Sale-ന് ബാക്കി ${remaining} Qty മാത്രമേ link ചെയ്യാൻ ഉള്ളൂ.`; errEl.style.display = 'block'; return; }
+
+    try {
+      await updateDoc(doc(db, "purchases", lotId), { remainingQty: increment(-qty) });
+
+      const newLots = [...(d.lots || []), { purchaseId: lotId, qty: qty, source: 'godown' }];
+      const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
+      const stillAdvance = newLinkedTotal < (d.qty || 0);
+
+      await updateDoc(doc(db, "sales", linkAdvanceSaleId), {
+        lots: newLots,
+        isAdvance: stillAdvance
+      });
+
+      closeLinkAdvance();
+      loadAdvanceSales();
+      loadTodaysSales();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Link ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
     }
   };
 
@@ -3432,6 +3623,66 @@
     }
   };
 
+  window.handleDataRestore = async function () {
+    const fileInput = document.getElementById('restoreFileInput');
+    const statusEl = document.getElementById('restoreStatus');
+    const file = fileInput.files[0];
+
+    if (!file) {
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Backup JSON file select ചെയ്യുക.";
+      return;
+    }
+
+    if (!confirm("Backup file-ൽ ഉള്ള records, ഇപ്പോൾ database-ൽ ഉള്ള (അതേ ID ഉള്ള) records overwrite ചെയ്യും. തുടരണോ?")) return;
+    if (!confirm("ഉറപ്പാണോ? ഈ action തിരിച്ചെടുക്കാൻ പറ്റില്ല!")) return;
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Backup file വായിക്കുന്നു...";
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock'];
+      let totalRestored = 0;
+      let totalRecords = 0;
+      collections.forEach(c => { if (Array.isArray(backup[c])) totalRecords += backup[c].length; });
+
+      if (totalRecords === 0) {
+        statusEl.style.color = '#d32f2f';
+        statusEl.textContent = "Valid backup data ഈ file-ൽ കണ്ടെത്തിയില്ല.";
+        return;
+      }
+
+      for (const colName of collections) {
+        const records = backup[colName];
+        if (!Array.isArray(records)) continue;
+
+        for (const record of records) {
+          if (!record.id) continue;
+          const { id, ...data } = record;
+          statusEl.textContent = `Restoring ${colName}: ${totalRestored + 1} / ${totalRecords}...`;
+          try {
+            await setDoc(doc(db, colName, id), data);
+            totalRestored++;
+          } catch (e) {
+            console.error(`Failed to restore ${colName}/${id}`, e);
+          }
+        }
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${totalRestored} / ${totalRecords} records restore ചെയ്തു.`;
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Restore ചെയ്യാൻ പറ്റിയില്ല. File format ശരിയാണോ എന്ന് നോക്കുക.";
+    }
+  };
+
   window.handleBulkDelete = async function () {
     const dataType = document.getElementById('deleteDataType').value;
     const area = document.getElementById('deleteDataArea').value;
@@ -3523,7 +3774,7 @@
         const cols = parseCsvLine(lines[i]);
         const name = (cols[0] || '').trim();
         const phone = (cols[1] || '').trim();
-        const openingBalance = parseFloat(cols[2]) || 0;
+        const openingBalance = parseNum(cols[2]);
         const notes = (cols[3] || '').trim();
 
         if (!name) { failCount++; continue; }
@@ -3593,10 +3844,10 @@
         const product = (cols[3] || '').trim();
         const godown = (cols[4] || '').trim();
         const vehicle = (cols[5] || '').trim();
-        const qty = parseFloat(cols[6]) || 0;
-        const rate = parseFloat(cols[7]) || 0;
-        const discAmt = parseFloat(cols[8]) || 0;
-        const freight = parseFloat(cols[9]) || 0;
+        const qty = parseNum(cols[6]);
+        const rate = parseNum(cols[7]);
+        const discAmt = parseNum(cols[8]);
+        const freight = parseNum(cols[9]);
         // Amount is always computed from Qty/Rate/Discount/Freight — never trusted directly
         // from the CSV column, since a wrong value there was a common source of errors.
         const amount = (qty * rate) - discAmt - freight;
@@ -3712,7 +3963,7 @@
         const area = (cols[1] || '').trim().toUpperCase();
         const customerName = (cols[2] || '').trim();
         const mode = (cols[3] || '').trim() || 'Cash';
-        const amount = parseFloat(cols[4]) || 0;
+        const amount = parseNum(cols[4]);
         const statusRaw = (cols[5] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
@@ -3783,7 +4034,7 @@
         const product = (cols[2] || '').trim();
         const godown = (cols[3] || '').trim();
         const vehicle = (cols[4] || '').trim();
-        const qty = parseFloat(cols[5]) || 0;
+        const qty = parseNum(cols[5]);
         const statusRaw = (cols[6] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
