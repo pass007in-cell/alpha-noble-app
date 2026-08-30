@@ -118,6 +118,8 @@
   .cust-opt-new { color:#2e7d32; font-weight:700; }
   .cust-search-box { position:relative; margin-bottom:8px; }
   .cust-options-box { display:none; position:absolute; z-index:30; top:100%; left:0; right:0; background:#fff; border:1.5px solid #ccc; border-radius:8px; max-height:240px; overflow-y:auto; box-shadow:0 6px 14px rgba(0,0,0,0.15); }
+  .cash-row td { font-weight:700 !important; color:#1565c0 !important; background:#e3f2fd; }
+  .area-group-title { background:#1e3c72; color:#fff; padding:8px 12px; font-size:13px; font-weight:700; border-radius:6px 6px 0 0; }
 </style>
 </head>
 <body>
@@ -266,9 +268,12 @@
         </div>
         <div>
           <label>Vehicle (optional)</label>
-          <select id="saleVehicle">
-            <option value="">-- Select Vehicle --</option>
-          </select>
+          <div class="cust-search-box">
+            <input type="text" id="saleVehicleSearch" placeholder="🔍 Vehicle search..." autocomplete="off"
+              oninput="renderSaleVehicleOptions()" onfocus="renderSaleVehicleOptions()">
+            <input type="hidden" id="saleVehicle">
+            <div id="saleVehicleOptionsBox" class="cust-options-box"></div>
+          </div>
         </div>
         <div>
           <label>Quantity</label>
@@ -417,21 +422,16 @@
         </div>
         <div>
           <label>Vehicle (optional)</label>
-          <select id="purchaseVehicle">
-            <option value="">-- Select Vehicle --</option>
-          </select>
+          <div class="cust-search-box">
+            <input type="text" id="purchaseVehicleSearch" placeholder="🔍 Vehicle search..." autocomplete="off"
+              oninput="renderPurchaseVehicleOptions()" onfocus="renderPurchaseVehicleOptions()">
+            <input type="hidden" id="purchaseVehicle">
+            <div id="purchaseVehicleOptionsBox" class="cust-options-box"></div>
+          </div>
         </div>
         <div>
           <label>Quantity</label>
-          <input type="number" id="purchaseQty" placeholder="1" value="1" oninput="calcPurchaseRate()">
-        </div>
-        <div>
-          <label>Total Amount (₹)</label>
-          <input type="number" id="purchaseAmount" placeholder="0" value="0" oninput="calcPurchaseRate()">
-        </div>
-        <div>
-          <label>Unit Price (auto)</label>
-          <input type="number" id="purchaseRate" placeholder="0" value="0" readonly style="background:#eee;">
+          <input type="number" id="purchaseQty" placeholder="1" value="1">
         </div>
       </div>
       <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
@@ -439,7 +439,7 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases</h3>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Product</th><th>Qty</th><th>Rate</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Product</th><th>Qty</th><th>Status</th><th></th></tr></thead>
         <tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
       </table>
     </div>
@@ -559,16 +559,16 @@
         <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="repCollTotal">₹0</p>
       </div>
       <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE</p>
-        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">₹0</p>
+        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE QTY</p>
+        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">0</p>
       </div>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
-        <tbody id="repSalesBody"><tr><td colspan="5">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Amount</th></tr></thead>
+        <tbody id="repSalesBody"><tr><td colspan="6">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
 
@@ -583,42 +583,69 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
-        <tbody id="repPurchaseBody"><tr><td colspan="4">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Product</th><th>Qty</th></tr></thead>
+        <tbody id="repPurchaseBody"><tr><td colspan="3">—</td></tr></tbody>
       </table>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock)</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Godown-വാരിയായി, ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
+      Godown-വാരിയായി (Vehicle number സഹിതം), ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
     </p>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
-        <tbody id="repLotBody"><tr><td colspan="3">—</td></tr></tbody>
-      </table>
-    </div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">🚚 Vehicle Stock</h3>
-    <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Godown-ലേക്ക് അല്ലാതെ, Vehicle-ലേക്ക് transfer ചെയ്ത stock.
-    </p>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Product</th><th>Vehicle</th><th>Qty</th></tr></thead>
-        <tbody id="repVehicleStockBody"><tr><td colspan="3">—</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+        <tbody id="repLotBody"><tr><td colspan="4">—</td></tr></tbody>
       </table>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Item-wise total)</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Godown stock + Vehicle stock ചേർത്ത്, ഓരോ Product-ന്റെയും ആകെ balance.
+      ഓരോ Product-ന്റെയും ആകെ remaining stock.
     </p>
-    <div class="table-wrap">
+    <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Product</th><th>Godown Stock</th><th>Vehicle Stock</th><th>Total</th></tr></thead>
-        <tbody id="repStockBookBody"><tr><td colspan="4">—</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Total Stock</th></tr></thead>
+        <tbody id="repStockBookBody"><tr><td colspan="2">—</td></tr></tbody>
       </table>
+    </div>
+
+    <div class="add-user-form">
+      <h3>🧾 Customer Statement</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ഒരു Customer-ന്റെ Sale &amp; Collection transactions, മറ്റ് areas-ലേത് ഉൾപ്പെടെ, date range-ൽ.
+      </p>
+      <label>Customer</label>
+      <div class="cust-search-box">
+        <input type="text" id="stmtCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+          oninput="renderStmtCustOptions()" onfocus="renderStmtCustOptions()">
+        <input type="hidden" id="stmtCustomer">
+        <div id="stmtCustOptionsBox" class="cust-options-box"></div>
+      </div>
+      <button class="full-btn" onclick="generateCustomerStatement()">Generate Statement</button>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportStatementCSV()">⬇️ Excel (CSV)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+    </div>
+
+    <div id="stmtResultBox" style="display:none;">
+      <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
+        <div>
+          <p style="font-size:12px; color:#555;">Opening Balance</p>
+          <p style="font-size:17px; font-weight:700; color:#555;" id="stmtOpening">₹0</p>
+        </div>
+        <div>
+          <p style="font-size:12px; color:#555;">Closing Balance</p>
+          <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="stmtClosing">₹0</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+          <tbody id="stmtTableBody"><tr><td colspan="7">—</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -667,6 +694,7 @@
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabAdminUsersBtn" onclick="switchAdminTab('users')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Users</button>
+    <button id="tabAdminCustomersBtn" onclick="switchAdminTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabAdminGodownBtn" onclick="switchAdminTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
     <button id="tabAdminProductBtn" onclick="switchAdminTab('product')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Product</button>
     <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
@@ -720,6 +748,33 @@
       </tbody>
     </table>
   </div>
+  </div>
+
+  <div id="tabAdminCustomers" style="display:none;">
+    <div class="add-user-form">
+      <h3>👥 Customers (All Areas)</h3>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="adminCustFrom">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="adminCustTo">
+        </div>
+      </div>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Date range-ൽ ഓരോ customer-ന്റെയും Sales/Collections activity, Opening Balance-ഓട് ചേർത്ത് Closing Balance കാണിക്കും.
+      </p>
+      <input type="text" id="adminCustSearch" placeholder="🔍 Search by name or phone..." style="margin-bottom:10px;" oninput="filterAdminCustomers()">
+      <button class="full-btn" onclick="generateAdminCustomerReport()">Generate Report</button>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportAdminCustomerExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+    </div>
+
+    <div id="adminCustContainer">Loading...</div>
   </div>
 
   <div id="tabAdminGodown" style="display:none;">
@@ -855,7 +910,7 @@
     <div class="add-user-form">
       <h3>📂 Bulk Upload — Old Purchases (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Qty, Rate, Amount<br>
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Qty<br>
         ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
@@ -910,7 +965,7 @@
       </div>
       <button class="full-btn" onclick="generateAdminReport()">Generate Report</button>
       <div style="display:flex; gap:10px; margin-top:10px;">
-        <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('admin')">⬇️ Excel (CSV)</button>
+        <button style="flex:1; background:#2e7d32;" onclick="exportAdminExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
     </div>
@@ -925,64 +980,36 @@
         <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="adminRepCollTotal">₹0</p>
       </div>
       <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE (ALL AREAS)</p>
-        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="adminRepPurchaseTotal">₹0</p>
+        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE QTY (ALL AREAS)</p>
+        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="adminRepPurchaseTotal">0</p>
       </div>
     </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Area-wise Summary</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Area</th><th>Sales</th><th>Collection</th><th>Purchase</th></tr></thead>
+        <thead><tr><th>Area</th><th>Sales</th><th>Collection</th><th>Purchase Qty</th></tr></thead>
         <tbody id="adminRepAreaBody"><tr><td colspan="4">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="adminRepSalesBody"><tr><td colspan="7">—</td></tr></tbody>
-      </table>
-    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Sales (Area-wise)</h3>
+    <div id="adminRepSalesContainer" style="margin-bottom:20px;">—</div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="adminRepCollBody"><tr><td colspan="6">—</td></tr></tbody>
-      </table>
-    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection (Area-wise)</h3>
+    <div id="adminRepCollContainer" style="margin-bottom:20px;">—</div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Qty</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="adminRepPurchaseBody"><tr><td colspan="6">—</td></tr></tbody>
-      </table>
-    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase (Area-wise)</h3>
+    <div id="adminRepPurchaseContainer" style="margin-bottom:20px;">—</div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, all Areas)</h3>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
-        <tbody id="adminRepLotBody"><tr><td colspan="4">—</td></tr></tbody>
-      </table>
-    </div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">🚚 Vehicle Stock (all Areas)</h3>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Area</th><th>Product</th><th>Vehicle</th><th>Qty</th></tr></thead>
-        <tbody id="adminRepVehicleStockBody"><tr><td colspan="4">—</td></tr></tbody>
-      </table>
-    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, Vehicle സഹിതം — Area-wise)</h3>
+    <div id="adminRepLotContainer" style="margin-bottom:20px;">—</div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Area &amp; Item wise)</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Area</th><th>Product</th><th>Godown Stock</th><th>Vehicle Stock</th><th>Total</th></tr></thead>
-        <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
+        <thead><tr><th>Area</th><th>Product</th><th>Total Stock</th></tr></thead>
+        <tbody id="adminRepStockBookBody"><tr><td colspan="3">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1168,7 +1195,7 @@
     switchAdminTab('reports');
   }
 
-  const allAdminTabs = ['users', 'godown', 'product', 'data', 'approvals', 'reports'];
+  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'data', 'approvals', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1185,6 +1212,12 @@
       }
     });
     if (tab === 'users') loadUsersList();
+    else if (tab === 'customers') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!document.getElementById('adminCustFrom').value) document.getElementById('adminCustFrom').value = todayStr;
+      if (!document.getElementById('adminCustTo').value) document.getElementById('adminCustTo').value = todayStr;
+      generateAdminCustomerReport();
+    }
     else if (tab === 'godown') loadAdminGodowns();
     else if (tab === 'product') loadAdminProducts();
     else if (tab === 'approvals') loadApprovals();
@@ -1394,12 +1427,13 @@
         return (a.name || '').localeCompare(b.name || '');
       });
 
-      // Aggregate sales & collections for own-area customers, to show accurate running balance
+      // Aggregate sales & collections for ALL customers (across all areas — a customer may have
+      // been sold to or collected from in a different area than their own)
       custSalesTotals = {};
       custCollTotals = {};
       const [salesSnap, collSnap] = await Promise.all([
-        getDocs(query(collection(db, "sales"), where("area", "==", myArea))),
-        getDocs(query(collection(db, "collections"), where("area", "==", myArea)))
+        getDocs(collection(db, "sales")),
+        getDocs(collection(db, "collections"))
       ]);
       salesSnap.forEach(d => {
         const s = d.data();
@@ -1677,33 +1711,51 @@
     const sel = document.getElementById('saleGodown');
     sel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "godowns"));
+      const seen = new Set();
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = d.name;
-        sel.appendChild(opt);
+        const isShared = (d.name || '').toUpperCase().startsWith('IGST-');
+        if ((d.area === currentUserData.area || isShared) && !seen.has(d.name)) {
+          seen.add(d.name);
+          const opt = document.createElement('option');
+          opt.value = d.name;
+          opt.textContent = d.name + (isShared ? ' (Shared)' : '');
+          sel.appendChild(opt);
+        }
       });
     } catch (err) { console.error(err); }
   }
 
+  let allVehiclesForSale = [];
+
   async function populateSaleVehicleDropdown() {
-    const sel = document.getElementById('saleVehicle');
-    sel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+    document.getElementById('saleVehicleSearch').value = '';
+    document.getElementById('saleVehicle').value = '';
     try {
       const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
       const snap = await getDocs(q);
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        const opt = document.createElement('option');
-        opt.value = d.number;
-        opt.textContent = d.number;
-        sel.appendChild(opt);
-      });
+      allVehiclesForSale = [];
+      snap.forEach(docSnap => allVehiclesForSale.push(docSnap.data()));
+      allVehiclesForSale.sort((a, b) => (a.number || '').localeCompare(b.number || ''));
     } catch (err) { console.error(err); }
   }
+
+  window.renderSaleVehicleOptions = function () {
+    const box = document.getElementById('saleVehicleOptionsBox');
+    const term = document.getElementById('saleVehicleSearch').value.trim().toLowerCase();
+    const matches = allVehiclesForSale.filter(v => !term || (v.number || '').toLowerCase().includes(term));
+    let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectSaleVehicle('${escapeHtml(v.number)}')">${v.number}${v.driver ? ' — ' + v.driver : ''}</div>`).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Vehicle കണ്ടെത്തിയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectSaleVehicle = function (number) {
+    document.getElementById('saleVehicle').value = number;
+    document.getElementById('saleVehicleSearch').value = number;
+    document.getElementById('saleVehicleOptionsBox').style.display = 'none';
+  };
 
   function escapeHtml(str) {
     return (str || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
@@ -1755,6 +1807,18 @@
     if (!e.target.closest('#collCustSearchInput') && !e.target.closest('#collCustOptionsBox')) {
       const box2 = document.getElementById('collCustOptionsBox');
       if (box2) box2.style.display = 'none';
+    }
+    if (!e.target.closest('#saleVehicleSearch') && !e.target.closest('#saleVehicleOptionsBox')) {
+      const box3 = document.getElementById('saleVehicleOptionsBox');
+      if (box3) box3.style.display = 'none';
+    }
+    if (!e.target.closest('#purchaseVehicleSearch') && !e.target.closest('#purchaseVehicleOptionsBox')) {
+      const box4 = document.getElementById('purchaseVehicleOptionsBox');
+      if (box4) box4.style.display = 'none';
+    }
+    if (!e.target.closest('#stmtCustSearchInput') && !e.target.closest('#stmtCustOptionsBox')) {
+      const box5 = document.getElementById('stmtCustOptionsBox');
+      if (box5) box5.style.display = 'none';
     }
   });
 
@@ -2248,12 +2312,6 @@
   };
 
   // ---- PURCHASE ----
-  window.calcPurchaseRate = function () {
-    const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
-    const amount = parseFloat(document.getElementById('purchaseAmount').value) || 0;
-    document.getElementById('purchaseRate').value = qty > 0 ? (amount / qty).toFixed(2) : '0';
-  };
-
   async function populatePurchaseProductDropdown() {
     const sel = document.getElementById('purchaseProduct');
     sel.innerHTML = '<option value="">-- Select Product --</option>';
@@ -2273,33 +2331,51 @@
     const sel = document.getElementById('purchaseGodown');
     sel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
-      const snap = await getDocs(q);
+      const snap = await getDocs(collection(db, "godowns"));
+      const seen = new Set();
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = d.name;
-        sel.appendChild(opt);
+        const isShared = (d.name || '').toUpperCase().startsWith('IGST-');
+        if ((d.area === currentUserData.area || isShared) && !seen.has(d.name)) {
+          seen.add(d.name);
+          const opt = document.createElement('option');
+          opt.value = d.name;
+          opt.textContent = d.name + (isShared ? ' (Shared)' : '');
+          sel.appendChild(opt);
+        }
       });
     } catch (err) { console.error(err); }
   }
 
+  let allVehiclesForPurchase = [];
+
   async function populatePurchaseVehicleDropdown() {
-    const sel = document.getElementById('purchaseVehicle');
-    sel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+    document.getElementById('purchaseVehicleSearch').value = '';
+    document.getElementById('purchaseVehicle').value = '';
     try {
       const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
       const snap = await getDocs(q);
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        const opt = document.createElement('option');
-        opt.value = d.number;
-        opt.textContent = d.number;
-        sel.appendChild(opt);
-      });
+      allVehiclesForPurchase = [];
+      snap.forEach(docSnap => allVehiclesForPurchase.push(docSnap.data()));
+      allVehiclesForPurchase.sort((a, b) => (a.number || '').localeCompare(b.number || ''));
     } catch (err) { console.error(err); }
   }
+
+  window.renderPurchaseVehicleOptions = function () {
+    const box = document.getElementById('purchaseVehicleOptionsBox');
+    const term = document.getElementById('purchaseVehicleSearch').value.trim().toLowerCase();
+    const matches = allVehiclesForPurchase.filter(v => !term || (v.number || '').toLowerCase().includes(term));
+    let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectPurchaseVehicle('${escapeHtml(v.number)}')">${v.number}${v.driver ? ' — ' + v.driver : ''}</div>`).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Vehicle കണ്ടെത്തിയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectPurchaseVehicle = function (number) {
+    document.getElementById('purchaseVehicle').value = number;
+    document.getElementById('purchaseVehicleSearch').value = number;
+    document.getElementById('purchaseVehicleOptionsBox').style.display = 'none';
+  };
 
   window.handleAddPurchase = async function () {
     const product = document.getElementById('purchaseProduct').value;
@@ -2307,8 +2383,6 @@
     const godown = document.getElementById('purchaseGodown').value;
     const vehicle = document.getElementById('purchaseVehicle').value;
     const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
-    const rate = parseFloat(document.getElementById('purchaseRate').value) || 0;
-    const amount = parseFloat(document.getElementById('purchaseAmount').value) || 0;
     const errEl = document.getElementById('purchaseErrorMsg');
     const okEl = document.getElementById('purchaseSuccessMsg');
     const btn = document.getElementById('addPurchaseBtn');
@@ -2317,7 +2391,7 @@
 
     if (!product) { errEl.textContent = "Product select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (!godown) { errEl.textContent = "Godown select ചെയ്യുക"; errEl.style.display = 'block'; return; }
-    if (amount <= 0) { errEl.textContent = "Amount 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Quantity 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
 
     btn.disabled = true; btn.textContent = "Saving...";
 
@@ -2326,25 +2400,25 @@
         const qtyDelta = qty - editingPurchaseOldQty;
         await updateDoc(doc(db, "purchases", editingPurchaseId), {
           product: product, godown: godown, vehicle: vehicle,
-          qty: qty, remainingQty: increment(qtyDelta), rate: rate, amount: amount, date: date,
+          qty: qty, remainingQty: increment(qtyDelta), date: date,
           status: 'pending', updatedAt: new Date().toISOString()
         });
-        okEl.textContent = `Purchase updated: ${product} — ₹${amount}`;
+        okEl.textContent = `Purchase updated: ${product} — Qty: ${qty}`;
       } else {
         await addDoc(collection(db, "purchases"), {
           product: product, godown: godown, vehicle: vehicle,
-          area: currentUserData.area, qty: qty, remainingQty: qty, rate: rate, amount: amount, date: date,
+          area: currentUserData.area, qty: qty, remainingQty: qty, date: date,
           status: 'pending',
           enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
         });
-        okEl.textContent = `Purchase saved: ${product} — ₹${amount}`;
+        okEl.textContent = `Purchase saved: ${product} — Qty: ${qty}`;
       }
 
       okEl.style.display = 'block';
 
       document.getElementById('purchaseQty').value = '1';
-      document.getElementById('purchaseRate').value = '0';
-      document.getElementById('purchaseAmount').value = '0';
+      document.getElementById('purchaseVehicle').value = '';
+      document.getElementById('purchaseVehicleSearch').value = '';
       editingPurchaseId = null;
       editingPurchaseOldQty = 0;
       btn.textContent = "Save Purchase";
@@ -2362,7 +2436,7 @@
 
   async function loadTodaysPurchases() {
     const tbody = document.getElementById('purchaseTableBody');
-    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(
@@ -2371,13 +2445,13 @@
         where("date", "==", todayStr)
       );
       const snap = await getDocs(q);
-      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="6">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="4">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
       let rows = '';
-      let total = 0;
+      let totalQty = 0;
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const id = docSnap.id;
-        total += (d.amount || 0);
+        totalQty += (d.qty || 0);
         const isPending = (d.status || 'pending') === 'pending';
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
@@ -2387,14 +2461,13 @@
           ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editPurchaseRow('${id}')">Edit</button>
              <button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>`
           : '';
-        rows += `<tr><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
-          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
+        rows += `<tr><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
-      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td></tr>`;
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td>${totalQty}</td><td colspan="2"></td></tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="6">Error loading purchases.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4">Error loading purchases.</td></tr>';
     }
   }
 
@@ -2411,9 +2484,8 @@
       document.getElementById('purchaseDate').value = d.date || '';
       document.getElementById('purchaseGodown').value = d.godown || '';
       document.getElementById('purchaseVehicle').value = d.vehicle || '';
+      document.getElementById('purchaseVehicleSearch').value = d.vehicle || '';
       document.getElementById('purchaseQty').value = d.qty || 0;
-      document.getElementById('purchaseAmount').value = d.amount || 0;
-      document.getElementById('purchaseRate').value = d.rate || 0;
 
       editingPurchaseId = id;
       editingPurchaseOldQty = d.qty || 0;
@@ -2505,12 +2577,10 @@
     if (!product || !godown) return;
 
     try {
-      const q = query(
-        collection(db, "purchases"),
-        where("area", "==", currentUserData.area),
-        where("product", "==", product),
-        where("godown", "==", godown)
-      );
+      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
+      const q = isSharedGodown
+        ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
+        : query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -2834,12 +2904,12 @@
     if (!product || !godown) return;
 
     try {
-      const q = query(
-        collection(db, "purchases"),
-        where("area", "==", currentUserData.area),
-        where("product", "==", product),
-        where("godown", "==", godown)
-      );
+      // "IGST-" prefixed godowns are shared across paired areas (e.g. IGST-ALP for MKD+PKD,
+      // IGST-NBL for MLT+NLB) — pool stock by product+godown only, ignoring area, for these.
+      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
+      const q = isSharedGodown
+        ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
+        : query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -2901,10 +2971,10 @@
       return;
     }
 
-    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
     document.getElementById('repCollBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
-    document.getElementById('repLotBody').innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
+    document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
       const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
@@ -2926,87 +2996,65 @@
 
       // Totals
       const salesTotal = sales.reduce((sum, d) => sum + (d.amount || 0), 0);
-      const purchaseTotal = purchases.reduce((sum, d) => sum + (d.amount || 0), 0);
+      const purchaseQtyTotal = purchases.reduce((sum, d) => sum + (d.qty || 0), 0);
       const collTotal = colls.reduce((sum, d) => sum + (d.amount || 0), 0);
 
       document.getElementById('repSalesTotal').textContent = '₹' + salesTotal.toLocaleString('en-IN');
-      document.getElementById('repPurchaseTotal').textContent = '₹' + purchaseTotal.toLocaleString('en-IN');
+      document.getElementById('repPurchaseTotal').textContent = purchaseQtyTotal.toLocaleString('en-IN') + ' Qty';
       document.getElementById('repCollTotal').textContent = '₹' + collTotal.toLocaleString('en-IN');
 
-      // Sales table
+      // Sales table (with Unit Price)
       let salesRows = sales.map(d => `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
+        <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
       document.getElementById('repSalesBody').innerHTML = salesRows ||
-        '<tr><td colspan="5">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="6">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
 
-      // Purchase table
+      // Purchase table (qty only)
       let purchaseRows = purchases.map(d => `<tr>
-        <td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+        <td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td></tr>`).join('');
       document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
-        '<tr><td colspan="4">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="3">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
 
-      // Collection table
-      let collRows = colls.map(d => `<tr>
+      // Collection table (Cash highlighted)
+      let collRows = colls.map(d => {
+        const isCash = (d.mode || '').toLowerCase() === 'cash';
+        return `<tr class="${isCash ? 'cash-row' : ''}">
         <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`;
+      }).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
         '<tr><td colspan="4">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
 
-      // Lot Balance (current stock, not date-filtered) — aggregate remainingQty by Product+Godown
+      // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
-          const key = (d.product || '-') + '|' + (d.godown || '-');
+          const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
         }
       });
       const lotEntries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
       let lotRows = lotEntries.map(([key, qty]) => {
-        const [product, godown] = key.split('|');
-        return `<tr><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+        const [product, godown, vehicle] = key.split('|');
+        return `<tr><td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
       }).join('');
       document.getElementById('repLotBody').innerHTML = lotRows ||
-        '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
 
-      // Vehicle Stock — aggregate by Product+Vehicle
-      const vsSnap = await getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area)));
-      const vsMap = {};
-      vsSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        const key = (d.product || '-') + '|' + (d.vehicle || '-');
-        vsMap[key] = (vsMap[key] || 0) + (d.qty || 0);
-      });
-      const vsEntries = Object.entries(vsMap).sort((a, b) => a[0].localeCompare(b[0]));
-      let vsRows = vsEntries.map(([key, qty]) => {
-        const [product, vehicle] = key.split('|');
-        return `<tr><td>${product}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
-      }).join('');
-      document.getElementById('repVehicleStockBody').innerHTML = vsRows ||
-        '<tr><td colspan="3">Vehicle stock ഒന്നും ഇല്ല.</td></tr>';
-
-      // Stock Book — item-wise total (godown lot balance + vehicle stock)
-      const godownByItem = {};
+      // Stock Book — item-wise total
+      const stockByItem = {};
       lotEntries.forEach(([key, qty]) => {
         const product = key.split('|')[0];
-        godownByItem[product] = (godownByItem[product] || 0) + qty;
+        stockByItem[product] = (stockByItem[product] || 0) + qty;
       });
-      const vehicleByItem = {};
-      vsEntries.forEach(([key, qty]) => {
-        const product = key.split('|')[0];
-        vehicleByItem[product] = (vehicleByItem[product] || 0) + qty;
-      });
-      const allItems = Array.from(new Set([...Object.keys(godownByItem), ...Object.keys(vehicleByItem)])).sort();
-      let stockBookRows = allItems.map(item => {
-        const g = godownByItem[item] || 0;
-        const v = vehicleByItem[item] || 0;
-        return `<tr><td>${item}</td><td>${g}</td><td>${v}</td><td><strong>${g + v}</strong></td></tr>`;
-      }).join('');
+      const allItems = Object.keys(stockByItem).sort();
+      let stockBookRows = allItems.map(item => `<tr><td>${item}</td><td><strong>${stockByItem[item]}</strong></td></tr>`).join('');
       document.getElementById('repStockBookBody').innerHTML = stockBookRows ||
-        '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="2">Stock ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
       console.error(err);
@@ -3015,6 +3063,27 @@
   };
 
   // ---- ADMIN: ALL-AREAS REPORT ----
+  // Helper: group array by area and render into container as per-area mini-tables
+  function renderAreaGrouped(containerId, items, headers, rowFn) {
+    const container = document.getElementById(containerId);
+    const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
+    let html = '';
+    areas.forEach(area => {
+      const areaItems = items.filter(d => d.area === area);
+      if (areaItems.length === 0) return;
+      html += `<div style="margin-bottom:14px;">
+        <div class="area-group-title">${area} (${areaItems.length})</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+            <tbody>${areaItems.map(rowFn).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+    });
+    container.innerHTML = html || '<p style="color:#999; font-size:13px;">ഈ range-ൽ data ഒന്നും ഇല്ല.</p>';
+  }
+
   window.generateAdminReport = async function () {
     const from = document.getElementById('adminReportFrom').value;
     const to = document.getElementById('adminReportTo').value;
@@ -3024,19 +3093,17 @@
       return;
     }
 
-    document.getElementById('adminRepSalesBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    document.getElementById('adminRepCollBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-    document.getElementById('adminRepPurchaseBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    document.getElementById('adminRepSalesContainer').innerHTML = 'Loading...';
+    document.getElementById('adminRepCollContainer').innerHTML = 'Loading...';
+    document.getElementById('adminRepPurchaseContainer').innerHTML = 'Loading...';
     document.getElementById('adminRepAreaBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
-    document.getElementById('adminRepLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
-    document.getElementById('adminRepVehicleStockBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('adminRepLotContainer').innerHTML = 'Loading...';
 
     try {
-      const [salesSnap, purchaseSnap, collSnap, vsSnap] = await Promise.all([
+      const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
         getDocs(collection(db, "sales")),
         getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "collections")),
-        getDocs(collection(db, "vehicleStock"))
+        getDocs(collection(db, "collections"))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -3052,11 +3119,11 @@
 
       // Overall totals
       const salesTotal = sales.reduce((s, d) => s + (d.amount || 0), 0);
-      const purchaseTotal = purchases.reduce((s, d) => s + (d.amount || 0), 0);
+      const purchaseQtyTotal = purchases.reduce((s, d) => s + (d.qty || 0), 0);
       const collTotal = colls.reduce((s, d) => s + (d.amount || 0), 0);
 
       document.getElementById('adminRepSalesTotal').textContent = '₹' + salesTotal.toLocaleString('en-IN');
-      document.getElementById('adminRepPurchaseTotal').textContent = '₹' + purchaseTotal.toLocaleString('en-IN');
+      document.getElementById('adminRepPurchaseTotal').textContent = purchaseQtyTotal.toLocaleString('en-IN') + ' Qty';
       document.getElementById('adminRepCollTotal').textContent = '₹' + collTotal.toLocaleString('en-IN');
 
       // Area-wise summary
@@ -3064,102 +3131,102 @@
       let areaRows = areas.map(area => {
         const aSales = sales.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
         const aColl = colls.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
-        const aPurch = purchases.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
-        return `<tr><td><strong>${area}</strong></td><td>₹${aSales.toLocaleString('en-IN')}</td><td>₹${aColl.toLocaleString('en-IN')}</td><td>₹${aPurch.toLocaleString('en-IN')}</td></tr>`;
+        const aPurchQty = purchases.filter(d => d.area === area).reduce((s, d) => s + (d.qty || 0), 0);
+        return `<tr><td><strong>${area}</strong></td><td>₹${aSales.toLocaleString('en-IN')}</td><td>₹${aColl.toLocaleString('en-IN')}</td><td>${aPurchQty} Qty</td></tr>`;
       }).join('');
       document.getElementById('adminRepAreaBody').innerHTML = areaRows;
 
-      // Sales table
-      let salesRows = sales.map(d => {
-        const badge = (d.status || 'pending') === 'pending'
-          ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
-        return `<tr>
-        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
-        <td><button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button></td></tr>`;
-      }).join('');
-      document.getElementById('adminRepSalesBody').innerHTML = salesRows ||
-        '<tr><td colspan="7">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+      // Sales — area-wise grouped, with Unit Price, Discount, Freight
+      renderAreaGrouped('adminRepSalesContainer', sales,
+        ['Date', 'Customer', 'Product', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', ''],
+        d => {
+          const badge = (d.status || 'pending') === 'pending'
+            ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
+          return `<tr>
+            <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
+            <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
+            <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td>
+            <td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
+            <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
+            <td><button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button></td>
+          </tr>`;
+        }
+      );
 
-      // Purchase table
-      let purchaseRows = purchases.map(d => {
-        const badge = (d.status || 'pending') === 'pending'
-          ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
-        return `<tr>
-        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
-        <td><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td></tr>`;
-      }).join('');
-      document.getElementById('adminRepPurchaseBody').innerHTML = purchaseRows ||
-        '<tr><td colspan="6">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
+      // Purchase — area-wise grouped, Qty only
+      renderAreaGrouped('adminRepPurchaseContainer', purchases,
+        ['Date', 'Product', 'Godown', 'Vehicle', 'Qty', ''],
+        d => {
+          const badge = (d.status || 'pending') === 'pending'
+            ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
+          return `<tr>
+            <td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
+            <td>${d.qty || '-'} ${badge}</td>
+            <td><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td>
+          </tr>`;
+        }
+      );
 
-      // Collection table
-      let collRows = colls.map(d => {
-        const badge = (d.status || 'pending') === 'pending'
-          ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
-        return `<tr>
-        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
-        <td><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td></tr>`;
-      }).join('');
-      document.getElementById('adminRepCollBody').innerHTML = collRows ||
-        '<tr><td colspan="6">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+      // Collection — area-wise grouped, Cash highlighted
+      renderAreaGrouped('adminRepCollContainer', colls,
+        ['Date', 'Customer', 'Mode', 'Amount', ''],
+        d => {
+          const badge = (d.status || 'pending') === 'pending'
+            ? '<span class="role-badge role-admin">P</span>' : '<span class="role-badge role-user">A</span>';
+          const isCash = (d.mode || '').toLowerCase() === 'cash';
+          return `<tr class="${isCash ? 'cash-row' : ''}">
+            <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+            <td>₹${(d.amount || 0).toLocaleString('en-IN')} ${badge}</td>
+            <td><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td>
+          </tr>`;
+        }
+      );
 
-      // Lot Balance — all areas, grouped by Area+Product+Godown
+      // Lot Balance — all areas, grouped by Area+Product+Godown+Vehicle
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
-          const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.godown || '-');
+          const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
         }
       });
       const lotEntries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
-      let lotRows = lotEntries.map(([key, qty]) => {
-        const [area, product, godown] = key.split('|');
-        return `<tr><td>${area}</td><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
-      }).join('');
-      document.getElementById('adminRepLotBody').innerHTML = lotRows ||
-        '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
 
-      // Vehicle Stock — all areas
-      const vsMap = {};
-      vsSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.vehicle || '-');
-        vsMap[key] = (vsMap[key] || 0) + (d.qty || 0);
+      let lotHtml = '';
+      areas.forEach(area => {
+        const areaLots = lotEntries.filter(([key]) => key.startsWith(area + '|'));
+        if (areaLots.length === 0) return;
+        lotHtml += `<div style="margin-bottom:14px;">
+          <div class="area-group-title">${area}</div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+            <tbody>${areaLots.map(([key, qty]) => {
+              const parts = key.split('|');
+              return `<tr><td>${parts[1]}</td><td>${parts[2]}</td><td>${parts[3]}</td><td>${qty}</td></tr>`;
+            }).join('')}</tbody>
+          </table></div>
+        </div>`;
       });
-      const vsEntries = Object.entries(vsMap).sort((a, b) => a[0].localeCompare(b[0]));
-      let vsRows = vsEntries.map(([key, qty]) => {
-        const [area, product, vehicle] = key.split('|');
-        return `<tr><td>${area}</td><td>${product}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
-      }).join('');
-      document.getElementById('adminRepVehicleStockBody').innerHTML = vsRows ||
-        '<tr><td colspan="4">Vehicle stock ഒന്നും ഇല്ല.</td></tr>';
+      document.getElementById('adminRepLotContainer').innerHTML = lotHtml || '<p style="color:#999; font-size:13px;">Stock ഒന്നും ഇല്ല.</p>';
 
       // Stock Book — Area+Item wise total
-      const godownByAreaItem = {};
+      const stockByAreaItem = {};
       lotEntries.forEach(([key, qty]) => {
-        const [area, product] = key.split('|');
-        const k = area + '|' + product;
-        godownByAreaItem[k] = (godownByAreaItem[k] || 0) + qty;
+        const parts = key.split('|');
+        const k = parts[0] + '|' + parts[1];
+        stockByAreaItem[k] = (stockByAreaItem[k] || 0) + qty;
       });
-      const vehicleByAreaItem = {};
-      vsEntries.forEach(([key, qty]) => {
-        const [area, product] = key.split('|');
-        const k = area + '|' + product;
-        vehicleByAreaItem[k] = (vehicleByAreaItem[k] || 0) + qty;
-      });
-      const allAreaItems = Array.from(new Set([...Object.keys(godownByAreaItem), ...Object.keys(vehicleByAreaItem)])).sort();
+      const allAreaItems = Object.keys(stockByAreaItem).sort();
       let stockBookRows = allAreaItems.map(k => {
         const [area, product] = k.split('|');
-        const g = godownByAreaItem[k] || 0;
-        const v = vehicleByAreaItem[k] || 0;
-        return `<tr><td>${area}</td><td>${product}</td><td>${g}</td><td>${v}</td><td><strong>${g + v}</strong></td></tr>`;
+        return `<tr><td>${area}</td><td>${product}</td><td><strong>${stockByAreaItem[k]}</strong></td></tr>`;
       }).join('');
       document.getElementById('adminRepStockBookBody').innerHTML = stockBookRows ||
-        '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
+
+      lastAdminReport = { sales, purchases, colls, lotEntries, areas, from, to };
 
     } catch (err) {
       console.error(err);
@@ -3441,17 +3508,15 @@
         const product = (cols[2] || '').trim();
         const godown = (cols[3] || '').trim();
         const qty = parseFloat(cols[4]) || 0;
-        const rate = parseFloat(cols[5]) || 0;
-        const amount = parseFloat(cols[6]) || 0;
 
-        if (!date || !area || !product || amount <= 0) { failCount++; continue; }
+        if (!date || !area || !product || qty <= 0) { failCount++; continue; }
 
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
         try {
           await addDoc(collection(db, "purchases"), {
             product: product, godown: godown, vehicle: '',
-            area: area, qty: qty, remainingQty: 0, rate: rate, amount: amount, date: date,
+            area: area, qty: qty, remainingQty: 0, date: date, status: 'approved',
             enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
           });
           successCount++;
@@ -3472,36 +3537,60 @@
   };
 
   // ---- REPORT EXPORT (CSV / Excel) ----
-  window.exportReportCSV = function (scope) {
-    const prefix = scope === 'admin' ? 'adminRep' : 'rep';
-    const tables = scope === 'admin'
-      ? [
-          ['Sales', prefix + 'SalesBody'], ['Collection', prefix + 'CollBody'], ['Purchase', prefix + 'PurchaseBody'],
-          ['Lot Balance', prefix + 'LotBody'], ['Vehicle Stock', prefix + 'VehicleStockBody'], ['Stock Book', prefix + 'StockBookBody']
-        ]
-      : [
-          ['Sales', prefix + 'SalesBody'], ['Collection', prefix + 'CollBody'], ['Purchase', prefix + 'PurchaseBody'],
-          ['Lot Balance', prefix + 'LotBody'], ['Vehicle Stock', prefix + 'VehicleStockBody'], ['Stock Book', prefix + 'StockBookBody']
-        ];
+  let lastAdminReport = null;
 
+  function extractTableCSV(container) {
+    let csv = '';
+    const table = container.tagName === 'TABLE' ? container : container.querySelector('table');
+    if (!table) return csv;
+    const headerRow = table.querySelector('thead tr');
+    if (headerRow) {
+      csv += Array.from(headerRow.querySelectorAll('th')).map(th => `"${th.textContent.trim()}"`).join(',') + '\n';
+    }
+    Array.from(table.querySelectorAll('tbody tr')).forEach(tr => {
+      const cells = Array.from(tr.querySelectorAll('td')).map(td => `"${td.textContent.trim().replace(/"/g, '""')}"`);
+      if (cells.length > 0) csv += cells.join(',') + '\n';
+    });
+    return csv;
+  }
+
+  window.exportReportCSV = function (scope) {
     let csv = 'Alpha & Noble - Report Export\n\n';
 
-    tables.forEach(([title, bodyId]) => {
-      const tbody = document.getElementById(bodyId);
-      if (!tbody) return;
-      const table = tbody.closest('table');
-      const headerRow = table.querySelector('thead tr');
-      csv += title + '\n';
-      if (headerRow) {
-        const headers = Array.from(headerRow.querySelectorAll('th')).map(th => `"${th.textContent.trim()}"`);
-        csv += headers.join(',') + '\n';
-      }
-      Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
-        const cells = Array.from(tr.querySelectorAll('td')).map(td => `"${td.textContent.trim().replace(/"/g, '""')}"`);
-        if (cells.length > 0) csv += cells.join(',') + '\n';
+    if (scope === 'admin') {
+      const sections = [
+        ['Sales', 'adminRepSalesContainer'], ['Collection', 'adminRepCollContainer'], ['Purchase', 'adminRepPurchaseContainer']
+      ];
+      sections.forEach(([title, containerId]) => {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        csv += title + '\n';
+        const tables = container.querySelectorAll('table');
+        if (tables.length === 0) { csv += 'No data\n\n'; return; }
+        tables.forEach(table => {
+          const areaTitle = table.closest('div[style*="margin-bottom:14px"]')?.querySelector('.area-group-title')?.textContent || '';
+          if (areaTitle) csv += areaTitle + '\n';
+          csv += extractTableCSV(table) + '\n';
+        });
       });
-      csv += '\n';
-    });
+      csv += 'Lot Balance\n';
+      document.querySelectorAll('#adminRepLotContainer table').forEach(table => {
+        const areaTitle = table.closest('div[style*="margin-bottom:14px"]')?.querySelector('.area-group-title')?.textContent || '';
+        if (areaTitle) csv += areaTitle + '\n';
+        csv += extractTableCSV(table) + '\n';
+      });
+      csv += 'Stock Book\n' + extractTableCSV(document.getElementById('adminRepStockBookBody').closest('table')) + '\n';
+    } else {
+      const tables = [
+        ['Sales', 'repSalesBody'], ['Collection', 'repCollBody'], ['Purchase', 'repPurchaseBody'],
+        ['Lot Balance', 'repLotBody'], ['Stock Book', 'repStockBookBody']
+      ];
+      tables.forEach(([title, bodyId]) => {
+        const tbody = document.getElementById(bodyId);
+        if (!tbody) return;
+        csv += title + '\n' + extractTableCSV(tbody.closest('table')) + '\n';
+      });
+    }
 
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -3512,6 +3601,50 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+  };
+
+  // ---- ADMIN: REAL EXCEL (.xlsx) EXPORT ----
+  window.exportAdminExcel = async function () {
+    if (!lastAdminReport) {
+      alert("ആദ്യം 'Generate Report' ക്ലിക്ക് ചെയ്യുക.");
+      return;
+    }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const { sales, purchases, colls, lotEntries, areas } = lastAdminReport;
+
+      const wb = XLSX.utils.book_new();
+
+      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status']];
+      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0, d.status || 'pending']));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Sales');
+
+      const collData = [['Date', 'Area', 'Customer', 'Mode', 'Amount', 'Status']];
+      colls.forEach(d => collData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.mode || '', d.amount || 0, d.status || 'pending']));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(collData), 'Collection');
+
+      const purchData = [['Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Status']];
+      purchases.forEach(d => purchData.push([fmtDate(d.date), d.area || '', d.product || '', d.godown || '', d.vehicle || '', d.qty || 0, d.status || 'pending']));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(purchData), 'Purchase');
+
+      const lotData = [['Area', 'Product', 'Godown', 'Vehicle', 'Remaining Qty']];
+      lotEntries.forEach(([key, qty]) => { lotData.push([...key.split('|'), qty]); });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(lotData), 'Lot Balance');
+
+      const summaryData = [['Area', 'Sales ₹', 'Collection ₹', 'Purchase Qty']];
+      areas.forEach(area => {
+        const aSales = sales.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
+        const aColl = colls.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
+        const aPurchQty = purchases.filter(d => d.area === area).reduce((s, d) => s + (d.qty || 0), 0);
+        summaryData.push([area, aSales, aColl, aPurchQty]);
+      });
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), 'Area Summary');
+
+      XLSX.writeFile(wb, `report-admin-${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക, അല്ലെങ്കിൽ CSV export try ചെയ്യുക.");
+    }
   };
 
   // ---- ADMIN: APPROVALS ----
@@ -3643,8 +3776,6 @@
         fieldsDiv.innerHTML = `
           <label>Quantity</label>
           <input type="number" id="qeQty" value="${d.qty || 0}" style="margin-bottom:14px;">
-          <label>Amount (₹)</label>
-          <input type="number" id="qeAmount" value="${d.amount || 0}" style="margin-bottom:14px;">
         `;
       } else {
         title.textContent = `Edit Collection — ${d.customerName || ''}`;
@@ -3668,17 +3799,16 @@
 
   window.saveQuickEdit = async function () {
     if (!quickEditCol || !quickEditId) return;
-    const amount = parseFloat(document.getElementById('qeAmount').value) || 0;
 
     try {
       if (quickEditCol === 'purchases') {
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
-        const rate = qty > 0 ? (amount / qty) : 0;
         const qtyDelta = qty - quickEditOldQty;
         await updateDoc(doc(db, "purchases", quickEditId), {
-          qty: qty, amount: amount, rate: rate, remainingQty: increment(qtyDelta)
+          qty: qty, remainingQty: increment(qtyDelta)
         });
       } else {
+        const amount = parseFloat(document.getElementById('qeAmount').value) || 0;
         await updateDoc(doc(db, quickEditCol, quickEditId), { amount: amount });
       }
 
@@ -3688,6 +3818,217 @@
     } catch (err) {
       console.error(err);
       alert("Save ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  // ---- CUSTOMER STATEMENT ----
+  window.renderStmtCustOptions = function () {
+    const box = document.getElementById('stmtCustOptionsBox');
+    const term = document.getElementById('stmtCustSearchInput').value.trim().toLowerCase();
+    const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
+    const own = allCustomers.filter(c => c.area === currentUserData.area && matches(c));
+    const other = allCustomers.filter(c => c.area !== currentUserData.area && matches(c));
+
+    let html = own.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectStmtCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name}${c.phone ? ' (' + c.phone + ')' : ''}</div>`).join('');
+    if (other.length > 0) {
+      html += `<div class="cust-opt-header">— മറ്റ് Areas Customers —</div>`;
+      html += other.map(c => `<div class="cust-opt cust-opt-other" onmousedown="selectStmtCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name} [${c.area}]</div>`).join('');
+    }
+    if (own.length === 0 && other.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectStmtCustomer = function (id, label) {
+    document.getElementById('stmtCustomer').value = id;
+    document.getElementById('stmtCustSearchInput').value = label;
+    document.getElementById('stmtCustOptionsBox').style.display = 'none';
+  };
+
+  window.generateCustomerStatement = async function () {
+    const custId = document.getElementById('stmtCustomer').value;
+    const from = document.getElementById('reportFrom').value;
+    const to = document.getElementById('reportTo').value;
+
+    if (!custId) { alert("Customer select ചെയ്യുക."); return; }
+    if (!from || !to) { alert("Reports-ന് മുകളിലുള്ള From/To Date select ചെയ്യുക."); return; }
+
+    const cust = allCustomers.find(c => c.id === custId);
+    const opening = cust ? (cust.openingBalance || 0) : 0;
+
+    document.getElementById('stmtResultBox').style.display = 'block';
+    document.getElementById('stmtTableBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+
+    try {
+      const [salesSnap, collSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("customerId", "==", custId))),
+        getDocs(query(collection(db, "collections"), where("customerId", "==", custId)))
+      ]);
+
+      // Balance BEFORE the range starts (opening + everything before "from")
+      let balanceBeforeRange = opening;
+      let txnsInRange = [];
+
+      salesSnap.forEach(d => {
+        const s = d.data();
+        if (s.date < from) balanceBeforeRange += (s.amount || 0);
+        else if (s.date >= from && s.date <= to) txnsInRange.push({ ...s, _type: 'sale' });
+      });
+      collSnap.forEach(d => {
+        const c = d.data();
+        if (c.date < from) balanceBeforeRange -= (c.amount || 0);
+        else if (c.date >= from && c.date <= to) txnsInRange.push({ ...c, _type: 'collection' });
+      });
+
+      txnsInRange.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      document.getElementById('stmtOpening').textContent = '₹' + balanceBeforeRange.toLocaleString('en-IN');
+
+      let runningBal = balanceBeforeRange;
+      let rows = '';
+      txnsInRange.forEach(t => {
+        if (t._type === 'sale') {
+          runningBal += (t.amount || 0);
+          rows += `<tr><td>${fmtDate(t.date)}</td><td>${t.area || '-'}</td><td>Sale</td><td>${t.product || '-'} (Qty: ${t.qty || '-'})</td>
+            <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${runningBal.toLocaleString('en-IN')}</td></tr>`;
+        } else {
+          runningBal -= (t.amount || 0);
+          rows += `<tr><td>${fmtDate(t.date)}</td><td>${t.area || '-'}</td><td>Collection</td><td>${t.mode || '-'}</td>
+            <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${runningBal.toLocaleString('en-IN')}</td></tr>`;
+        }
+      });
+
+      document.getElementById('stmtTableBody').innerHTML = rows || '<tr><td colspan="7">ഈ range-ൽ transactions ഇല്ല.</td></tr>';
+      document.getElementById('stmtClosing').textContent = '₹' + runningBal.toLocaleString('en-IN');
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById('stmtTableBody').innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
+    }
+  };
+
+  window.exportStatementCSV = function () {
+    const custName = document.getElementById('stmtCustSearchInput').value || 'customer';
+    const table = document.getElementById('stmtTableBody').closest('table');
+    let csv = `Customer Statement - ${custName}\n\n`;
+    csv += `Opening Balance,${document.getElementById('stmtOpening').textContent}\n`;
+    csv += `Closing Balance,${document.getElementById('stmtClosing').textContent}\n\n`;
+    csv += extractTableCSV(table);
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `statement-${custName.replace(/[^a-z0-9]/gi, '_')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  // ---- ADMIN: CUSTOMERS (AREA-WISE, DATE RANGE) ----
+  let lastAdminCustReport = null;
+
+  window.generateAdminCustomerReport = async function () {
+    const from = document.getElementById('adminCustFrom').value;
+    const to = document.getElementById('adminCustTo').value;
+    const container = document.getElementById('adminCustContainer');
+
+    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+
+    try {
+      const [custSnap, salesSnap, collSnap] = await Promise.all([
+        getDocs(collection(db, "customers")),
+        getDocs(collection(db, "sales")),
+        getDocs(collection(db, "collections"))
+      ]);
+
+      const inRange = (d) => d && d >= from && d <= to;
+      const salesByCust = {}, collByCust = {};
+      salesSnap.forEach(d => {
+        const s = d.data();
+        if (inRange(s.date)) salesByCust[s.customerId] = (salesByCust[s.customerId] || 0) + (s.amount || 0);
+      });
+      collSnap.forEach(d => {
+        const c = d.data();
+        if (inRange(c.date)) collByCust[c.customerId] = (collByCust[c.customerId] || 0) + (c.amount || 0);
+      });
+
+      let customers = [];
+      custSnap.forEach(docSnap => {
+        const c = docSnap.data();
+        const sales = salesByCust[docSnap.id] || 0;
+        const coll = collByCust[docSnap.id] || 0;
+        const opening = c.openingBalance || 0;
+        customers.push({
+          id: docSnap.id, name: c.name || '-', phone: c.phone || '-', area: c.area || '-',
+          opening: opening, sales: sales, coll: coll, closing: opening + sales - coll
+        });
+      });
+      customers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+      lastAdminCustReport = { customers, from, to };
+      renderAdminCustomers(customers);
+
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
+  function renderAdminCustomers(customers) {
+    const container = document.getElementById('adminCustContainer');
+    const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
+    let html = '';
+    areas.forEach(area => {
+      const areaCustomers = customers.filter(c => c.area === area);
+      if (areaCustomers.length === 0) return;
+      html += `<div style="margin-bottom:16px;">
+        <div class="area-group-title">${area} (${areaCustomers.length} customers)</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Name</th><th>Phone</th><th>Opening</th><th>Sales</th><th>Collection</th><th>Closing Balance</th></tr></thead>
+            <tbody>${areaCustomers.map(c => {
+              const balColor = c.closing > 0 ? '#c62828' : (c.closing < 0 ? '#2e7d32' : '#333');
+              return `<tr>
+                <td>${c.name}</td><td>${c.phone}</td><td>₹${c.opening.toLocaleString('en-IN')}</td>
+                <td>₹${c.sales.toLocaleString('en-IN')}</td><td>₹${c.coll.toLocaleString('en-IN')}</td>
+                <td style="color:${balColor}; font-weight:600;">₹${c.closing.toLocaleString('en-IN')}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </div>`;
+    });
+    container.innerHTML = html || '<p style="color:#999; font-size:13px;">Customers ഒന്നും ഇല്ല.</p>';
+  }
+
+  window.filterAdminCustomers = function () {
+    if (!lastAdminCustReport) return;
+    const term = document.getElementById('adminCustSearch').value.trim().toLowerCase();
+    if (!term) { renderAdminCustomers(lastAdminCustReport.customers); return; }
+    const filtered = lastAdminCustReport.customers.filter(c =>
+      c.name.toLowerCase().includes(term) || c.phone.toLowerCase().includes(term)
+    );
+    renderAdminCustomers(filtered);
+  };
+
+  window.exportAdminCustomerExcel = async function () {
+    if (!lastAdminCustReport) { alert("ആദ്യം 'Generate Report' ക്ലിക്ക് ചെയ്യുക."); return; }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const data = [['Area', 'Name', 'Phone', 'Opening', 'Sales', 'Collection', 'Closing Balance']];
+      lastAdminCustReport.customers.forEach(c => {
+        data.push([c.area, c.name, c.phone, c.opening, c.sales, c.coll, c.closing]);
+      });
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Customers');
+      XLSX.writeFile(wb, `customers-${lastAdminCustReport.from}-to-${lastAdminCustReport.to}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
     }
   };
 
