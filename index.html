@@ -3946,25 +3946,50 @@
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
+      const beforeRange = (d) => d && d < from;
+
+      // Group full sale/collection docs by customerId
       const salesByCust = {}, collByCust = {};
-      salesSnap.forEach(d => {
-        const s = d.data();
-        if (inRange(s.date)) salesByCust[s.customerId] = (salesByCust[s.customerId] || 0) + (s.amount || 0);
+      salesSnap.forEach(docSnap => {
+        const s = docSnap.data();
+        if (!salesByCust[s.customerId]) salesByCust[s.customerId] = [];
+        salesByCust[s.customerId].push(s);
       });
-      collSnap.forEach(d => {
-        const c = d.data();
-        if (inRange(c.date)) collByCust[c.customerId] = (collByCust[c.customerId] || 0) + (c.amount || 0);
+      collSnap.forEach(docSnap => {
+        const c = docSnap.data();
+        if (!collByCust[c.customerId]) collByCust[c.customerId] = [];
+        collByCust[c.customerId].push(c);
       });
 
       let customers = [];
       custSnap.forEach(docSnap => {
         const c = docSnap.data();
-        const sales = salesByCust[docSnap.id] || 0;
-        const coll = collByCust[docSnap.id] || 0;
+        const custId = docSnap.id;
+        const allSales = salesByCust[custId] || [];
+        const allColl = collByCust[custId] || [];
         const opening = c.openingBalance || 0;
+
+        // Balance carried forward from before the range
+        let openingForRange = opening;
+        allSales.forEach(s => { if (beforeRange(s.date)) openingForRange += (s.amount || 0); });
+        allColl.forEach(cc => { if (beforeRange(cc.date)) openingForRange -= (cc.amount || 0); });
+
+        // Transactions within range, merged and date-sorted
+        let txns = [];
+        allSales.forEach(s => { if (inRange(s.date)) txns.push({ ...s, _type: 'Sale' }); });
+        allColl.forEach(cc => { if (inRange(cc.date)) txns.push({ ...cc, _type: 'Collection' }); });
+        txns.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+        let runningBal = openingForRange;
+        let salesTotal = 0, collTotal = 0;
+        txns.forEach(t => {
+          if (t._type === 'Sale') { runningBal += (t.amount || 0); salesTotal += (t.amount || 0); t._balance = runningBal; }
+          else { runningBal -= (t.amount || 0); collTotal += (t.amount || 0); t._balance = runningBal; }
+        });
+
         customers.push({
-          id: docSnap.id, name: c.name || '-', phone: c.phone || '-', area: c.area || '-',
-          opening: opening, sales: sales, coll: coll, closing: opening + sales - coll
+          id: custId, name: c.name || '-', phone: c.phone || '-', area: c.area || '-',
+          opening: openingForRange, sales: salesTotal, coll: collTotal, closing: runningBal, txns: txns
         });
       });
       customers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
@@ -3985,22 +4010,41 @@
     areas.forEach(area => {
       const areaCustomers = customers.filter(c => c.area === area);
       if (areaCustomers.length === 0) return;
-      html += `<div style="margin-bottom:16px;">
-        <div class="area-group-title">${area} (${areaCustomers.length} customers)</div>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Name</th><th>Phone</th><th>Opening</th><th>Sales</th><th>Collection</th><th>Closing Balance</th></tr></thead>
-            <tbody>${areaCustomers.map(c => {
-              const balColor = c.closing > 0 ? '#c62828' : (c.closing < 0 ? '#2e7d32' : '#333');
-              return `<tr>
-                <td>${c.name}</td><td>${c.phone}</td><td>₹${c.opening.toLocaleString('en-IN')}</td>
-                <td>₹${c.sales.toLocaleString('en-IN')}</td><td>₹${c.coll.toLocaleString('en-IN')}</td>
-                <td style="color:${balColor}; font-weight:600;">₹${c.closing.toLocaleString('en-IN')}</td>
-              </tr>`;
+      html += `<div style="margin-bottom:20px;">
+        <div class="area-group-title">${area} (${areaCustomers.length} customers)</div>`;
+
+      areaCustomers.forEach(c => {
+        const balColor = c.closing > 0 ? '#c62828' : (c.closing < 0 ? '#2e7d32' : '#333');
+        html += `<div class="table-wrap" style="margin-bottom:10px; border:1px solid #eee; border-radius:0 0 8px 8px;">
+          <div style="padding:10px 12px; background:#f5f7fa; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+            <div><strong style="color:#1e3c72;">${c.name}</strong> <span style="color:#999; font-size:12px;">${c.phone}</span></div>
+            <div style="font-size:13px;">
+              Opening: ₹${c.opening.toLocaleString('en-IN')} ·
+              Sales: ₹${c.sales.toLocaleString('en-IN')} ·
+              Collection: ₹${c.coll.toLocaleString('en-IN')} ·
+              <strong style="color:${balColor};">Closing: ₹${c.closing.toLocaleString('en-IN')}</strong>
+            </div>
+          </div>`;
+
+        if (c.txns.length > 0) {
+          html += `<table>
+            <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+            <tbody>${c.txns.map(t => {
+              if (t._type === 'Sale') {
+                return `<tr><td>${fmtDate(t.date)}</td><td>Sale</td><td>${t.product || '-'} (Qty: ${t.qty || '-'})</td>
+                  <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${t._balance.toLocaleString('en-IN')}</td></tr>`;
+              } else {
+                return `<tr><td>${fmtDate(t.date)}</td><td>Collection</td><td>${t.mode || '-'}</td>
+                  <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${t._balance.toLocaleString('en-IN')}</td></tr>`;
+              }
             }).join('')}</tbody>
-          </table>
-        </div>
-      </div>`;
+          </table>`;
+        } else {
+          html += `<p style="padding:10px 12px; color:#999; font-size:13px;">ഈ range-ൽ transactions ഇല്ല.</p>`;
+        }
+        html += `</div>`;
+      });
+      html += `</div>`;
     });
     container.innerHTML = html || '<p style="color:#999; font-size:13px;">Customers ഒന്നും ഇല്ല.</p>';
   }
@@ -4019,9 +4063,19 @@
     if (!lastAdminCustReport) { alert("ആദ്യം 'Generate Report' ക്ലിക്ക് ചെയ്യുക."); return; }
     try {
       const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
-      const data = [['Area', 'Name', 'Phone', 'Opening', 'Sales', 'Collection', 'Closing Balance']];
+      const data = [['Area', 'Customer', 'Phone', 'Date', 'Type', 'Details', 'Debit', 'Credit', 'Balance']];
       lastAdminCustReport.customers.forEach(c => {
-        data.push([c.area, c.name, c.phone, c.opening, c.sales, c.coll, c.closing]);
+        if (c.txns.length === 0) {
+          data.push([c.area, c.name, c.phone, '', '', '(No transactions)', '', '', c.closing]);
+        } else {
+          c.txns.forEach(t => {
+            if (t._type === 'Sale') {
+              data.push([c.area, c.name, c.phone, fmtDate(t.date), 'Sale', `${t.product || '-'} (Qty: ${t.qty || '-'})`, t.amount || 0, '', t._balance]);
+            } else {
+              data.push([c.area, c.name, c.phone, fmtDate(t.date), 'Collection', t.mode || '-', '', t.amount || 0, t._balance]);
+            }
+          });
+        }
       });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Customers');
