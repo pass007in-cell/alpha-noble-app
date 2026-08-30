@@ -3471,11 +3471,13 @@
         const rate = parseFloat(cols[7]) || 0;
         const discAmt = parseFloat(cols[8]) || 0;
         const freight = parseFloat(cols[9]) || 0;
-        const amount = parseFloat(cols[10]) || 0;
+        // Amount is always computed from Qty/Rate/Discount/Freight — never trusted directly
+        // from the CSV column, since a wrong value there was a common source of errors.
+        const amount = (qty * rate) - discAmt - freight;
         const statusRaw = (cols[11] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
-        if (!date || !area || !customerName || amount <= 0) { failCount++; continue; }
+        if (!date || !area || !customerName || qty <= 0) { failCount++; continue; }
 
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
