@@ -904,7 +904,7 @@
       <h3>📂 Bulk Upload — Old Sales (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Product, Godown, VehicleNo, Qty, UnitPrice, Discount, Freight, Amount, Status(pending/approved)<br>
-        CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും. ഈ sales "Advance Sale" ആയാണ് save ആകുന്നത് (stock lot deduction ഇല്ല).
+        CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും. Godown-ൽ matching stock lots ഉണ്ടെങ്കിൽ, FIFO (ഏറ്റവും പഴയത് ആദ്യം) രീതിയിൽ stock automatic ആയി കുറയും. Matching stock ഇല്ലെങ്കിൽ മാത്രം "Advance Sale" ആയി save ആകും.
       </p>
       <input type="file" id="salesCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleSalesCsvUpload()">Upload Sales CSV</button>
@@ -3495,10 +3495,43 @@
             custMap[key] = custId;
           }
 
+          // Deduct stock FIFO (oldest lot first) from matching Purchase lots, same as a
+          // normal Sale Entry would — CSV sales are no longer "Advance Sale" by default.
+          let lotAllocations = [];
+          let isAdvance = true;
+
+          if (godown) {
+            const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
+            const lotQ = isSharedGodown
+              ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
+              : query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
+            const lotSnap = await getDocs(lotQ);
+
+            let availLots = [];
+            lotSnap.forEach(docSnap => {
+              const d = docSnap.data();
+              const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+              if (remaining > 0) availLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining });
+            });
+            availLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+            let qtyLeft = qty;
+            for (const lot of availLots) {
+              if (qtyLeft <= 0) break;
+              const take = Math.min(qtyLeft, lot.remainingQty);
+              if (take > 0) {
+                await updateDoc(doc(db, "purchases", lot.id), { remainingQty: increment(-take) });
+                lotAllocations.push({ purchaseId: lot.id, qty: take });
+                qtyLeft -= take;
+              }
+            }
+            isAdvance = lotAllocations.length === 0; // fully advance only if nothing could be deducted
+          }
+
           await addDoc(collection(db, "sales"), {
             customerId: custId, customerName: customerName, area: area, product: product,
             godown: godown, vehicle: vehicle, qty: qty, rate: rate, discRate: 0, discAmt: discAmt,
-            freight: freight, amount: amount, date: date, status: status, isAdvance: true, lots: [],
+            freight: freight, amount: amount, date: date, status: status, isAdvance: isAdvance, lots: lotAllocations,
             enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
           });
           successCount++;
