@@ -265,13 +265,20 @@
           <input type="date" id="saleDate">
         </div>
         <div>
+          <label>Stock Source</label>
+          <select id="saleStockSource" onchange="onStockSourceChange()">
+            <option value="godown">Godown</option>
+            <option value="vehicle">Vehicle</option>
+          </select>
+        </div>
+        <div id="saleGodownWrap">
           <label>Godown</label>
           <select id="saleGodown" onchange="refreshAvailableLots()">
             <option value="">-- Select Godown --</option>
           </select>
         </div>
         <div>
-          <label>Vehicle (optional)</label>
+          <label id="saleVehicleLabel">Vehicle (optional)</label>
           <div class="cust-search-box">
             <input type="text" id="saleVehicleSearch" placeholder="🔍 Vehicle search..." autocomplete="off"
               oninput="renderSaleVehicleOptions()" onfocus="renderSaleVehicleOptions()">
@@ -603,14 +610,14 @@
       </table>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Item-wise total)</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      ഓരോ Product-ന്റെയും ആകെ remaining stock.
+      Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
     </p>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Product</th><th>Total Stock</th></tr></thead>
-        <tbody id="repStockBookBody"><tr><td colspan="2">—</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
+        <tbody id="repStockBookBody"><tr><td colspan="4">—</td></tr></tbody>
       </table>
     </div>
 
@@ -1003,8 +1010,8 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Area-wise Summary</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Area</th><th>Sales</th><th>Collection</th><th>Purchase Qty</th></tr></thead>
-        <tbody id="adminRepAreaBody"><tr><td colspan="4">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <thead><tr><th>Area</th><th>Sales ₹</th><th>Sales Qty</th><th>Collection</th><th>Purchase Qty</th></tr></thead>
+        <tbody id="adminRepAreaBody"><tr><td colspan="5">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
 
@@ -1021,10 +1028,13 @@
     <div id="adminRepLotContainer" style="margin-bottom:20px;">—</div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Area &amp; Item wise)</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
+    </p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Area</th><th>Product</th><th>Total Stock</th></tr></thead>
-        <tbody id="adminRepStockBookBody"><tr><td colspan="3">—</td></tr></tbody>
+        <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
+        <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1106,7 +1116,7 @@
     usernameSel.innerHTML = '<option value="">Loading...</option>';
     try {
       const q = query(collection(db, "users"), where("area", "==", area));
-      const snap = await getDocs(q);
+      const snap = await withTimeout(getDocs(q), 12000, 'users');
       let opts = '<option value="">-- Select Username --</option>';
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -1115,9 +1125,16 @@
       usernameSel.innerHTML = opts;
     } catch (err) {
       console.error(err);
-      usernameSel.innerHTML = '<option value="">-- Select Username --</option>';
+      usernameSel.innerHTML = '<option value="">⟳ Load ചെയ്യാൻ പറ്റിയില്ല — Tap ചെയ്ത് വീണ്ടും ശ്രമിക്കുക</option>';
     }
   };
+
+  // Retry loading usernames if the user taps the dropdown after a failed/timed-out load
+  document.getElementById('username').addEventListener('focus', function () {
+    if (this.options.length === 1 && this.options[0].textContent.indexOf('Tap') !== -1) {
+      onAreaChange();
+    }
+  });
 
   onAreaChange();
 
@@ -1689,8 +1706,12 @@
     document.getElementById('saleCustomer').value = '';
     document.getElementById('saleCustSearchInput').value = '';
     document.getElementById('saleProduct').value = '';
+    document.getElementById('saleStockSource').value = 'godown';
+    document.getElementById('saleGodownWrap').style.display = 'block';
+    document.getElementById('saleVehicleLabel').textContent = 'Vehicle (optional)';
     document.getElementById('saleGodown').value = '';
     document.getElementById('saleVehicle').value = '';
+    document.getElementById('saleVehicleSearch').value = '';
     document.getElementById('saleQty').value = '1';
     document.getElementById('saleRate').value = '0';
     document.getElementById('saleDiscRate').value = '0';
@@ -1770,6 +1791,22 @@
     document.getElementById('saleVehicle').value = number;
     document.getElementById('saleVehicleSearch').value = number;
     document.getElementById('saleVehicleOptionsBox').style.display = 'none';
+    if (document.getElementById('saleStockSource').value === 'vehicle') refreshAvailableLots();
+  };
+
+  window.onStockSourceChange = function () {
+    const source = document.getElementById('saleStockSource').value;
+    const godownWrap = document.getElementById('saleGodownWrap');
+    const vehicleLabel = document.getElementById('saleVehicleLabel');
+    if (source === 'vehicle') {
+      godownWrap.style.display = 'none';
+      document.getElementById('saleGodown').value = '';
+      vehicleLabel.textContent = 'Source Vehicle';
+    } else {
+      godownWrap.style.display = 'block';
+      vehicleLabel.textContent = 'Vehicle (optional)';
+    }
+    refreshAvailableLots();
   };
 
   function escapeHtml(str) {
@@ -1946,12 +1983,13 @@
       for (let i = 0; i < lotSelects.length; i++) {
         const lotId = lotSelects[i].value;
         const lotQty = parseFloat(lotQtyInputs[i].value) || 0;
+        const lotSource = lotSelects[i].selectedOptions[0] ? (lotSelects[i].selectedOptions[0].dataset.source || 'godown') : 'godown';
         if (!lotId || lotQty <= 0) {
           errEl.textContent = "എല്ലാ Lot row-കളിലും Lot ഉം Qty ഉം നൽകുക.";
           errEl.style.display = 'block';
           return;
         }
-        lotAllocations.push({ purchaseId: lotId, qty: lotQty });
+        lotAllocations.push({ purchaseId: lotId, qty: lotQty, source: lotSource });
         totalLotQty += lotQty;
       }
 
@@ -1973,6 +2011,7 @@
         customerName: cust ? cust.name : '-',
         area: currentUserData.area,
         product: product,
+        stockSource: document.getElementById('saleStockSource').value,
         godown: document.getElementById('saleGodown').value,
         vehicle: document.getElementById('saleVehicle').value,
         qty: qty,
@@ -1990,7 +2029,8 @@
       if (editingSaleId) {
         // Restore stock from the OLD lot allocations before applying the new ones
         for (const oldAlloc of editingSaleOldLots) {
-          await updateDoc(doc(db, "purchases", oldAlloc.purchaseId), {
+          const colName = oldAlloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+          await updateDoc(doc(db, colName, oldAlloc.purchaseId), {
             remainingQty: increment(oldAlloc.qty)
           });
         }
@@ -2003,9 +2043,10 @@
         await addDoc(collection(db, "sales"), saleData);
       }
 
-      // Deduct sold qty from each NEW purchase lot's remaining stock
+      // Deduct sold qty from each NEW lot's remaining stock (Godown purchase lot or Vehicle stock)
       for (const alloc of lotAllocations) {
-        await updateDoc(doc(db, "purchases", alloc.purchaseId), {
+        const colName = alloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+        await updateDoc(doc(db, colName, alloc.purchaseId), {
           remainingQty: increment(-alloc.qty)
         });
       }
@@ -2097,8 +2138,11 @@
       document.getElementById('saleCustSearchInput').value = d.customerName || '';
       document.getElementById('saleProduct').value = d.product || '';
       document.getElementById('saleDate').value = d.date || '';
+      document.getElementById('saleStockSource').value = d.stockSource || 'godown';
+      onStockSourceChange();
       document.getElementById('saleGodown').value = d.godown || '';
       document.getElementById('saleVehicle').value = d.vehicle || '';
+      document.getElementById('saleVehicleSearch').value = d.vehicle || '';
       document.getElementById('saleQty').value = d.qty || 0;
       document.getElementById('saleRate').value = d.rate || 0;
       document.getElementById('saleDiscRate').value = d.discRate || 0;
@@ -2124,6 +2168,7 @@
             const opt = document.createElement('option');
             opt.value = alloc.purchaseId;
             opt.textContent = 'Current Lot';
+            opt.dataset.source = alloc.source || 'godown';
             sel.appendChild(opt);
           }
           sel.value = alloc.purchaseId;
@@ -2148,7 +2193,8 @@
         const d = snap.data();
         const lots = d.lots || [];
         for (const alloc of lots) {
-          await updateDoc(doc(db, "purchases", alloc.purchaseId), {
+          const colName = alloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+          await updateDoc(doc(db, colName, alloc.purchaseId), {
             remainingQty: increment(alloc.qty)
           });
         }
@@ -2652,7 +2698,7 @@
         if (!toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
         await addDoc(collection(db, "vehicleStock"), {
           product: product, vehicle: toVehicle, area: currentUserData.area,
-          qty: qty, rate: lot.rate, date: todayStr,
+          qty: qty, remainingQty: qty, rate: lot.rate, date: todayStr,
           transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Stock transfer ചെയ്തു: ${product} → Vehicle ${toVehicle} (Qty: ${qty})`;
@@ -2912,10 +2958,37 @@
 
   window.refreshAvailableLots = async function () {
     const product = document.getElementById('saleProduct').value;
-    const godown = document.getElementById('saleGodown').value;
+    const source = document.getElementById('saleStockSource').value;
     document.getElementById('lotRows').innerHTML = '';
     availableLots = [];
 
+    if (source === 'vehicle') {
+      const vehicle = document.getElementById('saleVehicle').value;
+      if (!product || !vehicle) return;
+      try {
+        const q = query(
+          collection(db, "vehicleStock"),
+          where("area", "==", currentUserData.area),
+          where("product", "==", product),
+          where("vehicle", "==", vehicle)
+        );
+        const snap = await getDocs(q);
+        snap.forEach(docSnap => {
+          const d = docSnap.data();
+          const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+          if (remaining > 0) {
+            availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, source: 'vehicle' });
+          }
+        });
+        availableLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        if (availableLots.length > 0) addLotRow();
+      } catch (err) {
+        console.error(err);
+      }
+      return;
+    }
+
+    const godown = document.getElementById('saleGodown').value;
     if (!product || !godown) return;
 
     try {
@@ -2930,7 +3003,7 @@
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
-          availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle });
+          availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, source: 'godown' });
         }
       });
       availableLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -2948,7 +3021,7 @@
 
     let optionsHtml = '<option value="">-- Select Lot --</option>';
     availableLots.forEach(l => {
-      optionsHtml += `<option value="${l.id}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`;
+      optionsHtml += `<option value="${l.id}" data-source="${l.source || 'godown'}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`;
     });
 
     row.innerHTML = `
@@ -2992,10 +3065,11 @@
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
-      const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
+      const [salesSnap, purchaseSnap, collSnap, vsSnap] = await Promise.all([
         getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area))),
         getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area)))
+        getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area))),
+        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area)))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -3055,12 +3129,21 @@
         '<tr><td colspan="6">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
 
       // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
+      // (includes both Godown-based purchase lots and Vehicle-transferred stock)
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      vsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.product || '-') + '|-|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
         }
       });
@@ -3072,16 +3155,31 @@
       document.getElementById('repLotBody').innerHTML = lotRows ||
         '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
 
-      // Stock Book — item-wise total
-      const stockByItem = {};
+      // Stock Book — Purchase Qty (in range), Sale Qty (in range), Remaining Stock (current, all-time)
+      const remainingByItem = {};
       lotEntries.forEach(([key, qty]) => {
         const product = key.split('|')[0];
-        stockByItem[product] = (stockByItem[product] || 0) + qty;
+        remainingByItem[product] = (remainingByItem[product] || 0) + qty;
       });
-      const allItems = Object.keys(stockByItem).sort();
-      let stockBookRows = allItems.map(item => `<tr><td>${item}</td><td><strong>${stockByItem[item]}</strong></td></tr>`).join('');
+      const purchQtyByItem = {};
+      purchases.forEach(d => {
+        purchQtyByItem[d.product] = (purchQtyByItem[d.product] || 0) + (d.qty || 0);
+      });
+      const saleQtyByItem = {};
+      sales.forEach(d => {
+        saleQtyByItem[d.product] = (saleQtyByItem[d.product] || 0) + (d.qty || 0);
+      });
+      const allItems = Array.from(new Set([
+        ...Object.keys(remainingByItem), ...Object.keys(purchQtyByItem), ...Object.keys(saleQtyByItem)
+      ])).sort();
+      let stockBookRows = allItems.map(item => `<tr>
+        <td>${item}</td>
+        <td>${purchQtyByItem[item] || 0}</td>
+        <td>${saleQtyByItem[item] || 0}</td>
+        <td><strong>${remainingByItem[item] || 0}</strong></td>
+      </tr>`).join('');
       document.getElementById('repStockBookBody').innerHTML = stockBookRows ||
-        '<tr><td colspan="2">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
       console.error(err);
@@ -3123,14 +3221,15 @@
     document.getElementById('adminRepSalesContainer').innerHTML = 'Loading...';
     document.getElementById('adminRepCollContainer').innerHTML = 'Loading...';
     document.getElementById('adminRepPurchaseContainer').innerHTML = 'Loading...';
-    document.getElementById('adminRepAreaBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('adminRepAreaBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
     document.getElementById('adminRepLotContainer').innerHTML = 'Loading...';
 
     try {
-      const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
+      const [salesSnap, purchaseSnap, collSnap, vsSnap] = await Promise.all([
         getDocs(collection(db, "sales")),
         getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "collections"))
+        getDocs(collection(db, "collections")),
+        getDocs(collection(db, "vehicleStock"))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -3157,9 +3256,10 @@
       const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
       let areaRows = areas.map(area => {
         const aSales = sales.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
+        const aSalesQty = sales.filter(d => d.area === area).reduce((s, d) => s + (d.qty || 0), 0);
         const aColl = colls.filter(d => d.area === area).reduce((s, d) => s + (d.amount || 0), 0);
         const aPurchQty = purchases.filter(d => d.area === area).reduce((s, d) => s + (d.qty || 0), 0);
-        return `<tr><td><strong>${area}</strong></td><td>₹${aSales.toLocaleString('en-IN')}</td><td>₹${aColl.toLocaleString('en-IN')}</td><td>${aPurchQty} Qty</td></tr>`;
+        return `<tr><td><strong>${area}</strong></td><td>₹${aSales.toLocaleString('en-IN')}</td><td>${aSalesQty}</td><td>₹${aColl.toLocaleString('en-IN')}</td><td>${aPurchQty} Qty</td></tr>`;
       }).join('');
       document.getElementById('adminRepAreaBody').innerHTML = areaRows;
 
@@ -3214,12 +3314,21 @@
       );
 
       // Lot Balance — all areas, grouped by Area+Product+Godown+Vehicle
+      // (includes both Godown-based purchase lots and Vehicle-transferred stock)
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      vsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.area || '-') + '|' + (d.product || '-') + '|-|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
         }
       });
@@ -3242,20 +3351,37 @@
       });
       document.getElementById('adminRepLotContainer').innerHTML = lotHtml || '<p style="color:#999; font-size:13px;">Stock ഒന്നും ഇല്ല.</p>';
 
-      // Stock Book — Area+Item wise total
-      const stockByAreaItem = {};
+      // Stock Book — Area+Item: Purchase Qty (in range), Sale Qty (in range), Remaining Stock (current)
+      const remainingByAreaItem = {};
       lotEntries.forEach(([key, qty]) => {
         const parts = key.split('|');
         const k = parts[0] + '|' + parts[1];
-        stockByAreaItem[k] = (stockByAreaItem[k] || 0) + qty;
+        remainingByAreaItem[k] = (remainingByAreaItem[k] || 0) + qty;
       });
-      const allAreaItems = Object.keys(stockByAreaItem).sort();
+      const purchQtyByAreaItem = {};
+      purchases.forEach(d => {
+        const k = (d.area || '-') + '|' + (d.product || '-');
+        purchQtyByAreaItem[k] = (purchQtyByAreaItem[k] || 0) + (d.qty || 0);
+      });
+      const saleQtyByAreaItem = {};
+      sales.forEach(d => {
+        const k = (d.area || '-') + '|' + (d.product || '-');
+        saleQtyByAreaItem[k] = (saleQtyByAreaItem[k] || 0) + (d.qty || 0);
+      });
+      const allAreaItems = Array.from(new Set([
+        ...Object.keys(remainingByAreaItem), ...Object.keys(purchQtyByAreaItem), ...Object.keys(saleQtyByAreaItem)
+      ])).sort();
       let stockBookRows = allAreaItems.map(k => {
         const [area, product] = k.split('|');
-        return `<tr><td>${area}</td><td>${product}</td><td><strong>${stockByAreaItem[k]}</strong></td></tr>`;
+        return `<tr>
+          <td>${area}</td><td>${product}</td>
+          <td>${purchQtyByAreaItem[k] || 0}</td>
+          <td>${saleQtyByAreaItem[k] || 0}</td>
+          <td><strong>${remainingByAreaItem[k] || 0}</strong></td>
+        </tr>`;
       }).join('');
       document.getElementById('adminRepStockBookBody').innerHTML = stockBookRows ||
-        '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
 
       lastAdminReport = { sales, purchases, colls, lotEntries, areas, from, to };
 
@@ -3887,7 +4013,8 @@
         if (snap.exists()) {
           const lots = snap.data().lots || [];
           for (const alloc of lots) {
-            await updateDoc(doc(db, "purchases", alloc.purchaseId), { remainingQty: increment(alloc.qty) });
+            const lotColName = alloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+            await updateDoc(doc(db, lotColName, alloc.purchaseId), { remainingQty: increment(alloc.qty) });
           }
         }
       }
