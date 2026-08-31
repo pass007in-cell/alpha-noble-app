@@ -271,13 +271,6 @@
           <label>Date</label>
           <input type="date" id="saleDate">
         </div>
-        <div>
-          <label>Stock Source</label>
-          <select id="saleStockSource" onchange="onStockSourceChange()">
-            <option value="godown">Godown</option>
-            <option value="vehicle">Vehicle</option>
-          </select>
-        </div>
         <div id="saleGodownWrap">
           <label>Godown</label>
           <select id="saleGodown" onchange="refreshAvailableLots()">
@@ -285,7 +278,7 @@
           </select>
         </div>
         <div>
-          <label id="saleVehicleLabel">Vehicle (optional)</label>
+          <label id="saleVehicleLabel">Vehicle Number (optional)</label>
           <div class="cust-search-box">
             <input type="text" id="saleVehicleSearch" placeholder="🔍 Vehicle search..." autocomplete="off"
               oninput="renderSaleVehicleOptions()" onfocus="renderSaleVehicleOptions()">
@@ -570,6 +563,28 @@
   </div>
 
   <div id="tabReports">
+
+    <div id="repTopAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">⚠️ Pending Advance Sales (Link ചെയ്യാൻ ബാക്കി)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="repAdvanceSaleBody"><tr><td colspan="4">—</td></tr></tbody>
+        </table>
+      </div>
+      <p style="font-size:12px; color:#777; margin-top:8px;">Link ചെയ്യാൻ Sale Entry tab-ൽ പോകുക.</p>
+    </div>
+
+    <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
+      <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📦 Current Stock (Purchase Balance)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="repTopStockBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="add-user-form">
       <h3>📊 Reports</h3>
       <div class="form-grid">
@@ -767,6 +782,20 @@
       <span style="cursor:pointer; font-size:22px; color:#999;" onclick="closeLedger()">&times;</span>
     </div>
     <p style="color:#777; font-size:13px; margin-bottom:14px;" id="ledgerCustPhone"></p>
+
+    <div class="form-grid" style="margin-bottom:10px;">
+      <div>
+        <label style="font-size:12px;">From Date</label>
+        <input type="date" id="ledgerFromDate" style="margin-bottom:0;">
+      </div>
+      <div>
+        <label style="font-size:12px;">To Date</label>
+        <input type="date" id="ledgerToDate" style="margin-bottom:0;">
+      </div>
+    </div>
+    <input type="hidden" id="ledgerCustId">
+    <button class="full-btn" style="margin-bottom:16px;" onclick="applyLedgerDateFilter()">Filter by Date</button>
+
     <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
       <div>
         <p style="font-size:12px; color:#555;">Opening Balance</p>
@@ -863,7 +892,14 @@
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Date range-ൽ ഓരോ customer-ന്റെയും Sales/Collections activity, Opening Balance-ഓട് ചേർത്ത് Closing Balance കാണിക്കും.
       </p>
-      <input type="text" id="adminCustSearch" placeholder="🔍 Search by name or phone..." style="margin-bottom:10px;" oninput="filterAdminCustomers()">
+      <label>Customer (optional — ഒരു customer മാത്രം കാണാൻ select ചെയ്യുക)</label>
+      <div class="cust-search-box">
+        <input type="text" id="adminCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക... (empty ആയാൽ എല്ലാവരും)" autocomplete="off"
+          oninput="renderAdminCustSearchOptions()" onfocus="renderAdminCustSearchOptions()">
+        <input type="hidden" id="adminCustSelectedId">
+        <div id="adminCustSearchOptionsBox" class="cust-options-box"></div>
+      </div>
+      <button type="button" style="background:none; border:1.5px dashed #999; color:#666; width:100%; padding:8px; margin:6px 0 14px; font-size:13px;" onclick="clearAdminCustSelection()">✕ Clear selection (എല്ലാ customers ഉം കാണിക്കുക)</button>
       <button class="full-btn" onclick="generateAdminCustomerReport()">Generate Report</button>
       <div style="display:flex; gap:10px; margin-top:10px;">
         <button style="flex:1; background:#2e7d32;" onclick="exportAdminCustomerExcel()">⬇️ Excel (.xlsx)</button>
@@ -901,11 +937,77 @@
       <button class="full-btn" id="addGodownBtn" onclick="handleAddGodown()">Add Godown</button>
     </div>
     <h3 style="color:#1e3c72; margin-bottom:8px;">Godowns</h3>
-    <div class="table-wrap">
+    <div class="table-wrap" style="margin-bottom:24px;">
       <table>
         <thead><tr><th>Name</th><th>Area</th><th>Location</th><th></th></tr></thead>
         <tbody id="godownTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
       </table>
+    </div>
+
+    <div class="add-user-form" style="background:#e3f2fd;">
+      <h3 style="color:#1565c0;">🔄 Stock Transfer (Manual)</h3>
+      <p style="font-size:12px; color:#555; margin-bottom:12px;">
+        ഏത് Area-യുടെയും stock, ഒരു Godown-ൽ നിന്ന് വേറെ Godown-ലേക്കോ (ഉദാ: Company godown → "MKD-OWN") Vehicle-ലേക്കോ transfer ചെയ്യാം.
+      </p>
+      <div class="error-msg" id="adminTransferErrorMsg"></div>
+      <div class="success-msg" id="adminTransferSuccessMsg"></div>
+
+      <label>Area</label>
+      <select id="adminTransferArea" onchange="populateAdminTransferDropdowns()" style="margin-bottom:16px;">
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Product</label>
+          <select id="adminTransferProduct" onchange="refreshAdminTransferLots()">
+            <option value="">-- Select Product --</option>
+          </select>
+        </div>
+        <div>
+          <label>From Godown</label>
+          <select id="adminTransferFromGodown" onchange="refreshAdminTransferLots()">
+            <option value="">-- Select Godown --</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Source Lot</label>
+      <select id="adminTransferLot" style="margin-bottom:16px;">
+        <option value="">-- Product, Godown select ചെയ്യുക --</option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Transfer Qty</label>
+          <input type="number" id="adminTransferQty" placeholder="0" value="0">
+        </div>
+        <div>
+          <label>Destination Type</label>
+          <select id="adminTransferDestType" onchange="toggleAdminTransferDestType()">
+            <option value="godown">Godown</option>
+            <option value="vehicle">Vehicle</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="adminTransferToGodownWrap">
+        <label>To Godown</label>
+        <select id="adminTransferToGodown" style="margin-bottom:16px;">
+          <option value="">-- Select Godown --</option>
+        </select>
+      </div>
+      <div id="adminTransferToVehicleWrap" style="display:none;">
+        <label>To Vehicle</label>
+        <select id="adminTransferToVehicle" style="margin-bottom:16px;">
+          <option value="">-- Select Vehicle --</option>
+        </select>
+      </div>
+
+      <button class="full-btn" style="background:#1565c0;" onclick="handleAdminStockTransfer()">Transfer Stock</button>
     </div>
   </div>
 
@@ -1346,7 +1448,7 @@
       if (!document.getElementById('adminCustTo').value) document.getElementById('adminCustTo').value = todayStr;
       generateAdminCustomerReport();
     }
-    else if (tab === 'godown') loadAdminGodowns();
+    else if (tab === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
     else if (tab === 'product') loadAdminProducts();
     else if (tab === 'approvals') loadApprovals();
     else if (tab === 'reports') {
@@ -1644,14 +1746,21 @@
     }
   };
 
-  // ---- CUSTOMER: Ledger view ----
+  // ---- CUSTOMER: Ledger view (with optional date range filter) ----
+  let ledgerCachedTxns = [];
+  let ledgerCachedOpening = 0;
+
   window.openLedger = async function (custId) {
     const c = allCustomers.find(x => x.id === custId);
     if (!c) return;
     const opening = c.openingBalance || 0;
+    ledgerCachedOpening = opening;
 
+    document.getElementById('ledgerCustId').value = custId;
     document.getElementById('ledgerCustName').textContent = c.name || '-';
     document.getElementById('ledgerCustPhone').textContent = c.phone ? ('📞 ' + c.phone) : '';
+    document.getElementById('ledgerFromDate').value = '';
+    document.getElementById('ledgerToDate').value = '';
     document.getElementById('ledgerOpeningBalance').textContent = '₹' + opening.toLocaleString('en-IN');
     document.getElementById('ledgerCurrentBalance').textContent = '₹' + opening.toLocaleString('en-IN');
     document.getElementById('ledgerTransactions').innerHTML = 'Loading...';
@@ -1667,43 +1776,71 @@
       let colls = [];
       collSnap.forEach(docSnap => colls.push({ ...docSnap.data(), _type: 'collection' }));
 
-      let allTxns = [...sales, ...colls];
-      allTxns.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-      let totalSales = 0, totalColl = 0;
-      let rows = '';
-      allTxns.forEach(t => {
-        if (t._type === 'sale') {
-          totalSales += (t.amount || 0);
-          rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
-            <div>
-              <div style="font-weight:600; color:#333;">${t.product || '-'}</div>
-              <div style="color:#999; font-size:12px;">${fmtDate(t.date)} · Qty: ${t.qty || '-'} · Sale</div>
-            </div>
-            <div style="color:#c62828; font-weight:600;">+₹${(t.amount || 0).toLocaleString('en-IN')}</div>
-          </div>`;
-        } else {
-          totalColl += (t.amount || 0);
-          rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
-            <div>
-              <div style="font-weight:600; color:#333;">Collection (${t.mode || '-'})</div>
-              <div style="color:#999; font-size:12px;">${fmtDate(t.date)}</div>
-            </div>
-            <div style="color:#2e7d32; font-weight:600;">-₹${(t.amount || 0).toLocaleString('en-IN')}</div>
-          </div>`;
-        }
-      });
-
-      const currentBalance = opening + totalSales - totalColl;
-      document.getElementById('ledgerCurrentBalance').textContent = '₹' + currentBalance.toLocaleString('en-IN');
-
-      document.getElementById('ledgerTransactions').innerHTML = rows ||
-        '<p style="color:#999; text-align:center; padding:10px 0;">Transactions ഒന്നും ഇല്ല.</p>';
+      ledgerCachedTxns = [...sales, ...colls].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      renderLedgerTxns(null, null);
 
     } catch (err) {
       console.error(err);
       document.getElementById('ledgerTransactions').innerHTML = '<p style="color:#d32f2f; text-align:center;">Error loading transactions.</p>';
     }
+  };
+
+  function renderLedgerTxns(fromDate, toDate) {
+    // No range given → show everything (original behaviour)
+    const inRange = (d) => {
+      if (!fromDate && !toDate) return true;
+      if (fromDate && d < fromDate) return false;
+      if (toDate && d > toDate) return false;
+      return true;
+    };
+    const beforeRange = (d) => fromDate && d < fromDate;
+
+    // Balance carried forward into the range (or full opening if no range set)
+    let openingForRange = ledgerCachedOpening;
+    if (fromDate) {
+      ledgerCachedTxns.forEach(t => {
+        if (!beforeRange(t.date)) return;
+        if (t._type === 'sale') openingForRange += (t.amount || 0);
+        else openingForRange -= (t.amount || 0);
+      });
+    }
+    document.getElementById('ledgerOpeningBalance').textContent = '₹' + openingForRange.toLocaleString('en-IN');
+
+    const visibleTxns = ledgerCachedTxns.filter(t => inRange(t.date));
+
+    let runningBal = openingForRange;
+    let rows = '';
+    visibleTxns.forEach(t => {
+      if (t._type === 'sale') {
+        runningBal += (t.amount || 0);
+        rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+          <div>
+            <div style="font-weight:600; color:#333;">${t.product || '-'}</div>
+            <div style="color:#999; font-size:12px;">${fmtDate(t.date)} · Qty: ${t.qty || '-'} · Sale</div>
+          </div>
+          <div style="color:#c62828; font-weight:600;">+₹${(t.amount || 0).toLocaleString('en-IN')}</div>
+        </div>`;
+      } else {
+        runningBal -= (t.amount || 0);
+        rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
+          <div>
+            <div style="font-weight:600; color:#333;">Collection (${t.mode || '-'})</div>
+            <div style="color:#999; font-size:12px;">${fmtDate(t.date)}</div>
+          </div>
+          <div style="color:#2e7d32; font-weight:600;">-₹${(t.amount || 0).toLocaleString('en-IN')}</div>
+        </div>`;
+      }
+    });
+
+    document.getElementById('ledgerCurrentBalance').textContent = '₹' + runningBal.toLocaleString('en-IN');
+    document.getElementById('ledgerTransactions').innerHTML = rows ||
+      '<p style="color:#999; text-align:center; padding:10px 0;">Transactions ഒന്നും ഇല്ല.</p>';
+  }
+
+  window.applyLedgerDateFilter = function () {
+    const from = document.getElementById('ledgerFromDate').value;
+    const to = document.getElementById('ledgerToDate').value;
+    renderLedgerTxns(from || null, to || null);
   };
 
   window.closeLedger = function () {
@@ -1789,6 +1926,7 @@
       if (!document.getElementById('reportFrom').value) document.getElementById('reportFrom').value = todayStr;
       if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
       generateReport();
+      loadTopReportSummary();
     }
   };
 
@@ -1812,9 +1950,6 @@
     document.getElementById('saleCustomer').value = '';
     document.getElementById('saleCustSearchInput').value = '';
     document.getElementById('saleProduct').value = '';
-    document.getElementById('saleStockSource').value = 'godown';
-    document.getElementById('saleGodownWrap').style.display = 'block';
-    document.getElementById('saleVehicleLabel').textContent = 'Vehicle (optional)';
     document.getElementById('saleGodown').value = '';
     document.getElementById('saleVehicle').value = '';
     document.getElementById('saleVehicleSearch').value = '';
@@ -1897,22 +2032,6 @@
     document.getElementById('saleVehicle').value = number;
     document.getElementById('saleVehicleSearch').value = number;
     document.getElementById('saleVehicleOptionsBox').style.display = 'none';
-    if (document.getElementById('saleStockSource').value === 'vehicle') refreshAvailableLots();
-  };
-
-  window.onStockSourceChange = function () {
-    const source = document.getElementById('saleStockSource').value;
-    const godownWrap = document.getElementById('saleGodownWrap');
-    const vehicleLabel = document.getElementById('saleVehicleLabel');
-    if (source === 'vehicle') {
-      godownWrap.style.display = 'none';
-      document.getElementById('saleGodown').value = '';
-      vehicleLabel.textContent = 'Source Vehicle';
-    } else {
-      godownWrap.style.display = 'block';
-      vehicleLabel.textContent = 'Vehicle (optional)';
-    }
-    refreshAvailableLots();
   };
 
   function escapeHtml(str) {
@@ -2120,7 +2239,6 @@
         customerName: cust ? cust.name : '-',
         area: currentUserData.area,
         product: product,
-        stockSource: document.getElementById('saleStockSource').value,
         godown: document.getElementById('saleGodown').value,
         vehicle: document.getElementById('saleVehicle').value,
         qty: qty,
@@ -2247,8 +2365,6 @@
       document.getElementById('saleCustSearchInput').value = d.customerName || '';
       document.getElementById('saleProduct').value = d.product || '';
       document.getElementById('saleDate').value = d.date || '';
-      document.getElementById('saleStockSource').value = d.stockSource || 'godown';
-      onStockSourceChange();
       document.getElementById('saleGodown').value = d.godown || '';
       document.getElementById('saleVehicle').value = d.vehicle || '';
       document.getElementById('saleVehicleSearch').value = d.vehicle || '';
@@ -2958,6 +3074,155 @@
     }
   };
 
+  // ---- ADMIN: STOCK TRANSFER (manual, any area) ----
+  let adminAvailableTransferLots = [];
+
+  window.populateAdminTransferDropdowns = async function () {
+    const area = document.getElementById('adminTransferArea').value;
+
+    // Product
+    const prodSel = document.getElementById('adminTransferProduct');
+    prodSel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name + (d.unit ? ' (' + d.unit + ')' : '');
+        prodSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+
+    // From/To Godown (same list, scoped to selected area + shared IGST- godowns)
+    const fromSel = document.getElementById('adminTransferFromGodown');
+    const toSel = document.getElementById('adminTransferToGodown');
+    fromSel.innerHTML = '<option value="">-- Select Godown --</option>';
+    toSel.innerHTML = '<option value="">-- Select Godown --</option>';
+    try {
+      const snap = await getDocs(collection(db, "godowns"));
+      const seen = new Set();
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const isShared = (d.name || '').toUpperCase().startsWith('IGST-');
+        if ((d.area === area || isShared) && !seen.has(d.name)) {
+          seen.add(d.name);
+          const opt1 = document.createElement('option'); opt1.value = d.name; opt1.textContent = d.name + (isShared ? ' (Shared)' : '');
+          fromSel.appendChild(opt1);
+          const opt2 = document.createElement('option'); opt2.value = d.name; opt2.textContent = d.name + (isShared ? ' (Shared)' : '');
+          toSel.appendChild(opt2);
+        }
+      });
+    } catch (err) { console.error(err); }
+
+    // To Vehicle (scoped to selected area)
+    const vehSel = document.getElementById('adminTransferToVehicle');
+    vehSel.innerHTML = '<option value="">-- Select Vehicle --</option>';
+    try {
+      const q = query(collection(db, "vehicles"), where("area", "==", area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option'); opt.value = d.number; opt.textContent = d.number;
+        vehSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+
+    document.getElementById('adminTransferLot').innerHTML = '<option value="">-- Product, Godown select ചെയ്യുക --</option>';
+    adminAvailableTransferLots = [];
+  };
+
+  window.toggleAdminTransferDestType = function () {
+    const type = document.getElementById('adminTransferDestType').value;
+    document.getElementById('adminTransferToGodownWrap').style.display = (type === 'godown') ? 'block' : 'none';
+    document.getElementById('adminTransferToVehicleWrap').style.display = (type === 'vehicle') ? 'block' : 'none';
+  };
+
+  window.refreshAdminTransferLots = async function () {
+    const area = document.getElementById('adminTransferArea').value;
+    const product = document.getElementById('adminTransferProduct').value;
+    const godown = document.getElementById('adminTransferFromGodown').value;
+    const lotSel = document.getElementById('adminTransferLot');
+    lotSel.innerHTML = '<option value="">-- Select Lot --</option>';
+    adminAvailableTransferLots = [];
+
+    if (!product || !godown) return;
+
+    try {
+      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
+      const q = isSharedGodown
+        ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
+        : query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) adminAvailableTransferLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, rate: d.rate || 0 });
+      });
+      adminAvailableTransferLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      adminAvailableTransferLots.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.id;
+        opt.textContent = `${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}`;
+        lotSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  };
+
+  window.handleAdminStockTransfer = async function () {
+    const area = document.getElementById('adminTransferArea').value;
+    const product = document.getElementById('adminTransferProduct').value;
+    const lotId = document.getElementById('adminTransferLot').value;
+    const qty = parseFloat(document.getElementById('adminTransferQty').value) || 0;
+    const destType = document.getElementById('adminTransferDestType').value;
+    const errEl = document.getElementById('adminTransferErrorMsg');
+    const okEl = document.getElementById('adminTransferSuccessMsg');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!product || !lotId) { errEl.textContent = "Product, Source Lot select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Transfer Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+
+    const lot = adminAvailableTransferLots.find(l => l.id === lotId);
+    if (!lot) { errEl.textContent = "Lot data കണ്ടെത്തിയില്ല, വീണ്ടും ശ്രമിക്കുക."; errEl.style.display = 'block'; return; }
+    if (qty > lot.remainingQty) { errEl.textContent = `Available Qty (${lot.remainingQty})-ൽ കൂടുതൽ transfer ചെയ്യാൻ പറ്റില്ല.`; errEl.style.display = 'block'; return; }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    try {
+      await updateDoc(doc(db, "purchases", lotId), { remainingQty: increment(-qty) });
+
+      if (destType === 'godown') {
+        const toGodown = document.getElementById('adminTransferToGodown').value;
+        if (!toGodown) { errEl.textContent = "To Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+        await addDoc(collection(db, "purchases"), {
+          product: product, godown: toGodown, vehicle: '', area: area,
+          qty: qty, remainingQty: qty, rate: lot.rate, amount: 0, date: todayStr, status: 'approved',
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+        });
+        okEl.textContent = `Stock transfer ചെയ്തു: ${product} → ${toGodown} (${area}, Qty: ${qty})`;
+      } else {
+        const toVehicle = document.getElementById('adminTransferToVehicle').value;
+        if (!toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+        await addDoc(collection(db, "vehicleStock"), {
+          product: product, vehicle: toVehicle, area: area,
+          qty: qty, remainingQty: qty, rate: lot.rate, date: todayStr,
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+        });
+        okEl.textContent = `Stock transfer ചെയ്തു: ${product} → Vehicle ${toVehicle} (${area}, Qty: ${qty})`;
+      }
+
+      okEl.style.display = 'block';
+      document.getElementById('adminTransferQty').value = '0';
+      refreshAdminTransferLots();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Transfer ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
+
   // ---- COLLECTION ----
   function populateCollCustomerDropdown() {
     document.getElementById('collCustSearchInput').value = '';
@@ -3204,37 +3469,10 @@
 
   window.refreshAvailableLots = async function () {
     const product = document.getElementById('saleProduct').value;
-    const source = document.getElementById('saleStockSource').value;
+    const godown = document.getElementById('saleGodown').value;
     document.getElementById('lotRows').innerHTML = '';
     availableLots = [];
 
-    if (source === 'vehicle') {
-      const vehicle = document.getElementById('saleVehicle').value;
-      if (!product || !vehicle) return;
-      try {
-        const q = query(
-          collection(db, "vehicleStock"),
-          where("area", "==", currentUserData.area),
-          where("product", "==", product),
-          where("vehicle", "==", vehicle)
-        );
-        const snap = await getDocs(q);
-        snap.forEach(docSnap => {
-          const d = docSnap.data();
-          const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
-          if (remaining > 0) {
-            availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, source: 'vehicle' });
-          }
-        });
-        availableLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-        if (availableLots.length > 0) addLotRow();
-      } catch (err) {
-        console.error(err);
-      }
-      return;
-    }
-
-    const godown = document.getElementById('saleGodown').value;
     if (!product || !godown) return;
 
     try {
@@ -3296,6 +3534,60 @@
   };
 
   // ---- REPORTS ----
+  // ---- REPORTS: Top-of-page quick summary (Pending Advance Sales + Current Stock) ----
+  async function loadTopReportSummary() {
+    // Pending Advance Sales
+    try {
+      const q = query(
+        collection(db, "sales"),
+        where("area", "==", currentUserData.area),
+        where("isAdvance", "==", true)
+      );
+      const snap = await getDocs(q);
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+        const remaining = (d.qty || 0) - linkedQty;
+        if (remaining <= 0) return;
+        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${remaining}</td></tr>`;
+      });
+      const alertBox = document.getElementById('repTopAlertBox');
+      if (rows) {
+        document.getElementById('repAdvanceSaleBody').innerHTML = rows;
+        alertBox.style.display = 'block';
+      } else {
+        alertBox.style.display = 'none';
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    // Current Stock (Purchase Balance) — Product + Godown + Remaining Qty
+    try {
+      const q2 = query(collection(db, "purchases"), where("area", "==", currentUserData.area));
+      const snap2 = await getDocs(q2);
+      const stockMap = {};
+      snap2.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.product || '-') + '|' + (d.godown || '-');
+          stockMap[key] = (stockMap[key] || 0) + remaining;
+        }
+      });
+      const entries = Object.entries(stockMap).sort((a, b) => a[0].localeCompare(b[0]));
+      const rows2 = entries.map(([key, qty]) => {
+        const [product, godown] = key.split('|');
+        return `<tr><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('repTopStockBody').innerHTML = rows2 || '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="3">Error loading.</td></tr>';
+    }
+  }
+
   window.generateReport = async function () {
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
@@ -4518,17 +4810,35 @@
     const from = document.getElementById('adminCustFrom').value;
     const to = document.getElementById('adminCustTo').value;
     const container = document.getElementById('adminCustContainer');
+    const selectedId = document.getElementById('adminCustSelectedId').value;
 
     if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
 
     container.innerHTML = 'Loading...';
 
     try {
-      const [custSnap, salesSnap, collSnap] = await Promise.all([
-        getDocs(collection(db, "customers")),
-        getDocs(collection(db, "sales")),
-        getDocs(collection(db, "collections"))
-      ]);
+      let custSnap, salesSnap, collSnap;
+
+      if (selectedId) {
+        // Single customer selected — fetch just their records (faster, focused)
+        const [custDoc, sSnap, cSnap] = await Promise.all([
+          getDoc(doc(db, "customers", selectedId)),
+          getDocs(query(collection(db, "sales"), where("customerId", "==", selectedId))),
+          getDocs(query(collection(db, "collections"), where("customerId", "==", selectedId)))
+        ]);
+        custSnap = custDoc.exists() ? [{ id: custDoc.id, data: () => custDoc.data() }] : [];
+        salesSnap = sSnap;
+        collSnap = cSnap;
+      } else {
+        const [cSnap2, sSnap2, colSnap2] = await Promise.all([
+          getDocs(collection(db, "customers")),
+          getDocs(collection(db, "sales")),
+          getDocs(collection(db, "collections"))
+        ]);
+        custSnap = cSnap2;
+        salesSnap = sSnap2;
+        collSnap = colSnap2;
+      }
 
       const inRange = (d) => d && d >= from && d <= to;
       const beforeRange = (d) => d && d < from;
@@ -4637,15 +4947,55 @@
     container.innerHTML = html || '<p style="color:#999; font-size:13px;">Customers ഒന്നും ഇല്ല.</p>';
   }
 
-  window.filterAdminCustomers = function () {
-    if (!lastAdminCustReport) return;
-    const term = document.getElementById('adminCustSearch').value.trim().toLowerCase();
-    if (!term) { renderAdminCustomers(lastAdminCustReport.customers); return; }
-    const filtered = lastAdminCustReport.customers.filter(c =>
-      c.name.toLowerCase().includes(term) || c.phone.toLowerCase().includes(term)
+  let adminAllCustomersForPicker = [];
+
+  async function ensureAdminCustomerPickerLoaded() {
+    if (adminAllCustomersForPicker.length > 0) return;
+    try {
+      const snap = await getDocs(collection(db, "customers"));
+      adminAllCustomersForPicker = [];
+      snap.forEach(docSnap => {
+        const c = docSnap.data();
+        adminAllCustomersForPicker.push({ id: docSnap.id, name: c.name || '-', phone: c.phone || '', area: c.area || '-' });
+      });
+      adminAllCustomersForPicker.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    } catch (err) { console.error(err); }
+  }
+
+  window.renderAdminCustSearchOptions = async function () {
+    await ensureAdminCustomerPickerLoaded();
+    const box = document.getElementById('adminCustSearchOptionsBox');
+    const term = document.getElementById('adminCustSearchInput').value.trim().toLowerCase();
+    const matches = adminAllCustomersForPicker.filter(c =>
+      !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term)
     );
-    renderAdminCustomers(filtered);
+    let html = matches.slice(0, 50).map(c =>
+      `<div class="cust-opt cust-opt-own" onmousedown="selectAdminCustSearch('${c.id}','${escapeHtml(c.name)}')">${c.name}${c.phone ? ' (' + c.phone + ')' : ''} [${c.area}]</div>`
+    ).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
   };
+
+  window.selectAdminCustSearch = function (id, name) {
+    document.getElementById('adminCustSelectedId').value = id;
+    document.getElementById('adminCustSearchInput').value = name;
+    document.getElementById('adminCustSearchOptionsBox').style.display = 'none';
+  };
+
+  window.clearAdminCustSelection = function () {
+    document.getElementById('adminCustSelectedId').value = '';
+    document.getElementById('adminCustSearchInput').value = '';
+    document.getElementById('adminCustSearchOptionsBox').style.display = 'none';
+    generateAdminCustomerReport();
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#adminCustSearchInput') && !e.target.closest('#adminCustSearchOptionsBox')) {
+      const box = document.getElementById('adminCustSearchOptionsBox');
+      if (box) box.style.display = 'none';
+    }
+  });
 
   // ---- ADMIN: EDIT CUSTOMER ----
   window.openCustomerEdit = async function (custId) {
