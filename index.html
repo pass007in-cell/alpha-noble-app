@@ -406,11 +406,17 @@
         </div>
         <div>
           <label>Mode</label>
-          <select id="collMode">
+          <select id="collMode" onchange="toggleCollAccountField()">
             <option value="Cash">Cash</option>
             <option value="Bank">Bank Transfer</option>
             <option value="UPI">UPI</option>
             <option value="Cheque">Cheque</option>
+          </select>
+        </div>
+        <div id="collAccountWrap" style="display:none;">
+          <label>Account</label>
+          <select id="collAccount">
+            <option value="">-- Select Account --</option>
           </select>
         </div>
         <div>
@@ -630,8 +636,8 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody id="repCollBody"><tr><td colspan="6">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="repCollBody"><tr><td colspan="7">—</td></tr></tbody>
       </table>
     </div>
 
@@ -823,6 +829,7 @@
     <button id="tabAdminCustomersBtn" onclick="switchAdminTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabAdminGodownBtn" onclick="switchAdminTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
     <button id="tabAdminProductBtn" onclick="switchAdminTab('product')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Product</button>
+    <button id="tabAdminAccountBtn" onclick="switchAdminTab('account')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Accounts</button>
     <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
@@ -1037,6 +1044,27 @@
     </div>
   </div>
 
+  <div id="tabAdminAccount" style="display:none;">
+    <div class="add-user-form">
+      <h3>🏦 Add Bank Account</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Collection-ൽ Bank Transfer / UPI / Cheque ആയി payment കിട്ടുമ്പോൾ, ഏത് account-ലേക്ക് ആണ് എന്ന് select ചെയ്യാൻ ഉള്ള list ഇവിടെ manage ചെയ്യാം.
+      </p>
+      <div class="error-msg" id="accountErrorMsg"></div>
+      <div class="success-msg" id="accountSuccessMsg"></div>
+      <label>Account Name</label>
+      <input type="text" id="accountName" placeholder="e.g. SBI-ALPHA" style="margin-bottom:14px;">
+      <button class="full-btn" id="addAccountBtn" onclick="handleAddAccount()">Add Account</button>
+    </div>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Accounts</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Account Name</th><th></th></tr></thead>
+        <tbody id="accountTableBody"><tr><td colspan="2">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
   <div id="tabAdminData" style="display:none;">
 
     <div class="add-user-form" style="background:#e8f5e9;">
@@ -1120,8 +1148,8 @@
     <div class="add-user-form">
       <h3>📂 Bulk Upload — Old Collections (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Mode, Amount, Status(pending/approved)<br>
-        Customer **പേര് മാത്രം** വച്ചാണ് match ചെയ്യുന്നത് (Area നോക്കില്ല). പേര് match ആകുന്നില്ലെങ്കിൽ, ആ row-ലെ Area വച്ച് പുതിയ customer create ചെയ്യും.
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Mode, Amount, Status(pending/approved), Account<br>
+        Customer **പേര് മാത്രം** വച്ചാണ് match ചെയ്യുന്നത് (Area നോക്കില്ല). പേര് match ആകുന്നില്ലെങ്കിൽ, ആ row-ലെ Area വച്ച് പുതിയ customer create ചെയ്യും. Mode "Cash" അല്ലാത്തപ്പോൾ Account column-ൽ (SBI-ALPHA പോലെ) account name നൽകുക.
       </p>
       <input type="file" id="collectionCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleCollectionCsvUpload()">Upload Collection CSV</button>
@@ -1440,7 +1468,7 @@
     switchAdminTab('reports');
   }
 
-  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'data', 'approvals', 'reports'];
+  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'account', 'data', 'approvals', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1465,6 +1493,7 @@
     }
     else if (tab === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
     else if (tab === 'product') loadAdminProducts();
+    else if (tab === 'account') loadAdminAccounts();
     else if (tab === 'approvals') { loadApprovals(); loadAdminOldAdvanceSales(); }
     else if (tab === 'reports') {
       const todayStr = new Date().toISOString().split('T')[0];
@@ -1920,6 +1949,7 @@
       loadAdvanceSales();
     } else if (tab === 'collection') {
       populateCollCustomerDropdown();
+      populateCollAccountDropdown();
       document.getElementById('collDate').valueAsDate = new Date();
       loadTodaysCollections();
       editingCollId = null;
@@ -2712,6 +2742,58 @@
     catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
+  // ---- ADMIN: ACCOUNTS ----
+  window.handleAddAccount = async function () {
+    const name = document.getElementById('accountName').value.trim();
+    const errEl = document.getElementById('accountErrorMsg');
+    const okEl = document.getElementById('accountSuccessMsg');
+    const btn = document.getElementById('addAccountBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    if (!name) { errEl.textContent = "Account Name നൽകുക"; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = "Adding...";
+    try {
+      await addDoc(collection(db, "accounts"), {
+        name: name,
+        createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+      okEl.textContent = `"${name}" ചേർത്തു.`; okEl.style.display = 'block';
+      document.getElementById('accountName').value = '';
+      loadAdminAccounts();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Add ചെയ്യാൻ പറ്റിയില്ല."; errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Add Account";
+    }
+  };
+
+  async function loadAdminAccounts() {
+    const tbody = document.getElementById('accountTableBody');
+    tbody.innerHTML = '<tr><td colspan="2">Loading...</td></tr>';
+    try {
+      const snap = await getDocs(collection(db, "accounts"));
+      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="2">Accounts ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        rows += `<tr><td>${d.name || '-'}</td>
+          <td><button class="del-btn" onclick="handleDeleteAccount('${docSnap.id}')">Remove</button></td></tr>`;
+      });
+      tbody.innerHTML = rows;
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="2">Error loading.</td></tr>';
+    }
+  }
+
+  window.handleDeleteAccount = async function (id) {
+    if (!confirm("ഈ account ഒഴിവാക്കണോ?")) return;
+    try { await deleteDoc(doc(db, "accounts", id)); loadAdminAccounts(); }
+    catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
   // ---- VEHICLE ----
   window.handleAddVehicle = async function () {
     const number = document.getElementById('vehicleNumber').value.trim();
@@ -3362,11 +3444,34 @@
     }
   };
 
+  window.toggleCollAccountField = function () {
+    const mode = document.getElementById('collMode').value;
+    const wrap = document.getElementById('collAccountWrap');
+    wrap.style.display = (mode === 'Cash') ? 'none' : 'block';
+    if (mode === 'Cash') document.getElementById('collAccount').value = '';
+  };
+
+  async function populateCollAccountDropdown() {
+    const sel = document.getElementById('collAccount');
+    sel.innerHTML = '<option value="">-- Select Account --</option>';
+    try {
+      const snap = await getDocs(collection(db, "accounts"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+  }
+
   window.handleAddCollection = async function () {
     const custId = document.getElementById('collCustomer').value;
     const amount = parseFloat(document.getElementById('collAmount').value) || 0;
     const date = document.getElementById('collDate').value;
     const mode = document.getElementById('collMode').value;
+    const account = document.getElementById('collAccount').value;
     const notes = document.getElementById('collNotes').value.trim();
     const errEl = document.getElementById('collErrorMsg');
     const okEl = document.getElementById('collSuccessMsg');
@@ -3376,6 +3481,7 @@
 
     if (!custId || custId === '__new__') { errEl.textContent = "Customer select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (amount <= 0) { errEl.textContent = "Amount 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
+    if (mode !== 'Cash' && !account) { errEl.textContent = "Account select ചെയ്യുക"; errEl.style.display = 'block'; return; }
 
     const cust = allCustomers.find(c => c.id === custId);
 
@@ -3385,14 +3491,14 @@
       if (editingCollId) {
         await updateDoc(doc(db, "collections", editingCollId), {
           customerId: custId, customerName: cust ? cust.name : '-',
-          amount: amount, mode: mode, notes: notes, date: date,
+          amount: amount, mode: mode, account: account, notes: notes, date: date,
           status: 'pending', updatedAt: new Date().toISOString()
         });
         okEl.textContent = `Collection updated: ${cust ? cust.name : ''} — ₹${amount}`;
       } else {
         await addDoc(collection(db, "collections"), {
           customerId: custId, customerName: cust ? cust.name : '-', area: currentUserData.area,
-          amount: amount, mode: mode, notes: notes, date: date, status: 'pending',
+          amount: amount, mode: mode, account: account, notes: notes, date: date, status: 'pending',
           enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Collection saved: ${cust ? cust.name : ''} — ₹${amount}`;
@@ -3406,6 +3512,9 @@
       document.getElementById('collCustSearchInput').value = '';
       document.getElementById('collCustBalance').style.display = 'none';
       document.getElementById('quickAddCustBoxColl').style.display = 'none';
+      document.getElementById('collMode').value = 'Cash';
+      document.getElementById('collAccount').value = '';
+      toggleCollAccountField();
       editingCollId = null;
       btn.textContent = "Save Collection";
 
@@ -3472,6 +3581,8 @@
       document.getElementById('collAmount').value = d.amount || 0;
       document.getElementById('collDate').value = d.date || '';
       document.getElementById('collMode').value = d.mode || 'Cash';
+      toggleCollAccountField();
+      document.getElementById('collAccount').value = d.account || '';
       document.getElementById('collNotes').value = d.notes || '';
 
       editingCollId = id;
@@ -3656,7 +3767,7 @@
 
     document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="11">Loading...</td></tr>';
     document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
@@ -3711,17 +3822,17 @@
       document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
         '<tr><td colspan="7">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
 
-      // Collection table (Date, Area, Customer, Mode, Amount, Status — Cash highlighted)
+      // Collection table (Date, Area, Customer, Mode, Account, Amount, Status — Cash highlighted)
       let collRows = colls.map(d => {
         const isCash = (d.mode || '').toLowerCase() === 'cash';
         const badge = (d.status || 'pending') === 'pending'
           ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
         return `<tr class="${isCash ? 'cash-row' : ''}">
-        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td></tr>`;
       }).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
-        '<tr><td colspan="6">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="7">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
 
       // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
       // (includes both Godown-based purchase lots and Vehicle-transferred stock)
@@ -3894,13 +4005,13 @@
 
       // Collection — area-wise grouped, Cash highlighted
       renderAreaGrouped('adminRepCollContainer', colls,
-        ['Date', 'Area', 'Customer', 'Mode', 'Amount', 'Status', ''],
+        ['Date', 'Area', 'Customer', 'Mode', 'Account', 'Amount', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           const isCash = (d.mode || '').toLowerCase() === 'cash';
           return `<tr class="${isCash ? 'cash-row' : ''}">
-            <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+            <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
             <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
             <td>${badge}</td>
             <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${d.id}')">Edit</button><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td>
@@ -4376,6 +4487,7 @@
         const amount = parseNum(cols[4]);
         const statusRaw = (cols[5] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
+        const account = (cols[6] || '').trim();
 
         if (!date || !area || !customerName || amount <= 0) { failCount++; continue; }
 
@@ -4397,7 +4509,7 @@
 
           await addDoc(collection(db, "collections"), {
             customerId: custId, customerName: customerName, area: area,
-            amount: amount, mode: mode, notes: '', date: date, status: status,
+            amount: amount, mode: mode, account: account, notes: '', date: date, status: status,
             enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
           });
           successCount++;
