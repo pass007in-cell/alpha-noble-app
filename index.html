@@ -288,7 +288,7 @@
         </div>
         <div>
           <label>Quantity</label>
-          <input type="number" id="saleQty" placeholder="1" value="1" oninput="calcSaleAmount(); checkLotQtyTotal();">
+          <input type="number" id="saleQty" placeholder="1" value="1" onfocus="this.select()" oninput="calcSaleAmount(); checkLotQtyTotal();">
         </div>
         <div>
           <label>Unit Price (₹)</label>
@@ -398,7 +398,7 @@
       <div class="form-grid">
         <div>
           <label>Amount (₹)</label>
-          <input type="number" id="collAmount" placeholder="0" value="0">
+          <input type="number" id="collAmount" placeholder="0" value="0" onfocus="this.select()">
         </div>
         <div>
           <label>Date</label>
@@ -464,7 +464,7 @@
         </div>
         <div>
           <label>Quantity</label>
-          <input type="number" id="purchaseQty" placeholder="1" value="1">
+          <input type="number" id="purchaseQty" placeholder="1" value="1" onfocus="this.select()">
         </div>
       </div>
       <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
@@ -508,7 +508,7 @@
       <div class="form-grid">
         <div>
           <label>Transfer Qty</label>
-          <input type="number" id="transferQty" placeholder="0" value="0">
+          <input type="number" id="transferQty" placeholder="0" value="0" onfocus="this.select()">
         </div>
         <div>
           <label>Destination Type</label>
@@ -983,7 +983,7 @@
       <div class="form-grid">
         <div>
           <label>Transfer Qty</label>
-          <input type="number" id="adminTransferQty" placeholder="0" value="0">
+          <input type="number" id="adminTransferQty" placeholder="0" value="0" onfocus="this.select()">
         </div>
         <div>
           <label>Destination Type</label>
@@ -1091,7 +1091,8 @@
     <div class="add-user-form">
       <h3>📂 Bulk Upload — Customers (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        CSV columns (ക്രമത്തിൽ): Name, Phone, OpeningBalance, Notes — ആദ്യ വരി header ആയാൽ automatic ആയി skip ചെയ്യും.
+        CSV columns (ക്രമത്തിൽ): Name, Phone, OpeningBalance, Notes, IsPrivate(Y/N) — ആദ്യ വരി header ആയാൽ automatic ആയി skip ചെയ്യും.<br>
+        IsPrivate = <strong>Y</strong> ആയാൽ, "PVT-" prefix name-ൽ automatic ആയി ചേർക്കും (Local/Private customer).
       </p>
       <label>Area</label>
       <select id="customerCsvArea" style="margin-bottom:10px;">
@@ -1109,7 +1110,7 @@
       <h3>📂 Bulk Upload — Old Sales (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Product, Godown, VehicleNo, Qty, UnitPrice, Discount, Freight, Amount, Status(pending/approved)<br>
-        CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും. Godown-ൽ matching stock lots ഉണ്ടെങ്കിൽ, FIFO (ഏറ്റവും പഴയത് ആദ്യം) രീതിയിൽ stock automatic ആയി കുറയും. Matching stock ഇല്ലെങ്കിൽ മാത്രം "Advance Sale" ആയി save ആകും.
+        Customer **പേര് മാത്രം** വച്ചാണ് match ചെയ്യുന്നത് (Area നോക്കില്ല — ഒരു customer വേറെ Area-യിലെ stock വാങ്ങിയാലും duplicate ആകില്ല). പേര് match ആകുന്നില്ലെങ്കിൽ, ആ row-ലെ Area വച്ച് പുതിയ customer create ചെയ്യും. Godown-ൽ matching stock lots ഉണ്ടെങ്കിൽ, FIFO രീതിയിൽ stock automatic ആയി കുറയും. Matching stock ഇല്ലെങ്കിൽ മാത്രം "Advance Sale" ആയി save ആകും.
       </p>
       <input type="file" id="salesCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleSalesCsvUpload()">Upload Sales CSV</button>
@@ -1120,7 +1121,7 @@
       <h3>📂 Bulk Upload — Old Collections (CSV)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Mode, Amount, Status(pending/approved)<br>
-        CustomerName match ആകുന്നില്ലെങ്കിൽ ആ പേരിൽ പുതിയ customer automatic ആയി create ചെയ്യും.
+        Customer **പേര് മാത്രം** വച്ചാണ് match ചെയ്യുന്നത് (Area നോക്കില്ല). പേര് match ആകുന്നില്ലെങ്കിൽ, ആ row-ലെ Area വച്ച് പുതിയ customer create ചെയ്യും.
       </p>
       <input type="file" id="collectionCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleCollectionCsvUpload()">Upload Collection CSV</button>
@@ -2319,6 +2320,7 @@
       clearSaleForm();
 
       loadTodaysSales();
+      loadAdvanceSales();
 
     } catch (err) {
       console.error(err);
@@ -4174,12 +4176,15 @@
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
-        const name = (cols[0] || '').trim();
+        let name = (cols[0] || '').trim();
         const phone = (cols[1] || '').trim();
         const openingBalance = parseNum(cols[2]);
         const notes = (cols[3] || '').trim();
+        const isPrivateRaw = (cols[4] || '').trim().toLowerCase();
+        const isPrivate = (isPrivateRaw === 'y' || isPrivateRaw === 'yes' || isPrivateRaw === 'true');
 
         if (!name) { failCount++; continue; }
+        if (isPrivate && !name.toUpperCase().startsWith('PVT-')) name = 'PVT-' + name;
 
         try {
           await addDoc(collection(db, "customers"), {
@@ -4188,6 +4193,7 @@
             area: area,
             openingBalance: openingBalance,
             notes: notes,
+            isPrivate: isPrivate,
             createdBy: currentUserData.username || 'unknown',
             createdAt: new Date().toISOString()
           });
@@ -4228,12 +4234,14 @@
 
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
-      // Preload all customers for name+area matching
+      // Preload all customers for name-based matching (name only — a customer's
+      // transactions can happen under a different Area than their own home area,
+      // so matching by name+area would wrongly create duplicate customer records).
       const custSnap = await getDocs(collection(db, "customers"));
       const custMap = {};
       custSnap.forEach(d => {
         const c = d.data();
-        custMap[(c.name || '').toLowerCase() + '|' + c.area] = d.id;
+        custMap[(c.name || '').toLowerCase()] = d.id;
       });
 
       let successCount = 0, failCount = 0;
@@ -4261,7 +4269,7 @@
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
         try {
-          const key = customerName.toLowerCase() + '|' + area;
+          const key = customerName.toLowerCase();
           let custId = custMap[key];
 
           if (!custId) {
@@ -4349,12 +4357,12 @@
 
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
-      // Preload all customers for name+area matching
+      // Preload all customers for name-based matching (name only — see note in Sales CSV upload)
       const custSnap = await getDocs(collection(db, "customers"));
       const custMap = {};
       custSnap.forEach(d => {
         const c = d.data();
-        custMap[(c.name || '').toLowerCase() + '|' + c.area] = d.id;
+        custMap[(c.name || '').toLowerCase()] = d.id;
       });
 
       let successCount = 0, failCount = 0;
@@ -4374,7 +4382,7 @@
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
         try {
-          const key = customerName.toLowerCase() + '|' + area;
+          const key = customerName.toLowerCase();
           let custId = custMap[key];
 
           if (!custId) {
