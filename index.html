@@ -2231,6 +2231,23 @@
           errEl.style.display = 'block';
           return;
         }
+
+        // Validate against the lot's actual available stock. When editing, this same sale
+        // may have already reserved some of that lot's stock (not yet restored until save),
+        // so add that back before checking the cap.
+        const lotInfo = availableLots.find(l => l.id === lotId);
+        if (lotInfo) {
+          const priorOwnAlloc = editingSaleId
+            ? editingSaleOldLots.filter(a => a.purchaseId === lotId).reduce((s, a) => s + (a.qty || 0), 0)
+            : 0;
+          const effectiveAvail = lotInfo.remainingQty + priorOwnAlloc;
+          if (lotQty > effectiveAvail) {
+            errEl.textContent = `Lot-ൽ ${effectiveAvail} Qty മാത്രമേ ഉള്ളൂ, ${lotQty} sell ചെയ്യാൻ പറ്റില്ല.`;
+            errEl.style.display = 'block';
+            return;
+          }
+        }
+
         lotAllocations.push({ purchaseId: lotId, qty: lotQty, source: lotSource });
         totalLotQty += lotQty;
       }
@@ -3535,11 +3552,31 @@
 
   window.checkLotQtyTotal = function () {
     const saleQty = parseFloat(document.getElementById('saleQty').value) || 0;
+    const lotSelects = document.querySelectorAll('.lotSelect');
     const lotQtyInputs = document.querySelectorAll('.lotQty');
     let total = 0;
     lotQtyInputs.forEach(inp => total += (parseFloat(inp.value) || 0));
 
     const warnEl = document.getElementById('lotQtyWarning');
+
+    // Check each row against its lot's available stock
+    for (let i = 0; i < lotSelects.length; i++) {
+      const lotId = lotSelects[i].value;
+      const rowQty = parseFloat(lotQtyInputs[i].value) || 0;
+      const lotInfo = availableLots.find(l => l.id === lotId);
+      if (lotInfo) {
+        const priorOwnAlloc = editingSaleId
+          ? editingSaleOldLots.filter(a => a.purchaseId === lotId).reduce((s, a) => s + (a.qty || 0), 0)
+          : 0;
+        const effectiveAvail = lotInfo.remainingQty + priorOwnAlloc;
+        if (rowQty > effectiveAvail) {
+          warnEl.textContent = `⚠️ ഒരു Lot-ൽ ${effectiveAvail} Qty മാത്രമേ ഉള്ളൂ, ${rowQty} നൽകിയിരിക്കുന്നു.`;
+          warnEl.style.display = 'block';
+          return false;
+        }
+      }
+    }
+
     if (lotQtyInputs.length > 0 && total !== saleQty) {
       warnEl.textContent = `Lot-കളിലെ ആകെ Qty (${total}) Sale Qty (${saleQty}) ന് സമമല്ല.`;
       warnEl.style.display = 'block';
