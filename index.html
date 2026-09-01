@@ -1171,30 +1171,52 @@
 
   <div id="tabAdminApprovals" style="display:none;">
     <p style="font-size:13px; color:#777; margin-bottom:16px;">
-      Area users enter ചെയ്ത pending records ഇവിടെ കാണാം — Approve ചെയ്യുകയോ, ചെറിയ correction (Quick Edit) വരുത്തുകയോ, Delete ചെയ്യുകയോ ചെയ്യാം.
+      Area users enter ചെയ്ത pending records ഇവിടെ കാണാം (Area-wise, Date-wise sort ചെയ്തത്) — Approve ചെയ്യുകയോ, ചെറിയ correction (Quick Edit) വരുത്തുകയോ, Delete ചെയ്യുകയോ ചെയ്യാം.
     </p>
+    <div style="display:flex; gap:10px; margin-bottom:20px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportApprovalsExcel()">⬇️ Excel (.xlsx)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
 
     <h3 style="color:#1e3c72; margin-bottom:8px;">Pending Sales</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <label style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="apprSalesSelectAll" style="width:auto;" onchange="toggleSelectAllApprovals('sales')"> Select All
+      </label>
+      <button style="width:auto; background:#2e7d32; padding:8px 16px; font-size:13px;" onclick="bulkApproveSelected('sales')">✅ Approve Selected</button>
+    </div>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="apprSalesBody"><tr><td colspan="6">Loading...</td></tr></tbody>
+        <thead><tr><th></th><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Net Amount</th><th></th></tr></thead>
+        <tbody id="apprSalesBody"><tr><td colspan="11">Loading...</td></tr></tbody>
       </table>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Pending Purchases</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Pending Collection</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <label style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="apprCollSelectAll" style="width:auto;" onchange="toggleSelectAllApprovals('collections')"> Select All
+      </label>
+      <button style="width:auto; background:#2e7d32; padding:8px 16px; font-size:13px;" onclick="bulkApproveSelected('collections')">✅ Approve Selected</button>
+    </div>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="apprPurchaseBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+        <thead><tr><th></th><th>Date</th><th>Area</th><th>Payment Mode</th><th>Customer</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="apprCollBody"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Pending Collections</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Pending Purchase</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <label style="font-size:13px; font-weight:400; display:flex; align-items:center; gap:6px;">
+        <input type="checkbox" id="apprPurchaseSelectAll" style="width:auto;" onchange="toggleSelectAllApprovals('purchases')"> Select All
+      </label>
+      <button style="width:auto; background:#2e7d32; padding:8px 16px; font-size:13px;" onclick="bulkApproveSelected('purchases')">✅ Approve Selected</button>
+    </div>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="apprCollBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+        <thead><tr><th></th><th>Date</th><th>Area</th><th>Product</th><th>Qty</th><th></th></tr></thead>
+        <tbody id="apprPurchaseBody"><tr><td colspan="6">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -4699,13 +4721,15 @@
   };
 
   // ---- ADMIN: APPROVALS ----
+  let lastApprovalsData = null;
+
   async function loadApprovals() {
     const salesBody = document.getElementById('apprSalesBody');
     const purchaseBody = document.getElementById('apprPurchaseBody');
     const collBody = document.getElementById('apprCollBody');
-    salesBody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-    purchaseBody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
-    collBody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    salesBody.innerHTML = '<tr><td colspan="11">Loading...</td></tr>';
+    purchaseBody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    collBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
 
     try {
       const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
@@ -4714,59 +4738,101 @@
         getDocs(query(collection(db, "collections"), where("status", "==", "pending")))
       ]);
 
-      // Sales
-      let salesRows = '';
-      salesSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        salesRows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
-          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
-          <td>
-            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('sales','${docSnap.id}')">Approve</button>
-            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('sales','${docSnap.id}')">Edit</button>
-            <button class="del-btn" onclick="adminDeleteRecord('sales','${docSnap.id}')">Delete</button>
-          </td>
-        </tr>`;
-      });
-      salesBody.innerHTML = salesRows || '<tr><td colspan="6">Pending sales ഒന്നും ഇല്ല.</td></tr>';
+      const sortByAreaDate = (a, b) => {
+        const areaCmp = (a.area || '').localeCompare(b.area || '');
+        if (areaCmp !== 0) return areaCmp;
+        return (a.date || '').localeCompare(b.date || '');
+      };
 
-      // Purchases
-      let purchaseRows = '';
-      purchaseSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        purchaseRows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td>
+      // Sales
+      let sales = [];
+      salesSnap.forEach(docSnap => sales.push({ id: docSnap.id, ...docSnap.data() }));
+      sales.sort(sortByAreaDate);
+
+      let salesRows = sales.map(d => `<tr>
+          <td><input type="checkbox" class="apprCheck-sales" value="${d.id}" style="width:auto;"></td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
+          <td>${d.qty || '-'}</td>
+          <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
+          <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td>
+          <td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
           <td>
-            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('purchases','${docSnap.id}')">Approve</button>
-            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${docSnap.id}')">Edit</button>
-            <button class="del-btn" onclick="adminDeleteRecord('purchases','${docSnap.id}')">Delete</button>
+            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('sales','${d.id}')">Approve</button>
+            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('sales','${d.id}')">Edit</button>
+            <button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button>
           </td>
-        </tr>`;
-      });
-      purchaseBody.innerHTML = purchaseRows || '<tr><td colspan="5">Pending purchases ഒന്നും ഇല്ല.</td></tr>';
+        </tr>`).join('');
+      salesBody.innerHTML = salesRows || '<tr><td colspan="11">Pending sales ഒന്നും ഇല്ല.</td></tr>';
 
       // Collections
-      let collRows = '';
-      collSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        collRows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td>
+      let colls = [];
+      collSnap.forEach(docSnap => colls.push({ id: docSnap.id, ...docSnap.data() }));
+      colls.sort(sortByAreaDate);
+
+      let collRows = colls.map(d => `<tr>
+          <td><input type="checkbox" class="apprCheck-collections" value="${d.id}" style="width:auto;"></td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.mode || '-'}</td><td>${d.customerName || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
           <td>
-            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('collections','${docSnap.id}')">Approve</button>
-            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${docSnap.id}')">Edit</button>
-            <button class="del-btn" onclick="adminDeleteRecord('collections','${docSnap.id}')">Delete</button>
+            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('collections','${d.id}')">Approve</button>
+            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${d.id}')">Edit</button>
+            <button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button>
           </td>
-        </tr>`;
-      });
-      collBody.innerHTML = collRows || '<tr><td colspan="5">Pending collections ഒന്നും ഇല്ല.</td></tr>';
+        </tr>`).join('');
+      collBody.innerHTML = collRows || '<tr><td colspan="7">Pending collections ഒന്നും ഇല്ല.</td></tr>';
+
+      // Purchases
+      let purchases = [];
+      purchaseSnap.forEach(docSnap => purchases.push({ id: docSnap.id, ...docSnap.data() }));
+      purchases.sort(sortByAreaDate);
+
+      let purchaseRows = purchases.map(d => `<tr>
+          <td><input type="checkbox" class="apprCheck-purchases" value="${d.id}" style="width:auto;"></td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td>
+          <td>${d.qty || '-'}</td>
+          <td>
+            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('purchases','${d.id}')">Approve</button>
+            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${d.id}')">Edit</button>
+            <button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button>
+          </td>
+        </tr>`).join('');
+      purchaseBody.innerHTML = purchaseRows || '<tr><td colspan="6">Pending purchases ഒന്നും ഇല്ല.</td></tr>';
+
+      lastApprovalsData = { sales, colls, purchases };
 
     } catch (err) {
       console.error(err);
-      salesBody.innerHTML = '<tr><td colspan="6">Error loading.</td></tr>';
+      salesBody.innerHTML = '<tr><td colspan="11">Error loading.</td></tr>';
     }
   }
+
+  window.exportApprovalsExcel = async function () {
+    if (!lastApprovalsData) { alert("ആദ്യം page load ആകട്ടെ."); return; }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const { sales, colls, purchases } = lastApprovalsData;
+
+      const wb = XLSX.utils.book_new();
+
+      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Net Amount']];
+      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Pending Sales');
+
+      const collData = [['Date', 'Area', 'Payment Mode', 'Customer', 'Amount']];
+      colls.forEach(d => collData.push([fmtDate(d.date), d.area || '', d.mode || '', d.customerName || '', d.amount || 0]));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(collData), 'Pending Collection');
+
+      const purchData = [['Date', 'Area', 'Product', 'Qty']];
+      purchases.forEach(d => purchData.push([fmtDate(d.date), d.area || '', d.product || '', d.qty || 0]));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(purchData), 'Pending Purchase');
+
+      XLSX.writeFile(wb, `pending-approvals-${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
+    }
+  };
 
   // ---- ADMIN: OLD ADVANCE SALES (up to go-live cutoff) ----
   async function loadAdminOldAdvanceSales() {
@@ -4803,6 +4869,29 @@
       console.error(err);
       alert("Approve ചെയ്യാൻ പറ്റിയില്ല.");
     }
+  };
+
+  window.toggleSelectAllApprovals = function (colName) {
+    const selectAllBox = document.getElementById(
+      colName === 'sales' ? 'apprSalesSelectAll' :
+      colName === 'collections' ? 'apprCollSelectAll' : 'apprPurchaseSelectAll'
+    );
+    document.querySelectorAll('.apprCheck-' + colName).forEach(cb => { cb.checked = selectAllBox.checked; });
+  };
+
+  window.bulkApproveSelected = async function (colName) {
+    const checked = document.querySelectorAll('.apprCheck-' + colName + ':checked');
+    if (checked.length === 0) { alert("ഒന്നും select ചെയ്തിട്ടില്ല."); return; }
+    if (!confirm(`${checked.length} records approve ചെയ്യണോ?`)) return;
+
+    for (const cb of checked) {
+      try {
+        await updateDoc(doc(db, colName, cb.value), { status: 'approved' });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    loadApprovals();
   };
 
   window.adminDeleteRecord = async function (colName, id) {
