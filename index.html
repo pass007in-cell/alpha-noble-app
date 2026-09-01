@@ -832,6 +832,7 @@
     <button id="tabAdminAccountBtn" onclick="switchAdminTab('account')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Accounts</button>
     <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
+    <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
     <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
   </div>
 
@@ -1219,7 +1220,9 @@
         <tbody id="apprPurchaseBody"><tr><td colspan="6">Loading...</td></tr></tbody>
       </table>
     </div>
+  </div>
 
+  <div id="tabAdminOldadvance" style="display:none;">
     <h3 style="color:#e65100; margin-bottom:8px;">🔗 Old Advance Sales (up to 31-Aug-26) — Admin only</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       Sept 1 മുതൽ ഇത് users-ന്റെ own panel-ൽ കാണും. ഇത് വരെയുള്ള (go-live-ന് മുന്നേയുള്ള) advance sales ഇവിടെ Admin മാത്രം link ചെയ്ത് clear ചെയ്യുക.
@@ -1490,7 +1493,7 @@
     switchAdminTab('reports');
   }
 
-  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'account', 'data', 'approvals', 'reports'];
+  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'account', 'data', 'approvals', 'oldadvance', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1516,7 +1519,8 @@
     else if (tab === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
     else if (tab === 'product') loadAdminProducts();
     else if (tab === 'account') loadAdminAccounts();
-    else if (tab === 'approvals') { loadApprovals(); loadAdminOldAdvanceSales(); }
+    else if (tab === 'approvals') loadApprovals();
+    else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
     else if (tab === 'reports') {
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('adminReportFrom').value) document.getElementById('adminReportFrom').value = todayStr;
