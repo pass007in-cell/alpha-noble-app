@@ -770,7 +770,7 @@
 
 <!-- ADMIN QUICK EDIT MODAL -->
 <div id="quickEditOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
-  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:400px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:440px; max-height:85vh; overflow-y:auto;">
     <h3 style="color:#1e3c72; margin-bottom:14px;" id="quickEditTitle">Quick Edit</h3>
     <div id="quickEditFields"></div>
     <div style="display:flex; gap:10px; margin-top:6px;">
@@ -1188,8 +1188,8 @@
     </div>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th></th><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Net Amount</th><th></th></tr></thead>
-        <tbody id="apprSalesBody"><tr><td colspan="11">Loading...</td></tr></tbody>
+        <thead><tr><th></th><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="apprSalesBody"><tr><td colspan="12">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -1202,7 +1202,7 @@
     </div>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th></th><th>Date</th><th>Area</th><th>Payment Mode</th><th>Customer</th><th>Amount</th><th></th></tr></thead>
+        <thead><tr><th></th><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th></th></tr></thead>
         <tbody id="apprCollBody"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table>
     </div>
@@ -4731,7 +4731,7 @@
     const salesBody = document.getElementById('apprSalesBody');
     const purchaseBody = document.getElementById('apprPurchaseBody');
     const collBody = document.getElementById('apprCollBody');
-    salesBody.innerHTML = '<tr><td colspan="11">Loading...</td></tr>';
+    salesBody.innerHTML = '<tr><td colspan="12">Loading...</td></tr>';
     purchaseBody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
     collBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
 
@@ -4755,7 +4755,7 @@
 
       let salesRows = sales.map(d => `<tr>
           <td><input type="checkbox" class="apprCheck-sales" value="${d.id}" style="width:auto;"></td>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
           <td>${d.qty || '-'}</td>
           <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
           <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td>
@@ -4767,7 +4767,7 @@
             <button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button>
           </td>
         </tr>`).join('');
-      salesBody.innerHTML = salesRows || '<tr><td colspan="11">Pending sales ഒന്നും ഇല്ല.</td></tr>';
+      salesBody.innerHTML = salesRows || '<tr><td colspan="12">Pending sales ഒന്നും ഇല്ല.</td></tr>';
 
       // Collections
       let colls = [];
@@ -4776,7 +4776,7 @@
 
       let collRows = colls.map(d => `<tr>
           <td><input type="checkbox" class="apprCheck-collections" value="${d.id}" style="width:auto;"></td>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.mode || '-'}</td><td>${d.customerName || '-'}</td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
           <td>
             <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('collections','${d.id}')">Approve</button>
@@ -4807,7 +4807,7 @@
 
     } catch (err) {
       console.error(err);
-      salesBody.innerHTML = '<tr><td colspan="11">Error loading.</td></tr>';
+      salesBody.innerHTML = '<tr><td colspan="12">Error loading.</td></tr>';
     }
   }
 
@@ -4819,12 +4819,12 @@
 
       const wb = XLSX.utils.book_new();
 
-      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Net Amount']];
-      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]));
+      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount']];
+      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.godown || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Pending Sales');
 
-      const collData = [['Date', 'Area', 'Payment Mode', 'Customer', 'Amount']];
-      colls.forEach(d => collData.push([fmtDate(d.date), d.area || '', d.mode || '', d.customerName || '', d.amount || 0]));
+      const collData = [['Date', 'Area', 'Customer', 'Mode', 'Amount']];
+      colls.forEach(d => collData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.mode || '', d.amount || 0]));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(collData), 'Pending Collection');
 
       const purchData = [['Date', 'Area', 'Product', 'Qty']];
@@ -4937,23 +4937,88 @@
       const title = document.getElementById('quickEditTitle');
 
       if (colName === 'sales') {
-        title.textContent = `Edit Sale — ${d.customerName || ''}`;
+        title.textContent = `Edit Sale — ${d.customerName || ''} (Customer മാറ്റാൻ പറ്റില്ല)`;
+
+        const [prodSnap, godownSnap] = await Promise.all([
+          getDocs(collection(db, "products")),
+          getDocs(collection(db, "godowns"))
+        ]);
+        let prodOptions = '';
+        prodSnap.forEach(ds => { const p = ds.data(); prodOptions += `<option value="${p.name}" ${p.name === d.product ? 'selected' : ''}>${p.name}</option>`; });
+        let godownOptions = '';
+        godownSnap.forEach(ds => { const g = ds.data(); godownOptions += `<option value="${g.name}" ${g.name === d.godown ? 'selected' : ''}>${g.name}</option>`; });
+
         fieldsDiv.innerHTML = `
-          <label>Amount (₹)</label>
+          <label>Product</label>
+          <select id="qeProduct" style="margin-bottom:14px;">${prodOptions}</select>
+          <label>Godown</label>
+          <select id="qeGodown" style="margin-bottom:14px;">${godownOptions}</select>
+          <label>Vehicle Number</label>
+          <input type="text" id="qeVehicle" value="${d.vehicle || ''}" style="margin-bottom:14px;">
+          <label>Date</label>
+          <input type="date" id="qeDate" value="${d.date || ''}" style="margin-bottom:14px;">
+          <div class="form-grid">
+            <div><label>Qty</label><input type="number" id="qeQty" value="${d.qty || 0}"></div>
+            <div><label>Unit Price</label><input type="number" id="qeRate" value="${d.rate || 0}"></div>
+            <div><label>Discount</label><input type="number" id="qeDiscAmt" value="${d.discAmt || 0}"></div>
+            <div><label>Freight</label><input type="number" id="qeFreight" value="${d.freight || 0}"></div>
+          </div>
+          <p style="font-size:11px; color:#e65100; margin:6px 0 10px;">⚠️ Qty മാറ്റിയാൽ stock lot-കൾ automatic ആയി adjust ആകില്ല — ആവശ്യമെങ്കിൽ Stock Transfer ഉപയോഗിച്ച് manual ആയി ശരിയാക്കുക.</p>
+          <label>Net Amount (₹)</label>
           <input type="number" id="qeAmount" value="${d.amount || 0}" style="margin-bottom:14px;">
         `;
+
       } else if (colName === 'purchases') {
         title.textContent = `Edit Purchase — ${d.product || ''}`;
         quickEditOldQty = d.qty || 0;
+
+        const [prodSnap2, godownSnap2] = await Promise.all([
+          getDocs(collection(db, "products")),
+          getDocs(collection(db, "godowns"))
+        ]);
+        let prodOptions2 = '';
+        prodSnap2.forEach(ds => { const p = ds.data(); prodOptions2 += `<option value="${p.name}" ${p.name === d.product ? 'selected' : ''}>${p.name}</option>`; });
+        let godownOptions2 = '';
+        godownSnap2.forEach(ds => { const g = ds.data(); godownOptions2 += `<option value="${g.name}" ${g.name === d.godown ? 'selected' : ''}>${g.name}</option>`; });
+
         fieldsDiv.innerHTML = `
+          <label>Product</label>
+          <select id="qeProduct" style="margin-bottom:14px;">${prodOptions2}</select>
+          <label>Godown</label>
+          <select id="qeGodown" style="margin-bottom:14px;">${godownOptions2}</select>
+          <label>Vehicle Number</label>
+          <input type="text" id="qeVehicle" value="${d.vehicle || ''}" style="margin-bottom:14px;">
+          <label>Date</label>
+          <input type="date" id="qeDate" value="${d.date || ''}" style="margin-bottom:14px;">
           <label>Quantity</label>
           <input type="number" id="qeQty" value="${d.qty || 0}" style="margin-bottom:14px;">
         `;
+
       } else {
-        title.textContent = `Edit Collection — ${d.customerName || ''}`;
+        title.textContent = `Edit Collection — ${d.customerName || ''} (Customer മാറ്റാൻ പറ്റില്ല)`;
+
+        const accSnap = await getDocs(collection(db, "accounts"));
+        let accOptions = '<option value="">-- Select Account --</option>';
+        accSnap.forEach(ds => { const a = ds.data(); accOptions += `<option value="${a.name}" ${a.name === d.account ? 'selected' : ''}>${a.name}</option>`; });
+
         fieldsDiv.innerHTML = `
           <label>Amount (₹)</label>
           <input type="number" id="qeAmount" value="${d.amount || 0}" style="margin-bottom:14px;">
+          <label>Date</label>
+          <input type="date" id="qeDate" value="${d.date || ''}" style="margin-bottom:14px;">
+          <label>Mode</label>
+          <select id="qeMode" onchange="toggleQeAccount()" style="margin-bottom:14px;">
+            <option value="Cash" ${d.mode === 'Cash' ? 'selected' : ''}>Cash</option>
+            <option value="Bank" ${d.mode === 'Bank' ? 'selected' : ''}>Bank Transfer</option>
+            <option value="UPI" ${d.mode === 'UPI' ? 'selected' : ''}>UPI</option>
+            <option value="Cheque" ${d.mode === 'Cheque' ? 'selected' : ''}>Cheque</option>
+          </select>
+          <div id="qeAccountWrap" style="display:${d.mode !== 'Cash' ? 'block' : 'none'};">
+            <label>Account</label>
+            <select id="qeAccount" style="margin-bottom:14px;">${accOptions}</select>
+          </div>
+          <label>Notes</label>
+          <input type="text" id="qeNotes" value="${d.notes || ''}" style="margin-bottom:14px;">
         `;
       }
 
@@ -4962,6 +5027,11 @@
       console.error(err);
       alert("Load ചെയ്യാൻ പറ്റിയില്ല.");
     }
+  };
+
+  window.toggleQeAccount = function () {
+    const mode = document.getElementById('qeMode').value;
+    document.getElementById('qeAccountWrap').style.display = (mode === 'Cash') ? 'none' : 'block';
   };
 
   window.closeQuickEdit = function () {
@@ -4973,15 +5043,36 @@
     if (!quickEditCol || !quickEditId) return;
 
     try {
-      if (quickEditCol === 'purchases') {
+      if (quickEditCol === 'sales') {
+        await updateDoc(doc(db, "sales", quickEditId), {
+          product: document.getElementById('qeProduct').value,
+          godown: document.getElementById('qeGodown').value,
+          vehicle: document.getElementById('qeVehicle').value.trim(),
+          date: document.getElementById('qeDate').value,
+          qty: parseFloat(document.getElementById('qeQty').value) || 0,
+          rate: parseFloat(document.getElementById('qeRate').value) || 0,
+          discAmt: parseFloat(document.getElementById('qeDiscAmt').value) || 0,
+          freight: parseFloat(document.getElementById('qeFreight').value) || 0,
+          amount: parseFloat(document.getElementById('qeAmount').value) || 0
+        });
+      } else if (quickEditCol === 'purchases') {
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
         const qtyDelta = qty - quickEditOldQty;
         await updateDoc(doc(db, "purchases", quickEditId), {
+          product: document.getElementById('qeProduct').value,
+          godown: document.getElementById('qeGodown').value,
+          vehicle: document.getElementById('qeVehicle').value.trim(),
+          date: document.getElementById('qeDate').value,
           qty: qty, remainingQty: increment(qtyDelta)
         });
       } else {
-        const amount = parseFloat(document.getElementById('qeAmount').value) || 0;
-        await updateDoc(doc(db, quickEditCol, quickEditId), { amount: amount });
+        await updateDoc(doc(db, "collections", quickEditId), {
+          amount: parseFloat(document.getElementById('qeAmount').value) || 0,
+          date: document.getElementById('qeDate').value,
+          mode: document.getElementById('qeMode').value,
+          account: document.getElementById('qeAccount') ? document.getElementById('qeAccount').value : '',
+          notes: document.getElementById('qeNotes').value.trim()
+        });
       }
 
       closeQuickEdit();
