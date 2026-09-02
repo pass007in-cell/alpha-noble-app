@@ -753,6 +753,11 @@
     <p style="font-size:13px; color:#777; margin-bottom:14px;" id="linkAdvanceInfo"></p>
     <div class="error-msg" id="linkAdvanceErrorMsg"></div>
 
+    <label>Godown (ആവശ്യമെങ്കിൽ മാറ്റാം)</label>
+    <select id="linkAdvanceGodown" onchange="refreshLinkAdvanceLots()" style="margin-bottom:14px;">
+      <option value="">-- Select Godown --</option>
+    </select>
+
     <label>Purchase Lot</label>
     <select id="linkAdvanceLot" style="margin-bottom:14px;">
       <option value="">-- Select Lot --</option>
@@ -2630,39 +2635,73 @@
       const remaining = (d.qty || 0) - linkedQty;
 
       document.getElementById('linkAdvanceInfo').textContent =
-        `${d.customerName || ''} — ${d.product || ''} (${d.godown || '-'}) — Remaining unlinked: ${remaining}`;
+        `${d.customerName || ''} — ${d.product || ''} (Sale-ൽ save ആയ Godown: ${d.godown || '-'}) — Remaining unlinked: ${remaining}`;
       document.getElementById('linkAdvanceQty').value = remaining;
       document.getElementById('linkAdvanceErrorMsg').style.display = 'none';
 
-      const lotSel = document.getElementById('linkAdvanceLot');
-      lotSel.innerHTML = '<option value="">Loading lots...</option>';
+      const godownSel = document.getElementById('linkAdvanceGodown');
+      godownSel.innerHTML = '<option value="">Loading godowns...</option>';
+      document.getElementById('linkAdvanceLot').innerHTML = '<option value="">-- ആദ്യം Godown select ചെയ്യുക --</option>';
       document.getElementById('linkAdvanceOverlay').style.display = 'flex';
 
-      const godown = d.godown || '';
-      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
-      const lotQ = isSharedGodown
-        ? query(collection(db, "purchases"), where("product", "==", d.product), where("godown", "==", godown))
-        : query(collection(db, "purchases"), where("area", "==", d.area), where("product", "==", d.product), where("godown", "==", godown));
-      const lotSnap = await getDocs(lotQ);
-
-      linkAdvanceAvailLots = [];
-      lotSnap.forEach(docSnap => {
-        const ld = docSnap.data();
-        const rem = (ld.remainingQty !== undefined) ? ld.remainingQty : ld.qty;
-        if (rem > 0) linkAdvanceAvailLots.push({ id: docSnap.id, date: ld.date, remainingQty: rem, vehicle: ld.vehicle });
+      // List every godown that actually has stock for this product (own area's godowns +
+      // any IGST- shared godown), not just the one recorded on the sale — the sale's godown
+      // may not match where the purchase actually landed.
+      const purchSnap = await getDocs(query(collection(db, "purchases"), where("product", "==", d.product)));
+      const godownSet = new Set();
+      purchSnap.forEach(docSnap => {
+        const pd = docSnap.data();
+        const remainingQty = (pd.remainingQty !== undefined) ? pd.remainingQty : pd.qty;
+        if (remainingQty <= 0) return;
+        const isShared = (pd.godown || '').toUpperCase().startsWith('IGST-');
+        if (pd.area === d.area || isShared) godownSet.add(pd.godown);
       });
-      linkAdvanceAvailLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-      lotSel.innerHTML = '<option value="">-- Select Lot --</option>' +
-        linkAdvanceAvailLots.map(l => `<option value="${l.id}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`).join('');
+      const godownList = Array.from(godownSet).sort();
+      godownSel.innerHTML = '<option value="">-- Select Godown --</option>' +
+        godownList.map(g => `<option value="${g}" ${g === d.godown ? 'selected' : ''}>${g}</option>`).join('');
 
-      if (linkAdvanceAvailLots.length === 0) {
-        lotSel.innerHTML = '<option value="">Matching lots ഒന്നും ഇല്ല</option>';
+      if (godownList.length === 0) {
+        godownSel.innerHTML = '<option value="">Stock ഉള്ള godowns ഒന്നും ഇല്ല</option>';
+        document.getElementById('linkAdvanceLot').innerHTML = '<option value="">-</option>';
+        return;
       }
+
+      await refreshLinkAdvanceLots();
 
     } catch (err) {
       console.error(err);
       alert("Load ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  window.refreshLinkAdvanceLots = async function () {
+    const d = linkAdvanceSaleData;
+    const godown = document.getElementById('linkAdvanceGodown').value;
+    const lotSel = document.getElementById('linkAdvanceLot');
+    lotSel.innerHTML = '<option value="">Loading lots...</option>';
+    linkAdvanceAvailLots = [];
+
+    if (!godown) { lotSel.innerHTML = '<option value="">-- ആദ്യം Godown select ചെയ്യുക --</option>'; return; }
+
+    const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
+    const lotQ = isSharedGodown
+      ? query(collection(db, "purchases"), where("product", "==", d.product), where("godown", "==", godown))
+      : query(collection(db, "purchases"), where("area", "==", d.area), where("product", "==", d.product), where("godown", "==", godown));
+    const lotSnap = await getDocs(lotQ);
+
+    lotSnap.forEach(docSnap => {
+      const ld = docSnap.data();
+      const rem = (ld.remainingQty !== undefined) ? ld.remainingQty : ld.qty;
+      if (rem > 0) linkAdvanceAvailLots.push({ id: docSnap.id, date: ld.date, remainingQty: rem, vehicle: ld.vehicle });
+    });
+    linkAdvanceAvailLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    lotSel.innerHTML = '<option value="">-- Select Lot --</option>' +
+      linkAdvanceAvailLots.map(l => `<option value="${l.id}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`).join('');
+
+    if (linkAdvanceAvailLots.length === 0) {
+      lotSel.innerHTML = '<option value="">Matching lots ഒന്നും ഇല്ല</option>';
     }
   };
 
@@ -2697,10 +2736,12 @@
       const newLots = [...(d.lots || []), { purchaseId: lotId, qty: qty, source: 'godown' }];
       const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
       const stillAdvance = newLinkedTotal < (d.qty || 0);
+      const linkedGodown = document.getElementById('linkAdvanceGodown').value;
 
       await updateDoc(doc(db, "sales", linkAdvanceSaleId), {
         lots: newLots,
-        isAdvance: stillAdvance
+        isAdvance: stillAdvance,
+        godown: linkedGodown || d.godown // keep record's Godown in sync with where it was actually linked
       });
 
       closeLinkAdvance();
