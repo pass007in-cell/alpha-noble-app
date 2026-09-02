@@ -4219,7 +4219,7 @@
       const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
 
       html += `<div style="border:1px solid #ddd; border-radius:10px; margin-bottom:14px; overflow:hidden;">
-        <div style="background:#1e3c72; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+        <div style="background:#eef2f7; color:#1e3c72; font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; border-bottom:2px solid #1e3c72;">
           <div><strong>${fmtDate(lot.date)}</strong> · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
@@ -4599,7 +4599,7 @@
       const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
 
       html += `<div style="border:1px solid #ddd; border-radius:10px; margin-bottom:14px; overflow:hidden;">
-        <div style="background:#1e3c72; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+        <div style="background:#eef2f7; color:#1e3c72; font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; border-bottom:2px solid #1e3c72;">
           <div><strong>${fmtDate(lot.date)}</strong> · ${lot.area || '-'} · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
