@@ -351,10 +351,10 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Godown</th><th>Total Qty</th><th>Linked</th><th>Remaining</th><th></th></tr>
+          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Total Qty</th><th>Linked</th><th>Remaining</th><th></th></tr>
         </thead>
         <tbody id="advanceSaleTableBody">
-          <tr><td colspan="8">Loading...</td></tr>
+          <tr><td colspan="9">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -574,8 +574,8 @@
       <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">⚠️ Pending Advance Sales (Link ചെയ്യാൻ ബാക്കി)</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Remaining Qty</th></tr></thead>
-          <tbody id="repAdvanceSaleBody"><tr><td colspan="4">—</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="repAdvanceSaleBody"><tr><td colspan="5">—</td></tr></tbody>
         </table>
       </div>
       <p style="font-size:12px; color:#777; margin-top:8px;">Link ചെയ്യാൻ Sale Entry tab-ൽ പോകുക.</p>
@@ -1240,8 +1240,8 @@
     </p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Remaining</th><th></th></tr></thead>
-        <tbody id="adminOldAdvanceBody"><tr><td colspan="7">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
+        <tbody id="adminOldAdvanceBody"><tr><td colspan="8">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2581,7 +2581,7 @@
   // ---- ADVANCE SALE → PURCHASE LOT LINKING ----
   async function loadAdvanceSales() {
     const tbody = document.getElementById('advanceSaleTableBody');
-    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
     try {
       const q = query(
         collection(db, "sales"),
@@ -2590,7 +2590,7 @@
       );
       const snap = await getDocs(q);
       if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="8">Advance sales ഒന്നും ഇല്ല.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9">Advance sales ഒന്നും ഇല്ല.</td></tr>';
         return;
       }
       let rows = '';
@@ -2602,12 +2602,12 @@
         if (remaining <= 0) return; // fully linked already, shouldn't normally happen since isAdvance would be false
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) { hiddenOldCount++; return; } // old ones — Admin handles these
         rows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+          <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
           <td>${d.qty || 0}</td><td>${linkedQty}</td><td>${remaining}</td>
           <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${docSnap.id}')">Link</button></td>
         </tr>`;
       });
-      tbody.innerHTML = rows || '<tr><td colspan="8">Advance sales ഒന്നും ഇല്ല.</td></tr>';
+      tbody.innerHTML = rows || '<tr><td colspan="9">Advance sales ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
       tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>';
@@ -3801,7 +3801,7 @@
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old ones — Admin handles these
-        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${remaining}</td></tr>`;
+        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${remaining}</td></tr>`;
       });
       const alertBox = document.getElementById('repTopAlertBox');
       if (rows) {
@@ -3815,12 +3815,15 @@
     }
 
     // Current Stock (Purchase Balance) — Product + Godown + Remaining Qty
+    // Includes IGST- shared godowns' purchases regardless of which paired area entered them
+    // (e.g. IGST-ALP is shared between MKD+PKD — an MKD-entered purchase is still usable stock for PKD).
     try {
-      const q2 = query(collection(db, "purchases"), where("area", "==", currentUserData.area));
-      const snap2 = await getDocs(q2);
+      const snap2 = await getDocs(collection(db, "purchases"));
       const stockMap = {};
       snap2.forEach(docSnap => {
         const d = docSnap.data();
+        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
+        if (d.area !== currentUserData.area && !isShared) return;
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-');
@@ -3854,11 +3857,12 @@
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
-      const [salesSnap, purchaseSnap, collSnap, vsSnap] = await Promise.all([
+      const [salesSnap, purchaseSnap, collSnap, vsSnap, allPurchaseSnap] = await Promise.all([
         getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area))),
         getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
         getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area)))
+        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area))),
+        getDocs(collection(db, "purchases"))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -3919,9 +3923,13 @@
 
       // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
       // (includes both Godown-based purchase lots and Vehicle-transferred stock)
+      // Uses ALL purchases matching own area OR any IGST- shared godown (regardless of which
+      // paired area entered it), since IGST-ALP/IGST-NBL stock is usable by both paired areas.
       const lotMap = {};
-      purchaseSnap.forEach(docSnap => {
+      allPurchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
+        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
+        if (d.area !== currentUserData.area && !isShared) return;
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
@@ -5114,7 +5122,7 @@
   // ---- ADMIN: OLD ADVANCE SALES (up to go-live cutoff) ----
   async function loadAdminOldAdvanceSales() {
     const tbody = document.getElementById('adminOldAdvanceBody');
-    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     try {
       const q = query(collection(db, "sales"), where("isAdvance", "==", true));
       const snap = await getDocs(q);
@@ -5126,12 +5134,12 @@
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
         rows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
           <td>${remaining}</td>
           <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${docSnap.id}')">Link</button></td>
         </tr>`;
       });
-      tbody.innerHTML = rows || '<tr><td colspan="7">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
+      tbody.innerHTML = rows || '<tr><td colspan="8">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
       tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
