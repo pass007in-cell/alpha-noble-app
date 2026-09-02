@@ -2385,7 +2385,7 @@
         area: currentUserData.area,
         product: product,
         godown: document.getElementById('saleGodown').value,
-        vehicle: document.getElementById('saleVehicle').value,
+        vehicle: document.getElementById('saleVehicleSearch').value.trim(),
         qty: qty,
         rate: rate,
         discRate: parseFloat(document.getElementById('saleDiscRate').value) || 0,
@@ -3002,7 +3002,7 @@
     const product = document.getElementById('purchaseProduct').value;
     const date = document.getElementById('purchaseDate').value;
     const godown = document.getElementById('purchaseGodown').value;
-    const vehicle = document.getElementById('purchaseVehicle').value;
+    const vehicle = document.getElementById('purchaseVehicleSearch').value.trim();
     const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
     const errEl = document.getElementById('purchaseErrorMsg');
     const okEl = document.getElementById('purchaseSuccessMsg');
@@ -4854,6 +4854,18 @@
 
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
+      // Sanity check: expected 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status).
+      // Fewer columns usually means an old-format file was used, which silently shifts
+      // every value one position and corrupts the upload.
+      const firstDataCols = parseCsvLine(lines[0]);
+      if (firstDataCols.length < 7) {
+        if (!confirm(`⚠️ ഈ file-ൽ ${firstDataCols.length} columns മാത്രമേ ഉള്ളൂ (7 വേണം: Date,Area,Product,Godown,Vehicle,Qty,Status). പഴയ format ആണെങ്കിൽ data തെറ്റായി വീണേക്കാം. എന്നാലും തുടരണോ?`)) {
+          statusEl.style.color = '#d32f2f';
+          statusEl.textContent = "Cancel ചെയ്തു — column count ശരിയാക്കി വീണ്ടും ശ്രമിക്കുക.";
+          return;
+        }
+      }
+
       let successCount = 0, failCount = 0;
 
       for (let i = 0; i < lines.length; i++) {
@@ -5251,7 +5263,7 @@
 
       } else if (colName === 'purchases') {
         title.textContent = `Edit Purchase — ${d.product || ''}`;
-        quickEditOldQty = d.qty || 0;
+        const currentRemaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
 
         const [prodSnap2, godownSnap2] = await Promise.all([
           getDocs(collection(db, "products")),
@@ -5271,8 +5283,16 @@
           <input type="text" id="qeVehicle" value="${d.vehicle || ''}" style="margin-bottom:14px;">
           <label>Date</label>
           <input type="date" id="qeDate" value="${d.date || ''}" style="margin-bottom:14px;">
-          <label>Quantity</label>
+          <label>Status</label>
+          <select id="qeStatus" style="margin-bottom:14px;">
+            <option value="approved" ${d.status !== 'pending' ? 'selected' : ''}>Approved</option>
+            <option value="pending" ${d.status === 'pending' ? 'selected' : ''}>Pending</option>
+          </select>
+          <label>Total Purchased Quantity</label>
           <input type="number" id="qeQty" value="${d.qty || 0}" style="margin-bottom:14px;">
+          <label>Remaining Qty (Lot Balance-ൽ കാണുന്നത് — ഇത് directly edit ചെയ്യാം)</label>
+          <input type="number" id="qeRemainingQty" value="${currentRemaining}" style="margin-bottom:6px;">
+          <p style="font-size:11px; color:#777; margin-bottom:10px;">ഇത് ആ lot-ൽ ഇപ്പോൾ sell ചെയ്യാൻ ബാക്കിയുള്ള qty ആണ് — Bulk upload/status പ്രശ്നം കൊണ്ട് 0 ആയി വന്നാൽ ഇവിടെ ശരിയാക്കാം.</p>
         `;
 
       } else {
@@ -5338,13 +5358,14 @@
         });
       } else if (quickEditCol === 'purchases') {
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
-        const qtyDelta = qty - quickEditOldQty;
+        const remainingQty = parseFloat(document.getElementById('qeRemainingQty').value) || 0;
         await updateDoc(doc(db, "purchases", quickEditId), {
           product: document.getElementById('qeProduct').value,
           godown: document.getElementById('qeGodown').value,
           vehicle: document.getElementById('qeVehicle').value.trim(),
           date: document.getElementById('qeDate').value,
-          qty: qty, remainingQty: increment(qtyDelta)
+          status: document.getElementById('qeStatus').value,
+          qty: qty, remainingQty: remainingQty
         });
       } else {
         await updateDoc(doc(db, "collections", quickEditId), {
