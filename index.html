@@ -180,6 +180,7 @@
     <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
     <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
+    <button id="tabTripsheetBtn" onclick="switchTab('tripsheet')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🚚 Trip Sheet</button>
   </div>
 
   <div id="tabCustomers" style="display:none;">
@@ -672,6 +673,29 @@
     </div>
 
     <div class="add-user-form">
+      <h3>📅 Daily Stock Book (Item-wise)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ഓരോ ദിവസത്തെയും Purchase Qty, Sale Qty, Balance — ആകെ Purchase/Sale മാത്രം നോക്കി കണക്കാക്കുന്നത് (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+      </p>
+      <label>Product</label>
+      <select id="dsbProduct" style="margin-bottom:14px;">
+        <option value="">-- Select Product --</option>
+      </select>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="dsbFrom">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="dsbTo">
+        </div>
+      </div>
+      <button class="full-btn" onclick="generateDailyStockBook()">Generate</button>
+    </div>
+    <div id="dsbContainer" style="margin-bottom:24px;"></div>
+
+    <div class="add-user-form">
       <h3>🧾 Customer Statement</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         ഒരു Customer-ന്റെ Sale &amp; Collection transactions, മറ്റ് areas-ലേത് ഉൾപ്പെടെ, date range-ൽ.
@@ -711,6 +735,31 @@
   </div>
 </div>
 
+<div id="tabTripsheet" style="display:none; max-width:900px; margin:0 auto; padding:20px 16px;">
+  <div class="add-user-form">
+    <h3>🚚 Trip Sheet — Purchase Lot & Sales</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report (own area + shared IGST- godowns).
+    </p>
+    <div class="form-grid">
+      <div>
+        <label>From Date</label>
+        <input type="date" id="userTripFrom">
+      </div>
+      <div>
+        <label>To Date</label>
+        <input type="date" id="userTripTo">
+      </div>
+    </div>
+    <button class="full-btn" onclick="generateUserTripSheet()">Generate Trip Sheet</button>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportUserTripSheetExcel()">⬇️ Excel (.xlsx)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
+  </div>
+  <div id="userTripSheetContainer">Date range select ചെയ്ത് "Generate Trip Sheet" ക്ലിക്ക് ചെയ്യുക.</div>
+</div>
+
 <!-- ADMIN CUSTOMER EDIT MODAL -->
 <div id="custEditOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;">
@@ -742,6 +791,28 @@
     <div style="display:flex; gap:10px;">
       <button style="flex:1;" onclick="saveCustomerEdit()">Save</button>
       <button style="flex:1; background:#999;" onclick="closeCustomerEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRIP SHEET → LINK ADVANCE SALE MODAL -->
+<div id="tripLinkOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;">
+    <h3 style="color:#1e3c72; margin-bottom:6px;">🔗 Link an Advance Sale</h3>
+    <p style="font-size:13px; color:#777; margin-bottom:14px;" id="tripLinkInfo"></p>
+    <div class="error-msg" id="tripLinkErrorMsg"></div>
+
+    <label>Advance Sale</label>
+    <select id="tripLinkSaleSelect" style="margin-bottom:14px;">
+      <option value="">-- Select --</option>
+    </select>
+
+    <label>Qty to Link</label>
+    <input type="number" id="tripLinkQty" value="0" style="margin-bottom:16px;">
+
+    <div style="display:flex; gap:10px;">
+      <button style="flex:1;" onclick="confirmTripLink()">Link</button>
+      <button style="flex:1; background:#999;" onclick="closeTripLinkModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -1344,12 +1415,42 @@
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
     </p>
-    <div class="table-wrap">
+    <div class="table-wrap" style="margin-bottom:24px;">
       <table>
         <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
         <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
       </table>
     </div>
+
+    <div class="add-user-form">
+      <h3>📅 Daily Stock Book (Item-wise)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ഓരോ ദിവസത്തെയും Purchase Qty, Sale Qty, Balance — ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+      </p>
+      <label>Area</label>
+      <select id="adminDsbArea" style="margin-bottom:14px;">
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+      <label>Product</label>
+      <select id="adminDsbProduct" style="margin-bottom:14px;">
+        <option value="">-- Select Product --</option>
+      </select>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="adminDsbFrom">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="adminDsbTo">
+        </div>
+      </div>
+      <button class="full-btn" onclick="generateAdminDailyStockBook()">Generate</button>
+    </div>
+    <div id="adminDsbContainer"></div>
   </div>
 </div>
 
@@ -1581,6 +1682,12 @@
       if (!document.getElementById('adminReportFrom').value) document.getElementById('adminReportFrom').value = todayStr;
       if (!document.getElementById('adminReportTo').value) document.getElementById('adminReportTo').value = todayStr;
       generateAdminReport();
+      populateAdminDsbProductDropdown();
+      if (!document.getElementById('adminDsbFrom').value) {
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+        document.getElementById('adminDsbFrom').value = weekAgo.toISOString().split('T')[0];
+        document.getElementById('adminDsbTo').value = todayStr;
+      }
     }
   };
 
@@ -1982,6 +2089,29 @@
     return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
+  // If a vehicle number typed during Sale/Purchase entry isn't already in the Vehicles
+  // master list, register it automatically so it appears in future searches.
+  let knownVehicleNumbers = null; // cache, lazily loaded
+  async function ensureVehicleRegistered(number) {
+    const num = (number || '').trim();
+    if (!num) return;
+    try {
+      if (!knownVehicleNumbers) {
+        const snap = await getDocs(collection(db, "vehicles"));
+        knownVehicleNumbers = new Set();
+        snap.forEach(d => knownVehicleNumbers.add(normalizeName(d.data().number)));
+      }
+      if (knownVehicleNumbers.has(normalizeName(num))) return;
+      await addDoc(collection(db, "vehicles"), {
+        number: num, driver: '', area: currentUserData.area,
+        createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+      });
+      knownVehicleNumbers.add(normalizeName(num));
+    } catch (err) {
+      console.error('Vehicle auto-register failed', err);
+    }
+  }
+
   function parseNum(str) {
     if (str === null || str === undefined) return 0;
     const cleaned = String(str).replace(/[₹,\s]/g, '');
@@ -2010,7 +2140,7 @@
   }
 
   // ---- TAB SWITCHING ----
-  const allTabs = ['purchase', 'sale', 'collection', 'customers', 'vehicle', 'reports'];
+  const allTabs = ['purchase', 'sale', 'collection', 'customers', 'vehicle', 'reports', 'tripsheet'];
 
   window.switchTab = function (tab) {
     allTabs.forEach(t => {
@@ -2060,6 +2190,16 @@
       if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
       generateReport();
       loadTopReportSummary();
+      populateDsbProductDropdown();
+      if (!document.getElementById('dsbFrom').value) {
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+        document.getElementById('dsbFrom').value = weekAgo.toISOString().split('T')[0];
+        document.getElementById('dsbTo').value = todayStr;
+      }
+    } else if (tab === 'tripsheet') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!document.getElementById('userTripFrom').value) document.getElementById('userTripFrom').value = todayStr;
+      if (!document.getElementById('userTripTo').value) document.getElementById('userTripTo').value = todayStr;
     }
   };
 
@@ -2384,13 +2524,16 @@
     btn.textContent = "Saving...";
 
     try {
+      const saleVehicleNum = document.getElementById('saleVehicleSearch').value.trim();
+      await ensureVehicleRegistered(saleVehicleNum);
+
       const saleData = {
         customerId: custId,
         customerName: cust ? cust.name : '-',
         area: currentUserData.area,
         product: product,
         godown: document.getElementById('saleGodown').value,
-        vehicle: document.getElementById('saleVehicleSearch').value.trim(),
+        vehicle: saleVehicleNum,
         qty: qty,
         rate: rate,
         discRate: parseFloat(document.getElementById('saleDiscRate').value) || 0,
@@ -2710,6 +2853,133 @@
     linkAdvanceSaleId = null;
     linkAdvanceSaleData = null;
     linkAdvanceAvailLots = [];
+  };
+
+  // ---- TRIP SHEET → LINK ADVANCE SALE (reverse flow: pick a Sale for a known Lot) ----
+  let tripLinkLotId = null;
+  let tripLinkLotRemaining = 0;
+  let tripLinkGodown = '';
+  let tripLinkCandidateSales = [];
+
+  window.openTripLinkModal = async function (lotId, product, area, godown, remaining) {
+    tripLinkLotId = lotId;
+    tripLinkLotRemaining = remaining;
+    tripLinkGodown = godown;
+
+    document.getElementById('tripLinkInfo').textContent = `${product} · Lot Godown: ${godown} · Available in this lot: ${remaining}`;
+    document.getElementById('tripLinkErrorMsg').style.display = 'none';
+    document.getElementById('tripLinkQty').value = remaining;
+
+    const sel = document.getElementById('tripLinkSaleSelect');
+    sel.innerHTML = '<option value="">Loading...</option>';
+    document.getElementById('tripLinkOverlay').style.display = 'flex';
+
+    try {
+      const q = query(
+        collection(db, "sales"),
+        where("isAdvance", "==", true),
+        where("product", "==", product)
+      );
+      const snap = await getDocs(q);
+      tripLinkCandidateSales = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+        const rem = (d.qty || 0) - linkedQty;
+        if (rem > 0) tripLinkCandidateSales.push({ id: docSnap.id, ...d, remainingUnlinked: rem });
+      });
+      tripLinkCandidateSales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      sel.innerHTML = '<option value="">-- Select Advance Sale --</option>' +
+        tripLinkCandidateSales.map(s => `<option value="${s.id}">${fmtDate(s.date)} · ${s.customerName || '-'} · ${s.area || '-'} · Remaining: ${s.remainingUnlinked}</option>`).join('');
+
+      if (tripLinkCandidateSales.length === 0) {
+        sel.innerHTML = '<option value="">ഈ product-ന് matching advance sales ഇല്ല</option>';
+      }
+    } catch (err) {
+      console.error(err);
+      sel.innerHTML = '<option value="">Load ചെയ്യാൻ പറ്റിയില്ല</option>';
+    }
+  };
+
+  window.closeTripLinkModal = function () {
+    document.getElementById('tripLinkOverlay').style.display = 'none';
+    tripLinkLotId = null; tripLinkCandidateSales = [];
+  };
+
+  window.confirmTripLink = async function () {
+    const saleId = document.getElementById('tripLinkSaleSelect').value;
+    const qty = parseFloat(document.getElementById('tripLinkQty').value) || 0;
+    const errEl = document.getElementById('tripLinkErrorMsg');
+    errEl.style.display = 'none';
+
+    if (!saleId) { errEl.textContent = "Advance Sale select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+    if (qty > tripLinkLotRemaining) { errEl.textContent = `Lot-ൽ ${tripLinkLotRemaining} Qty മാത്രമേ ഉള്ളൂ.`; errEl.style.display = 'block'; return; }
+
+    const sale = tripLinkCandidateSales.find(s => s.id === saleId);
+    if (!sale) { errEl.textContent = "Sale data കണ്ടെത്തിയില്ല."; errEl.style.display = 'block'; return; }
+    if (qty > sale.remainingUnlinked) { errEl.textContent = `ഈ Sale-ന് ബാക്കി ${sale.remainingUnlinked} Qty മാത്രമേ link ചെയ്യാൻ ഉള്ളൂ.`; errEl.style.display = 'block'; return; }
+
+    try {
+      await updateDoc(doc(db, "purchases", tripLinkLotId), { remainingQty: increment(-qty) });
+
+      const newLots = [...(sale.lots || []), { purchaseId: tripLinkLotId, qty: qty, source: 'godown' }];
+      const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
+      const stillAdvance = newLinkedTotal < (sale.qty || 0);
+
+      await updateDoc(doc(db, "sales", saleId), {
+        lots: newLots,
+        isAdvance: stillAdvance,
+        godown: tripLinkGodown || sale.godown
+      });
+
+      closeTripLinkModal();
+      if (document.getElementById('tripSheetContainer')) generateTripSheet();
+      if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
+      if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
+      if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Link ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
+
+  // Removes ONE specific lot-allocation from a sale (in case of a wrong link), restoring
+  // that qty back to the purchase lot's remaining stock, and re-marking the sale as
+  // Advance if it's no longer fully linked.
+  window.unlinkTripSheetSale = async function (saleId, purchaseId, qty) {
+    if (!confirm(`ഈ link (Qty: ${qty}) നീക്കണോ? Stock ആ lot-ലേക്ക് തിരിച്ച് ചേർക്കും.`)) return;
+
+    try {
+      const saleSnap = await getDoc(doc(db, "sales", saleId));
+      if (!saleSnap.exists()) { alert("Sale കണ്ടെത്തിയില്ല."); return; }
+      const d = saleSnap.data();
+      const lots = d.lots || [];
+
+      const idx = lots.findIndex(l => l.purchaseId === purchaseId && l.qty === qty);
+      if (idx === -1) { alert("ഈ link കണ്ടെത്തിയില്ല — page refresh ചെയ്ത് വീണ്ടും ശ്രമിക്കുക."); return; }
+
+      const newLots = [...lots.slice(0, idx), ...lots.slice(idx + 1)];
+      const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
+
+      await updateDoc(doc(db, "purchases", purchaseId), { remainingQty: increment(qty) });
+      await updateDoc(doc(db, "sales", saleId), {
+        lots: newLots,
+        isAdvance: newLinkedTotal < (d.qty || 0)
+      });
+
+      if (document.getElementById('tripSheetContainer')) generateTripSheet();
+      if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
+      if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
+      if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+
+    } catch (err) {
+      console.error(err);
+      alert("Unlink ചെയ്യാൻ പറ്റിയില്ല.");
+    }
   };
 
   window.confirmLinkAdvance = async function () {
@@ -3058,6 +3328,8 @@
     btn.disabled = true; btn.textContent = "Saving...";
 
     try {
+      await ensureVehicleRegistered(vehicle);
+
       if (editingPurchaseId) {
         const qtyDelta = qty - editingPurchaseOldQty;
         await updateDoc(doc(db, "purchases", editingPurchaseId), {
@@ -3883,6 +4155,213 @@
     }
   }
 
+  // ---- USER: TRIP SHEET (own area + shared IGST- godowns) ----
+  let lastUserTripSheetData = null;
+
+  window.generateUserTripSheet = async function () {
+    const from = document.getElementById('userTripFrom').value;
+    const to = document.getElementById('userTripTo').value;
+    const container = document.getElementById('userTripSheetContainer');
+
+    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+
+    try {
+      const [purchaseSnap, salesSnap] = await Promise.all([
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "sales"))
+      ]);
+
+      const inRange = (d) => d && d >= from && d <= to;
+
+      let lots = [];
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (!inRange(d.date)) return;
+        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
+        if (d.area !== currentUserData.area && !isShared) return;
+        lots.push({ id: docSnap.id, ...d });
+      });
+      lots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      let allSales = [];
+      salesSnap.forEach(docSnap => allSales.push({ id: docSnap.id, ...docSnap.data() }));
+
+      const salesByLot = {};
+      allSales.forEach(s => {
+        (s.lots || []).forEach(alloc => {
+          if (!salesByLot[alloc.purchaseId]) salesByLot[alloc.purchaseId] = [];
+          salesByLot[alloc.purchaseId].push({ sale: s, qty: alloc.qty });
+        });
+      });
+
+      lastUserTripSheetData = { lots, salesByLot, from, to };
+      renderUserTripSheet(lots, salesByLot);
+
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
+  function renderUserTripSheet(lots, salesByLot) {
+    const container = document.getElementById('userTripSheetContainer');
+    if (lots.length === 0) {
+      container.innerHTML = '<p style="color:#999; font-size:13px;">ഈ range-ൽ purchase lots ഒന്നും ഇല്ല.</p>';
+      return;
+    }
+
+    let html = '';
+    lots.forEach(lot => {
+      const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
+      const linkedSales = salesByLot[lot.id] || [];
+      const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
+
+      html += `<div style="border:1px solid #ddd; border-radius:10px; margin-bottom:14px; overflow:hidden;">
+        <div style="background:#1e3c72; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+          <div><strong>${fmtDate(lot.date)}</strong> · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
+          <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
+        </div>
+        ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa;">
+          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+        </div>` : ''}`;
+
+      if (linkedSales.length > 0) {
+        html += `<table>
+          <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
+          <tbody>${linkedSales.map(x => `<tr>
+            <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
+            <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
+            <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${lot.id}',${x.qty})">Unlink</button></td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+      } else {
+        html += `<p style="padding:10px 14px; color:#999; font-size:13px;">ഈ lot-ൽ നിന്ന് ഇതുവരെ sale ഒന്നും link ചെയ്തിട്ടില്ല.</p>`;
+      }
+      html += `</div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  window.exportUserTripSheetExcel = async function () {
+    if (!lastUserTripSheetData) { alert("ആദ്യം 'Generate Trip Sheet' ക്ലിക്ക് ചെയ്യുക."); return; }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const { lots, salesByLot } = lastUserTripSheetData;
+
+      const data = [['Lot Date', 'Product', 'Godown', 'Vehicle', 'Purchased Qty', 'Remaining Qty', 'Sale Date', 'Customer', 'Qty Sold', 'Sale Amount']];
+      lots.forEach(lot => {
+        const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
+        const linkedSales = salesByLot[lot.id] || [];
+        if (linkedSales.length === 0) {
+          data.push([fmtDate(lot.date), lot.product || '', lot.godown || '', lot.vehicle || '', lot.qty || 0, remaining, '', '(No sales linked)', '', '']);
+        } else {
+          linkedSales.forEach(x => {
+            data.push([fmtDate(lot.date), lot.product || '', lot.godown || '', lot.vehicle || '', lot.qty || 0, remaining,
+              fmtDate(x.sale.date), x.sale.customerName || '', x.qty, x.sale.amount || 0]);
+          });
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Trip Sheet');
+      XLSX.writeFile(wb, `trip-sheet-${currentUserData.area}-${lastUserTripSheetData.from}-to-${lastUserTripSheetData.to}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
+    }
+  };
+
+  // ---- DAILY STOCK BOOK (item-wise, total-based — no lot-linking dependency) ----
+  async function populateDsbProductDropdown() {
+    const sel = document.getElementById('dsbProduct');
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
+      });
+      if (currentVal) sel.value = currentVal;
+    } catch (err) { console.error(err); }
+  }
+
+  window.generateDailyStockBook = async function () {
+    const product = document.getElementById('dsbProduct').value;
+    const from = document.getElementById('dsbFrom').value;
+    const to = document.getElementById('dsbTo').value;
+    const container = document.getElementById('dsbContainer');
+
+    if (!product) { alert("Product select ചെയ്യുക."); return; }
+    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+
+    try {
+      const [purchSnap, salesSnap] = await Promise.all([
+        getDocs(query(collection(db, "purchases"), where("product", "==", product))),
+        getDocs(query(collection(db, "sales"), where("product", "==", product)))
+      ]);
+
+      // Own area's purchases + any IGST- shared godown purchase, regardless of who entered it
+      const purchByDate = {};
+      purchSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
+        if (d.area !== currentUserData.area && !isShared) return;
+        purchByDate[d.date] = (purchByDate[d.date] || 0) + (d.qty || 0);
+      });
+
+      // Own area's sales — total qty regardless of Advance/linked status, as requested
+      const saleByDate = {};
+      salesSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d.area !== currentUserData.area) return;
+        saleByDate[d.date] = (saleByDate[d.date] || 0) + (d.qty || 0);
+      });
+
+      renderDailyStockBook(purchByDate, saleByDate, from, to, container);
+
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
+  function renderDailyStockBook(purchByDate, saleByDate, from, to, container) {
+    const allDates = Array.from(new Set([...Object.keys(purchByDate), ...Object.keys(saleByDate)])).sort();
+    if (allDates.length === 0) {
+      container.innerHTML = '<p style="color:#999; font-size:13px;">Data ഒന്നും ഇല്ല.</p>';
+      return;
+    }
+
+    // Running balance carried from the very first transaction date, so the balance shown
+    // for the range is accurate even if earlier activity happened before "From Date".
+    let runningBalance = 0;
+    let rows = '';
+    allDates.forEach(date => {
+      const p = purchByDate[date] || 0;
+      const s = saleByDate[date] || 0;
+      runningBalance += p - s;
+      if (date >= from && date <= to) {
+        rows += `<tr><td>${fmtDate(date)}</td><td>${p}</td><td>${s}</td><td><strong>${runningBalance}</strong></td></tr>`;
+      }
+    });
+
+    container.innerHTML = `<div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Purchase Qty</th><th>Sale Qty</th><th>Balance</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="4">ഈ range-ൽ ഒന്നും ഇല്ല.</td></tr>'}</tbody>
+      </table>
+    </div>`;
+  }
+
   window.generateReport = async function () {
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
@@ -4123,14 +4602,18 @@
         <div style="background:#1e3c72; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
           <div><strong>${fmtDate(lot.date)}</strong> · ${lot.area || '-'} · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
-        </div>`;
+        </div>
+        ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa;">
+          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+        </div>` : ''}`;
 
       if (linkedSales.length > 0) {
         html += `<table>
-          <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th></tr></thead>
+          <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
           <tbody>${linkedSales.map(x => `<tr>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
+            <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${lot.id}',${x.qty})">Unlink</button></td>
           </tr>`).join('')}</tbody>
         </table>`;
       } else {
@@ -4168,6 +4651,65 @@
     } catch (err) {
       console.error(err);
       alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
+    }
+  };
+
+  // ---- ADMIN: DAILY STOCK BOOK (item-wise, total-based) ----
+  async function populateAdminDsbProductDropdown() {
+    const sel = document.getElementById('adminDsbProduct');
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
+      });
+      if (currentVal) sel.value = currentVal;
+    } catch (err) { console.error(err); }
+  }
+
+  window.generateAdminDailyStockBook = async function () {
+    const area = document.getElementById('adminDsbArea').value;
+    const product = document.getElementById('adminDsbProduct').value;
+    const from = document.getElementById('adminDsbFrom').value;
+    const to = document.getElementById('adminDsbTo').value;
+    const container = document.getElementById('adminDsbContainer');
+
+    if (!product) { alert("Product select ചെയ്യുക."); return; }
+    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+
+    try {
+      const [purchSnap, salesSnap] = await Promise.all([
+        getDocs(query(collection(db, "purchases"), where("product", "==", product))),
+        getDocs(query(collection(db, "sales"), where("product", "==", product)))
+      ]);
+
+      const purchByDate = {};
+      purchSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
+        if (d.area !== area && !isShared) return;
+        purchByDate[d.date] = (purchByDate[d.date] || 0) + (d.qty || 0);
+      });
+
+      const saleByDate = {};
+      salesSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d.area !== area) return;
+        saleByDate[d.date] = (saleByDate[d.date] || 0) + (d.qty || 0);
+      });
+
+      renderDailyStockBook(purchByDate, saleByDate, from, to, container);
+
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
     }
   };
 
