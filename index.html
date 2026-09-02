@@ -833,6 +833,7 @@
     <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
+    <button id="tabAdminTripsheetBtn" onclick="switchAdminTab('tripsheet')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🚚 Trip Sheet</button>
     <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
   </div>
 
@@ -1087,6 +1088,16 @@
       <div id="restoreStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
     </div>
 
+    <div class="add-user-form" style="background:#e3f2fd;">
+      <h3 style="color:#1565c0;">🔀 Merge Duplicate Customers</h3>
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        (ഉദാ: extra space വന്ന് CSV upload-ൽ ഒരേ customer രണ്ട് തവണ create ആയത്) കണ്ടെത്തി, ഒന്നാക്കി merge ചെയ്യാം — എല്ലാ Sales/Collections ഉം select ചെയ്യുന്ന customer-ലേക്ക് മാറ്റും, ബാക്കിയുള്ളവ delete ചെയ്യും.
+      </p>
+      <button class="full-btn" style="background:#1565c0;" onclick="scanDuplicateCustomers()">🔍 Scan for Duplicates</button>
+      <div id="dupScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+    </div>
+    <div id="dupGroupsContainer"></div>
+
     <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">⚠️ Bulk Delete (Test Data)</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
@@ -1233,6 +1244,40 @@
         <tbody id="adminOldAdvanceBody"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table>
     </div>
+  </div>
+
+  <div id="tabAdminTripsheet" style="display:none;">
+    <div class="add-user-form">
+      <h3>🚚 Trip Sheet — Purchase Lot & Sales</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="tripFrom">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="tripTo">
+        </div>
+      </div>
+      <label>Area (optional)</label>
+      <select id="tripArea" style="margin-bottom:14px;">
+        <option value="">-- All Areas --</option>
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+      <button class="full-btn" onclick="generateTripSheet()">Generate Trip Sheet</button>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportTripSheetExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+    </div>
+
+    <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate Trip Sheet" ക്ലിക്ക് ചെയ്യുക.</div>
   </div>
 
   <div id="tabAdminReports">
@@ -1493,7 +1538,7 @@
     switchAdminTab('reports');
   }
 
-  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'account', 'data', 'approvals', 'oldadvance', 'reports'];
+  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'account', 'data', 'approvals', 'oldadvance', 'tripsheet', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1521,6 +1566,11 @@
     else if (tab === 'account') loadAdminAccounts();
     else if (tab === 'approvals') loadApprovals();
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
+    else if (tab === 'tripsheet') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!document.getElementById('tripFrom').value) document.getElementById('tripFrom').value = todayStr;
+      if (!document.getElementById('tripTo').value) document.getElementById('tripTo').value = todayStr;
+    }
     else if (tab === 'reports') {
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('adminReportFrom').value) document.getElementById('adminReportFrom').value = todayStr;
@@ -1920,6 +1970,13 @@
   // ---- CUSTOMER: Bulk CSV Upload ----
   // Strips commas (Indian-style number grouping like "40,000") and ₹ symbols
   // before parsing, so CSV values like "40,000" don't get truncated to "40".
+  // Normalizes a customer name for matching: trims, collapses multiple/extra
+  // spaces into one, lowercases. Prevents "EBM H/M ( X )" vs "EBM H/M (  X )"
+  // (extra space) from being treated as two different customers.
+  function normalizeName(str) {
+    return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+
   function parseNum(str) {
     if (str === null || str === undefined) return 0;
     const cleaned = String(str).replace(/[₹,\s]/g, '');
@@ -3941,6 +3998,130 @@
     container.innerHTML = html || '<p style="color:#999; font-size:13px;">ഈ range-ൽ data ഒന്നും ഇല്ല.</p>';
   }
 
+  // ---- ADMIN: TRIP SHEET (Purchase Lot + linked Sales) ----
+  let lastTripSheetData = null;
+
+  window.generateTripSheet = async function () {
+    const from = document.getElementById('tripFrom').value;
+    const to = document.getElementById('tripTo').value;
+    const areaFilter = document.getElementById('tripArea').value;
+    const container = document.getElementById('tripSheetContainer');
+
+    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+
+    try {
+      const [purchaseSnap, salesSnap] = await Promise.all([
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "sales"))
+      ]);
+
+      const inRange = (d) => d && d >= from && d <= to;
+
+      // Purchases (Lots) within range, optional area filter, excluding transfer-created "child" lots
+      // (transferredFrom set) is NOT excluded — transfers are still real lots worth showing.
+      let lots = [];
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (!inRange(d.date)) return;
+        if (areaFilter && d.area !== areaFilter) return;
+        lots.push({ id: docSnap.id, ...d });
+      });
+      lots.sort((a, b) => {
+        const dateCmp = (a.date || '').localeCompare(b.date || '');
+        if (dateCmp !== 0) return dateCmp;
+        return (a.area || '').localeCompare(b.area || '');
+      });
+
+      // All sales (any date — a lot bought today could be sold days later), to find which
+      // reference each lot via their `lots` allocation array.
+      let allSales = [];
+      salesSnap.forEach(docSnap => allSales.push({ id: docSnap.id, ...docSnap.data() }));
+
+      // Build lotId -> [ {sale, qtyFromThisLot} ]
+      const salesByLot = {};
+      allSales.forEach(s => {
+        (s.lots || []).forEach(alloc => {
+          if (!salesByLot[alloc.purchaseId]) salesByLot[alloc.purchaseId] = [];
+          salesByLot[alloc.purchaseId].push({ sale: s, qty: alloc.qty });
+        });
+      });
+
+      lastTripSheetData = { lots, salesByLot, from, to, areaFilter };
+      renderTripSheet(lots, salesByLot);
+
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
+  function renderTripSheet(lots, salesByLot) {
+    const container = document.getElementById('tripSheetContainer');
+    if (lots.length === 0) {
+      container.innerHTML = '<p style="color:#999; font-size:13px;">ഈ range-ൽ purchase lots ഒന്നും ഇല്ല.</p>';
+      return;
+    }
+
+    let html = '';
+    lots.forEach(lot => {
+      const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
+      const linkedSales = salesByLot[lot.id] || [];
+      const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
+
+      html += `<div style="border:1px solid #ddd; border-radius:10px; margin-bottom:14px; overflow:hidden;">
+        <div style="background:#1e3c72; color:#fff; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
+          <div><strong>${fmtDate(lot.date)}</strong> · ${lot.area || '-'} · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
+          <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
+        </div>`;
+
+      if (linkedSales.length > 0) {
+        html += `<table>
+          <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th></tr></thead>
+          <tbody>${linkedSales.map(x => `<tr>
+            <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
+            <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
+          </tr>`).join('')}</tbody>
+        </table>`;
+      } else {
+        html += `<p style="padding:10px 14px; color:#999; font-size:13px;">ഈ lot-ൽ നിന്ന് ഇതുവരെ sale ഒന്നും link ചെയ്തിട്ടില്ല.</p>`;
+      }
+      html += `</div>`;
+    });
+
+    container.innerHTML = html;
+  }
+
+  window.exportTripSheetExcel = async function () {
+    if (!lastTripSheetData) { alert("ആദ്യം 'Generate Trip Sheet' ക്ലിക്ക് ചെയ്യുക."); return; }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const { lots, salesByLot } = lastTripSheetData;
+
+      const data = [['Lot Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Purchased Qty', 'Remaining Qty', 'Sale Date', 'Customer', 'Qty Sold', 'Sale Amount']];
+      lots.forEach(lot => {
+        const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
+        const linkedSales = salesByLot[lot.id] || [];
+        if (linkedSales.length === 0) {
+          data.push([fmtDate(lot.date), lot.area || '', lot.product || '', lot.godown || '', lot.vehicle || '', lot.qty || 0, remaining, '', '(No sales linked)', '', '']);
+        } else {
+          linkedSales.forEach(x => {
+            data.push([fmtDate(lot.date), lot.area || '', lot.product || '', lot.godown || '', lot.vehicle || '', lot.qty || 0, remaining,
+              fmtDate(x.sale.date), x.sale.customerName || '', x.qty, x.sale.amount || 0]);
+          });
+        }
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Trip Sheet');
+      XLSX.writeFile(wb, `trip-sheet-${lastTripSheetData.from}-to-${lastTripSheetData.to}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
+    }
+  };
+
   window.generateAdminReport = async function () {
     const from = document.getElementById('adminReportFrom').value;
     const to = document.getElementById('adminReportTo').value;
@@ -4224,6 +4405,98 @@
     }
   };
 
+  // ---- ADMIN: MERGE DUPLICATE CUSTOMERS ----
+  window.scanDuplicateCustomers = async function () {
+    const statusEl = document.getElementById('dupScanStatus');
+    const container = document.getElementById('dupGroupsContainer');
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Scanning...";
+    container.innerHTML = '';
+
+    try {
+      const snap = await getDocs(collection(db, "customers"));
+      const groups = {};
+      snap.forEach(docSnap => {
+        const c = docSnap.data();
+        const key = normalizeName(c.name);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push({ id: docSnap.id, ...c });
+      });
+
+      const dupGroups = Object.values(groups).filter(g => g.length > 1);
+
+      if (dupGroups.length === 0) {
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = "Duplicate customers ഒന്നും കണ്ടെത്തിയില്ല. 🎉";
+        return;
+      }
+
+      statusEl.style.color = '#e65100';
+      statusEl.textContent = `${dupGroups.length} duplicate group(s) കണ്ടെത്തി.`;
+
+      let html = '';
+      dupGroups.forEach((group, gi) => {
+        html += `<div class="add-user-form" style="background:#fafafa;">
+          <h3 style="font-size:15px; color:#1e3c72;">${group[0].name}</h3>
+          <p style="font-size:12px; color:#777; margin-bottom:10px;">ഏത് record ആണ് നിലനിർത്തേണ്ടത് (Keep) എന്ന് select ചെയ്യുക — ബാക്കിയുള്ളവയുടെ Sales/Collections ഇതിലേക്ക് മാറ്റി, അവ delete ചെയ്യും.</p>`;
+        group.forEach((c, ci) => {
+          html += `<label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:10px; font-weight:400; font-size:13px; padding:8px; background:#fff; border-radius:6px; border:1px solid #eee;">
+            <input type="radio" name="dupKeep-${gi}" value="${c.id}" ${ci === 0 ? 'checked' : ''} style="width:auto; margin-top:3px;">
+            <span>Area: <strong>${c.area || '-'}</strong> · Phone: ${c.phone || '-'} · Opening: ₹${(c.openingBalance || 0).toLocaleString('en-IN')} · ID: ${c.id.slice(0, 6)}...</span>
+          </label>`;
+        });
+        html += `<button class="full-btn" style="background:#1565c0;" onclick='mergeCustomerGroup(${gi})'>🔀 Merge This Group</button>
+          <div id="dupMergeStatus-${gi}" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+        </div>`;
+      });
+      container.innerHTML = html;
+
+      window._dupGroups = dupGroups; // stash for merge action
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
+    }
+  };
+
+  window.mergeCustomerGroup = async function (gi) {
+    const group = window._dupGroups[gi];
+    const statusEl = document.getElementById(`dupMergeStatus-${gi}`);
+    const keepId = document.querySelector(`input[name="dupKeep-${gi}"]:checked`).value;
+    const removeIds = group.filter(c => c.id !== keepId).map(c => c.id);
+
+    if (!confirm(`${removeIds.length} duplicate record(s) merge ചെയ്ത് delete ചെയ്യണോ? ഈ action തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
+
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Merging...";
+
+    try {
+      for (const removeId of removeIds) {
+        // Reassign sales
+        const salesSnap = await getDocs(query(collection(db, "sales"), where("customerId", "==", removeId)));
+        for (const s of salesSnap.docs) {
+          await updateDoc(doc(db, "sales", s.id), { customerId: keepId });
+        }
+        // Reassign collections
+        const collSnap = await getDocs(query(collection(db, "collections"), where("customerId", "==", removeId)));
+        for (const c of collSnap.docs) {
+          await updateDoc(doc(db, "collections", c.id), { customerId: keepId });
+        }
+        // Delete the duplicate customer record
+        await deleteDoc(doc(db, "customers", removeId));
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${removeIds.length} duplicate(s) merge ചെയ്തു.`;
+
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Merge ചെയ്യാൻ പറ്റിയില്ല.";
+    }
+  };
+
   window.handleBulkDelete = async function () {
     const dataType = document.getElementById('deleteDataType').value;
     const area = document.getElementById('deleteDataArea').value;
@@ -4378,7 +4651,7 @@
       const custMap = {};
       custSnap.forEach(d => {
         const c = d.data();
-        custMap[(c.name || '').toLowerCase()] = d.id;
+        custMap[normalizeName(c.name)] = d.id;
       });
 
       let successCount = 0, failCount = 0;
@@ -4406,7 +4679,7 @@
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
         try {
-          const key = customerName.toLowerCase();
+          const key = normalizeName(customerName);
           let custId = custMap[key];
 
           if (!custId) {
@@ -4499,7 +4772,7 @@
       const custMap = {};
       custSnap.forEach(d => {
         const c = d.data();
-        custMap[(c.name || '').toLowerCase()] = d.id;
+        custMap[normalizeName(c.name)] = d.id;
       });
 
       let successCount = 0, failCount = 0;
@@ -4520,7 +4793,7 @@
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
         try {
-          const key = customerName.toLowerCase();
+          const key = normalizeName(customerName);
           let custId = custMap[key];
 
           if (!custId) {
