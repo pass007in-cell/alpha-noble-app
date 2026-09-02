@@ -87,7 +87,7 @@
   @media (max-width: 500px) {
     .form-grid { grid-template-columns: 1fr; }
   }
-  table { width: auto; min-width: 100%; border-collapse: collapse; margin-top: 10px; }
+  table { width: auto; min-width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
   th, td {
     text-align: left; padding: 10px 8px; font-size: 14px;
     border-bottom: 1px solid #eee; white-space: nowrap;
@@ -791,6 +791,42 @@
     <div style="display:flex; gap:10px;">
       <button style="flex:1;" onclick="saveCustomerEdit()">Save</button>
       <button style="flex:1; background:#999;" onclick="closeCustomerEdit()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRIP SHEET → STOCK TRANSFER MODAL -->
+<div id="tripTransferOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;">
+    <h3 style="color:#1e3c72; margin-bottom:6px;">🚚 Transfer Stock</h3>
+    <p style="font-size:13px; color:#777; margin-bottom:14px;" id="tripTransferInfo"></p>
+    <div class="error-msg" id="tripTransferErrorMsg"></div>
+
+    <label>Qty to Transfer</label>
+    <input type="number" id="tripTransferQty" value="0" style="margin-bottom:14px;">
+
+    <label>Destination Type</label>
+    <select id="tripTransferDestType" onchange="toggleTripTransferDestType()" style="margin-bottom:14px;">
+      <option value="godown">Godown</option>
+      <option value="vehicle">Vehicle</option>
+    </select>
+
+    <div id="tripTransferGodownWrap">
+      <label>To Godown</label>
+      <select id="tripTransferToGodown" style="margin-bottom:16px;">
+        <option value="">-- Select Godown --</option>
+      </select>
+    </div>
+    <div id="tripTransferVehicleWrap" style="display:none;">
+      <label>To Vehicle</label>
+      <select id="tripTransferToVehicle" style="margin-bottom:16px;">
+        <option value="">-- Select Vehicle --</option>
+      </select>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+      <button style="flex:1;" onclick="confirmTripTransfer()">Transfer</button>
+      <button style="flex:1; background:#999;" onclick="closeTripTransferModal()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2982,6 +3018,116 @@
     }
   };
 
+  // ---- TRIP SHEET → STOCK TRANSFER (remaining stock of a lot, to another Godown or Vehicle) ----
+  let tripTransferLotId = null;
+  let tripTransferProduct = '';
+  let tripTransferArea = '';
+  let tripTransferSourceGodown = '';
+  let tripTransferMaxQty = 0;
+  let tripTransferRate = 0;
+
+  window.openTripTransferModal = async function (lotId, product, area, godown, remaining, rate) {
+    tripTransferLotId = lotId;
+    tripTransferProduct = product;
+    tripTransferArea = area;
+    tripTransferSourceGodown = godown;
+    tripTransferMaxQty = remaining;
+    tripTransferRate = rate;
+
+    document.getElementById('tripTransferInfo').textContent = `${product} · From: ${godown} · Available: ${remaining}`;
+    document.getElementById('tripTransferQty').value = remaining;
+    document.getElementById('tripTransferErrorMsg').style.display = 'none';
+    document.getElementById('tripTransferDestType').value = 'godown';
+    toggleTripTransferDestType();
+
+    document.getElementById('tripTransferOverlay').style.display = 'flex';
+
+    try {
+      const [godownSnap, vehicleSnap] = await Promise.all([
+        getDocs(collection(db, "godowns")),
+        getDocs(query(collection(db, "vehicles"), where("area", "==", area)))
+      ]);
+
+      const godownSel = document.getElementById('tripTransferToGodown');
+      const seen = new Set();
+      let godownOptions = '<option value="">-- Select Godown --</option>';
+      godownSnap.forEach(docSnap => {
+        const g = docSnap.data();
+        const isShared = (g.name || '').toUpperCase().startsWith('IGST-');
+        if ((g.area === area || isShared) && !seen.has(g.name)) {
+          seen.add(g.name);
+          godownOptions += `<option value="${g.name}">${g.name}${isShared ? ' (Shared)' : ''}</option>`;
+        }
+      });
+      godownSel.innerHTML = godownOptions;
+
+      const vehicleSel = document.getElementById('tripTransferToVehicle');
+      let vehicleOptions = '<option value="">-- Select Vehicle --</option>';
+      vehicleSnap.forEach(docSnap => {
+        const v = docSnap.data();
+        vehicleOptions += `<option value="${v.number}">${v.number}</option>`;
+      });
+      vehicleSel.innerHTML = vehicleOptions;
+
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  window.toggleTripTransferDestType = function () {
+    const type = document.getElementById('tripTransferDestType').value;
+    document.getElementById('tripTransferGodownWrap').style.display = (type === 'godown') ? 'block' : 'none';
+    document.getElementById('tripTransferVehicleWrap').style.display = (type === 'vehicle') ? 'block' : 'none';
+  };
+
+  window.closeTripTransferModal = function () {
+    document.getElementById('tripTransferOverlay').style.display = 'none';
+    tripTransferLotId = null;
+  };
+
+  window.confirmTripTransfer = async function () {
+    const qty = parseFloat(document.getElementById('tripTransferQty').value) || 0;
+    const destType = document.getElementById('tripTransferDestType').value;
+    const errEl = document.getElementById('tripTransferErrorMsg');
+    errEl.style.display = 'none';
+
+    if (qty <= 0) { errEl.textContent = "Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+    if (qty > tripTransferMaxQty) { errEl.textContent = `Available Qty (${tripTransferMaxQty})-ൽ കൂടുതൽ transfer ചെയ്യാൻ പറ്റില്ല.`; errEl.style.display = 'block'; return; }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    try {
+      await updateDoc(doc(db, "purchases", tripTransferLotId), { remainingQty: increment(-qty) });
+
+      if (destType === 'godown') {
+        const toGodown = document.getElementById('tripTransferToGodown').value;
+        if (!toGodown) { errEl.textContent = "To Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+        await addDoc(collection(db, "purchases"), {
+          product: tripTransferProduct, godown: toGodown, vehicle: '', area: tripTransferArea,
+          qty: qty, remainingQty: qty, rate: tripTransferRate, amount: 0, date: todayStr, status: 'approved',
+          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+        });
+      } else {
+        const toVehicle = document.getElementById('tripTransferToVehicle').value;
+        if (!toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+        await addDoc(collection(db, "vehicleStock"), {
+          product: tripTransferProduct, vehicle: toVehicle, area: tripTransferArea,
+          qty: qty, remainingQty: qty, rate: tripTransferRate, date: todayStr,
+          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+        });
+      }
+
+      closeTripTransferModal();
+      if (document.getElementById('tripSheetContainer')) generateTripSheet();
+      if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Transfer ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
+
   window.confirmLinkAdvance = async function () {
     const lotId = document.getElementById('linkAdvanceLot').value;
     const qty = parseFloat(document.getElementById('linkAdvanceQty').value) || 0;
@@ -4223,8 +4369,9 @@
           <div><strong>${fmtDate(lot.date)}</strong> · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
-        ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa;">
+        ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa; display:flex; gap:8px; flex-wrap:wrap;">
           <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
@@ -4603,8 +4750,9 @@
           <div><strong>${fmtDate(lot.date)}</strong> · ${lot.area || '-'} · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
-        ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa;">
+        ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa; display:flex; gap:8px; flex-wrap:wrap;">
           <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
