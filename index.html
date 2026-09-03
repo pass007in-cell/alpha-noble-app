@@ -4325,8 +4325,10 @@
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         if (!inRange(d.date)) return;
-        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
-        if (d.area !== currentUserData.area && !isShared) return;
+        // Trip Sheet respects the Area exactly as entered on the purchase — even for
+        // IGST- shared godowns, the entering area "owns" that load for tracking purposes.
+        // (Lot Balance / Current Stock elsewhere still pool shared-godown stock for selling.)
+        if (d.area !== currentUserData.area) return;
         lots.push({ id: docSnap.id, ...d });
       });
       lots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
