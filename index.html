@@ -2914,7 +2914,8 @@
       const q = query(
         collection(db, "sales"),
         where("isAdvance", "==", true),
-        where("product", "==", product)
+        where("product", "==", product),
+        where("area", "==", area)
       );
       const snap = await getDocs(q);
       tripLinkCandidateSales = [];
@@ -2927,10 +2928,10 @@
       tripLinkCandidateSales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
       sel.innerHTML = '<option value="">-- Select Advance Sale --</option>' +
-        tripLinkCandidateSales.map(s => `<option value="${s.id}">${fmtDate(s.date)} · ${s.customerName || '-'} · ${s.area || '-'} · Remaining: ${s.remainingUnlinked}</option>`).join('');
+        tripLinkCandidateSales.map(s => `<option value="${s.id}">${fmtDate(s.date)} · ${s.customerName || '-'} · Remaining: ${s.remainingUnlinked}</option>`).join('');
 
       if (tripLinkCandidateSales.length === 0) {
-        sel.innerHTML = '<option value="">ഈ product-ന് matching advance sales ഇല്ല</option>';
+        sel.innerHTML = '<option value="">ഈ area/product-ന് matching advance sales ഇല്ല</option>';
       }
     } catch (err) {
       console.error(err);
