@@ -2919,8 +2919,12 @@
       );
       const snap = await getDocs(q);
       tripLinkCandidateSales = [];
+      const isAdminUser = currentUserData.role === 'admin';
       snap.forEach(docSnap => {
         const d = docSnap.data();
+        // Old (up to go-live cutoff) advance sales are Admin-only — hide them from
+        // regular users' own Trip Sheet, same rule as the Advance Sales list elsewhere.
+        if (!isAdminUser && (d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return;
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const rem = (d.qty || 0) - linkedQty;
         if (rem > 0) tripLinkCandidateSales.push({ id: docSnap.id, ...d, remainingUnlinked: rem });
