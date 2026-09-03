@@ -739,7 +739,7 @@
   <div class="add-user-form">
     <h3>🚚 Trip Sheet — Purchase Lot & Sales</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report (own area + shared IGST- godowns).
+      ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report (own area മാത്രം).
     </p>
     <div class="form-grid">
       <div>
@@ -2297,18 +2297,14 @@
     const sel = document.getElementById('saleGodown');
     sel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const snap = await getDocs(collection(db, "godowns"));
-      const seen = new Set();
+      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.name || '').toUpperCase().startsWith('IGST-');
-        if ((d.area === currentUserData.area || isShared) && !seen.has(d.name)) {
-          seen.add(d.name);
-          const opt = document.createElement('option');
-          opt.value = d.name;
-          opt.textContent = d.name + (isShared ? ' (Shared)' : '');
-          sel.appendChild(opt);
-        }
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
       });
     } catch (err) { console.error(err); }
   }
@@ -2823,17 +2819,16 @@
       document.getElementById('linkAdvanceLot').innerHTML = '<option value="">-- ആദ്യം Godown select ചെയ്യുക --</option>';
       document.getElementById('linkAdvanceOverlay').style.display = 'flex';
 
-      // List every godown that actually has stock for this product (own area's godowns +
-      // any IGST- shared godown), not just the one recorded on the sale — the sale's godown
-      // may not match where the purchase actually landed.
-      const purchSnap = await getDocs(query(collection(db, "purchases"), where("product", "==", d.product)));
+      // List every godown that actually has stock for this product, in this sale's own
+      // area only — not just the one recorded on the sale, since the purchase may have
+      // landed under a different godown name within the same area.
+      const purchSnap = await getDocs(query(collection(db, "purchases"), where("product", "==", d.product), where("area", "==", d.area)));
       const godownSet = new Set();
       purchSnap.forEach(docSnap => {
         const pd = docSnap.data();
         const remainingQty = (pd.remainingQty !== undefined) ? pd.remainingQty : pd.qty;
         if (remainingQty <= 0) return;
-        const isShared = (pd.godown || '').toUpperCase().startsWith('IGST-');
-        if (pd.area === d.area || isShared) godownSet.add(pd.godown);
+        godownSet.add(pd.godown);
       });
 
       const godownList = Array.from(godownSet).sort();
@@ -2863,10 +2858,7 @@
 
     if (!godown) { lotSel.innerHTML = '<option value="">-- ആദ്യം Godown select ചെയ്യുക --</option>'; return; }
 
-    const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
-    const lotQ = isSharedGodown
-      ? query(collection(db, "purchases"), where("product", "==", d.product), where("godown", "==", godown))
-      : query(collection(db, "purchases"), where("area", "==", d.area), where("product", "==", d.product), where("godown", "==", godown));
+    const lotQ = query(collection(db, "purchases"), where("area", "==", d.area), where("product", "==", d.product), where("godown", "==", godown));
     const lotSnap = await getDocs(lotQ);
 
     lotSnap.forEach(docSnap => {
@@ -3054,14 +3046,11 @@
       ]);
 
       const godownSel = document.getElementById('tripTransferToGodown');
-      const seen = new Set();
       let godownOptions = '<option value="">-- Select Godown --</option>';
       godownSnap.forEach(docSnap => {
         const g = docSnap.data();
-        const isShared = (g.name || '').toUpperCase().startsWith('IGST-');
-        if ((g.area === area || isShared) && !seen.has(g.name)) {
-          seen.add(g.name);
-          godownOptions += `<option value="${g.name}">${g.name}${isShared ? ' (Shared)' : ''}</option>`;
+        if (g.area === area) {
+          godownOptions += `<option value="${g.name}">${g.name}</option>`;
         }
       });
       godownSel.innerHTML = godownOptions;
@@ -3414,18 +3403,14 @@
     const sel = document.getElementById('purchaseGodown');
     sel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const snap = await getDocs(collection(db, "godowns"));
-      const seen = new Set();
+      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.name || '').toUpperCase().startsWith('IGST-');
-        if ((d.area === currentUserData.area || isShared) && !seen.has(d.name)) {
-          seen.add(d.name);
-          const opt = document.createElement('option');
-          opt.value = d.name;
-          opt.textContent = d.name + (isShared ? ' (Shared)' : '');
-          sel.appendChild(opt);
-        }
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        sel.appendChild(opt);
       });
     } catch (err) { console.error(err); }
   }
@@ -3662,10 +3647,7 @@
     if (!product || !godown) return;
 
     try {
-      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
-      const q = isSharedGodown
-        ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
-        : query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
+      const q = query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -3759,24 +3741,20 @@
       });
     } catch (err) { console.error(err); }
 
-    // From/To Godown (same list, scoped to selected area + shared IGST- godowns)
+    // From/To Godown (scoped to selected area)
     const fromSel = document.getElementById('adminTransferFromGodown');
     const toSel = document.getElementById('adminTransferToGodown');
     fromSel.innerHTML = '<option value="">-- Select Godown --</option>';
     toSel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const snap = await getDocs(collection(db, "godowns"));
-      const seen = new Set();
+      const q = query(collection(db, "godowns"), where("area", "==", area));
+      const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.name || '').toUpperCase().startsWith('IGST-');
-        if ((d.area === area || isShared) && !seen.has(d.name)) {
-          seen.add(d.name);
-          const opt1 = document.createElement('option'); opt1.value = d.name; opt1.textContent = d.name + (isShared ? ' (Shared)' : '');
-          fromSel.appendChild(opt1);
-          const opt2 = document.createElement('option'); opt2.value = d.name; opt2.textContent = d.name + (isShared ? ' (Shared)' : '');
-          toSel.appendChild(opt2);
-        }
+        const opt1 = document.createElement('option'); opt1.value = d.name; opt1.textContent = d.name;
+        fromSel.appendChild(opt1);
+        const opt2 = document.createElement('option'); opt2.value = d.name; opt2.textContent = d.name;
+        toSel.appendChild(opt2);
       });
     } catch (err) { console.error(err); }
 
@@ -3814,10 +3792,7 @@
     if (!product || !godown) return;
 
     try {
-      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
-      const q = isSharedGodown
-        ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
-        : query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
+      const q = query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -4170,12 +4145,7 @@
     if (!product || !godown) return;
 
     try {
-      // "IGST-" prefixed godowns are shared across paired areas (e.g. IGST-ALP for MKD+PKD,
-      // IGST-NBL for MLT+NLB) — pool stock by product+godown only, ignoring area, for these.
-      const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
-      const q = isSharedGodown
-        ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
-        : query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
+      const q = query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -4279,15 +4249,14 @@
     }
 
     // Current Stock (Purchase Balance) — Product + Godown + Remaining Qty
-    // Includes IGST- shared godowns' purchases regardless of which paired area entered them
-    // (e.g. IGST-ALP is shared between MKD+PKD — an MKD-entered purchase is still usable stock for PKD).
+    // Strictly own-area — even IGST- shared godown stock only counts here if THIS area
+    // is the one it was actually entered/assigned under.
     try {
-      const snap2 = await getDocs(collection(db, "purchases"));
+      const q2 = query(collection(db, "purchases"), where("area", "==", currentUserData.area));
+      const snap2 = await getDocs(q2);
       const stockMap = {};
       snap2.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
-        if (d.area !== currentUserData.area && !isShared) return;
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-');
@@ -4306,7 +4275,7 @@
     }
   }
 
-  // ---- USER: TRIP SHEET (own area + shared IGST- godowns) ----
+  // ---- USER: TRIP SHEET (strictly own area) ----
   let lastUserTripSheetData = null;
 
   window.generateUserTripSheet = async function () {
@@ -4463,12 +4432,11 @@
         getDocs(query(collection(db, "sales"), where("product", "==", product)))
       ]);
 
-      // Own area's purchases + any IGST- shared godown purchase, regardless of who entered it
+      // Strictly own-area purchases (not pooling IGST- shared godown purchases from the paired area)
       const purchByDate = {};
       purchSnap.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
-        if (d.area !== currentUserData.area && !isShared) return;
+        if (d.area !== currentUserData.area) return;
         purchByDate[d.date] = (purchByDate[d.date] || 0) + (d.qty || 0);
       });
 
@@ -4597,13 +4565,11 @@
 
       // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
       // (includes both Godown-based purchase lots and Vehicle-transferred stock)
-      // Uses ALL purchases matching own area OR any IGST- shared godown (regardless of which
-      // paired area entered it), since IGST-ALP/IGST-NBL stock is usable by both paired areas.
+      // Strictly own-area — even IGST- shared godown stock only counts if entered under this area.
       const lotMap = {};
       allPurchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
-        if (d.area !== currentUserData.area && !isShared) return;
+        if (d.area !== currentUserData.area) return;
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
@@ -4848,8 +4814,7 @@
       const purchByDate = {};
       purchSnap.forEach(docSnap => {
         const d = docSnap.data();
-        const isShared = (d.godown || '').toUpperCase().startsWith('IGST-');
-        if (d.area !== area && !isShared) return;
+        if (d.area !== area) return;
         purchByDate[d.date] = (purchByDate[d.date] || 0) + (d.qty || 0);
       });
 
@@ -5444,10 +5409,7 @@
           let isAdvance = true;
 
           if (godown) {
-            const isSharedGodown = godown.toUpperCase().startsWith('IGST-');
-            const lotQ = isSharedGodown
-              ? query(collection(db, "purchases"), where("product", "==", product), where("godown", "==", godown))
-              : query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
+            const lotQ = query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
             const lotSnap = await getDocs(lotQ);
 
             let availLots = [];
