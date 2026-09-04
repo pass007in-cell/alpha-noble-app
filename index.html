@@ -88,6 +88,17 @@
     .form-grid { grid-template-columns: 1fr; }
   }
   table { width: auto; min-width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff; }
+  /* Remove number input spinner arrows everywhere — accidental clicks/scroll on them
+     were silently changing entered values and causing data mistakes. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
   th, td {
     text-align: left; padding: 10px 8px; font-size: 14px;
     border-bottom: 1px solid #eee; white-space: nowrap;
@@ -6154,6 +6165,15 @@
   let quickEditCol = null;
   let quickEditId = null;
   let quickEditOldQty = 0;
+  let quickEditOldLots = [];
+
+  window.recalcQeAmount = function () {
+    const qty = parseFloat(document.getElementById('qeQty').value) || 0;
+    const rate = parseFloat(document.getElementById('qeRate').value) || 0;
+    const discAmt = parseFloat(document.getElementById('qeDiscAmt').value) || 0;
+    const freight = parseFloat(document.getElementById('qeFreight').value) || 0;
+    document.getElementById('qeAmount').value = (qty * rate) - discAmt - freight;
+  };
 
   window.openQuickEdit = async function (colName, id) {
     try {
@@ -6168,6 +6188,8 @@
 
       if (colName === 'sales') {
         title.textContent = `Edit Sale — ${d.customerName || ''} (Customer മാറ്റാൻ പറ്റില്ല)`;
+        quickEditOldQty = d.qty || 0;
+        quickEditOldLots = d.lots || [];
 
         const [prodSnap, godownSnap] = await Promise.all([
           getDocs(collection(db, "products")),
@@ -6177,6 +6199,12 @@
         prodSnap.forEach(ds => { const p = ds.data(); prodOptions += `<option value="${p.name}" ${p.name === d.product ? 'selected' : ''}>${p.name}</option>`; });
         let godownOptions = '';
         godownSnap.forEach(ds => { const g = ds.data(); godownOptions += `<option value="${g.name}" ${g.name === d.godown ? 'selected' : ''}>${g.name}</option>`; });
+
+        const lotNote = quickEditOldLots.length === 1
+          ? '📦 ഒരു Lot-ൽ നിന്നാണ് ഈ sale — Qty മാറ്റിയാൽ ആ Lot-ന്റെ stock automatic ആയി adjust ആകും.'
+          : (quickEditOldLots.length > 1
+              ? '⚠️ ഒന്നിലധികം Lots-ൽ നിന്നാണ് ഈ sale — Qty മാറ്റിയാൽ stock automatic ആയി adjust ആകില്ല, manual ആയി Stock Transfer വഴി ശരിയാക്കുക.'
+              : '(Advance Sale ആയതിനാൽ ഇതിന് ബന്ധപ്പെട്ട lot ഇല്ല.)');
 
         fieldsDiv.innerHTML = `
           <label>Product</label>
@@ -6188,13 +6216,13 @@
           <label>Date</label>
           <input type="date" id="qeDate" value="${d.date || ''}" style="margin-bottom:14px;">
           <div class="form-grid">
-            <div><label>Qty</label><input type="number" id="qeQty" value="${d.qty || 0}"></div>
-            <div><label>Unit Price</label><input type="number" id="qeRate" value="${d.rate || 0}"></div>
-            <div><label>Discount</label><input type="number" id="qeDiscAmt" value="${d.discAmt || 0}"></div>
-            <div><label>Freight</label><input type="number" id="qeFreight" value="${d.freight || 0}"></div>
+            <div><label>Qty</label><input type="number" id="qeQty" value="${d.qty || 0}" oninput="recalcQeAmount()"></div>
+            <div><label>Unit Price</label><input type="number" id="qeRate" value="${d.rate || 0}" oninput="recalcQeAmount()"></div>
+            <div><label>Discount</label><input type="number" id="qeDiscAmt" value="${d.discAmt || 0}" oninput="recalcQeAmount()"></div>
+            <div><label>Freight</label><input type="number" id="qeFreight" value="${d.freight || 0}" oninput="recalcQeAmount()"></div>
           </div>
-          <p style="font-size:11px; color:#e65100; margin:6px 0 10px;">⚠️ Qty മാറ്റിയാൽ stock lot-കൾ automatic ആയി adjust ആകില്ല — ആവശ്യമെങ്കിൽ Stock Transfer ഉപയോഗിച്ച് manual ആയി ശരിയാക്കുക.</p>
-          <label>Net Amount (₹)</label>
+          <p style="font-size:11px; color:#e65100; margin:6px 0 10px;">${lotNote}</p>
+          <label>Net Amount (₹) — auto-calculate ആകും, ആവശ്യമെങ്കിൽ manual ആയി മാറ്റാം</label>
           <input type="number" id="qeAmount" value="${d.amount || 0}" style="margin-bottom:14px;">
         `;
 
@@ -6282,12 +6310,30 @@
 
     try {
       if (quickEditCol === 'sales') {
+        const newQty = parseFloat(document.getElementById('qeQty').value) || 0;
+
+        // If this sale draws from exactly one lot, adjust that lot's remaining stock by
+        // the qty delta automatically. With zero or multiple lots, leave stock untouched
+        // (ambiguous which lot to adjust) and rely on manual Stock Transfer correction.
+        if (quickEditOldLots.length === 1) {
+          const qtyDelta = newQty - quickEditOldQty;
+          if (qtyDelta !== 0) {
+            const lot = quickEditOldLots[0];
+            const lotCol = lot.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+            await updateDoc(doc(db, lotCol, lot.purchaseId), { remainingQty: increment(-qtyDelta) });
+            // Keep the sale's own lot-allocation record in sync with the new qty too
+            await updateDoc(doc(db, "sales", quickEditId), {
+              lots: [{ ...lot, qty: newQty }]
+            });
+          }
+        }
+
         await updateDoc(doc(db, "sales", quickEditId), {
           product: document.getElementById('qeProduct').value,
           godown: document.getElementById('qeGodown').value,
           vehicle: document.getElementById('qeVehicle').value.trim(),
           date: document.getElementById('qeDate').value,
-          qty: parseFloat(document.getElementById('qeQty').value) || 0,
+          qty: newQty,
           rate: parseFloat(document.getElementById('qeRate').value) || 0,
           discAmt: parseFloat(document.getElementById('qeDiscAmt').value) || 0,
           freight: parseFloat(document.getElementById('qeFreight').value) || 0,
@@ -6698,6 +6744,14 @@
       alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
     }
   };
+
+  // Mouse-wheel scrolling over a focused number input silently changes its value in
+  // most browsers — blur it instead so an accidental scroll never edits the number.
+  document.addEventListener('wheel', function (e) {
+    if (document.activeElement && document.activeElement.type === 'number') {
+      document.activeElement.blur();
+    }
+  }, { passive: true });
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
