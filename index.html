@@ -174,12 +174,12 @@
   </div>
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
+    <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">🏠 Home</button>
     <button id="tabPurchaseBtn" onclick="switchTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Purchase</button>
-    <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale Entry</button>
+    <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale</button>
     <button id="tabCollectionBtn" onclick="switchTab('collection')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Collection</button>
     <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
-    <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
     <button id="tabTripsheetBtn" onclick="switchTab('tripsheet')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🚚 Trip Sheet</button>
   </div>
 
@@ -937,17 +937,85 @@
   </div>
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
-    <button id="tabAdminUsersBtn" onclick="switchAdminTab('users')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Users</button>
-    <button id="tabAdminCustomersBtn" onclick="switchAdminTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
-    <button id="tabAdminGodownBtn" onclick="switchAdminTab('godown')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Godown</button>
-    <button id="tabAdminProductBtn" onclick="switchAdminTab('product')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Product</button>
-    <button id="tabAdminAccountBtn" onclick="switchAdminTab('account')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Accounts</button>
-    <button id="tabAdminDataBtn" onclick="switchAdminTab('data')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Data Tools</button>
+    <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">🏠 Home</button>
+    <button id="tabAdminPurchaseBtn" onclick="switchAdminTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🧾 Purchase</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
     <button id="tabAdminTripsheetBtn" onclick="switchAdminTab('tripsheet')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🚚 Trip Sheet</button>
-    <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">Reports</button>
+    <button id="tabAdminSettingsBtn" onclick="switchAdminTab('settings')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">⚙️ Settings</button>
   </div>
+
+  <div id="tabAdminPurchase" style="display:none;">
+    <div class="add-user-form">
+      <h3>🧾 Purchase Entry (Admin)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:14px;">
+        ഏത് area-ക്ക് വേണ്ടിയും Admin-ന് നേരിട്ട് Purchase entry ചെയ്യാം.
+      </p>
+      <div class="error-msg" id="adminPurchaseErrorMsg"></div>
+      <div class="success-msg" id="adminPurchaseSuccessMsg"></div>
+
+      <label>Area</label>
+      <select id="adminPurchaseArea" onchange="onAdminPurchaseAreaChange()" style="margin-bottom:14px;">
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Product</label>
+          <select id="adminPurchaseProduct">
+            <option value="">-- Select Product --</option>
+          </select>
+        </div>
+        <div>
+          <label>Godown</label>
+          <select id="adminPurchaseGodown">
+            <option value="">-- Select Godown --</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Vehicle Number (optional)</label>
+      <div class="cust-search-box">
+        <input type="text" id="adminPurchaseVehicleSearch" placeholder="🔍 Vehicle search അല്ലെങ്കിൽ പുതിയത് type ചെയ്യുക..." autocomplete="off"
+          oninput="renderAdminPurchaseVehicleOptions()" onfocus="renderAdminPurchaseVehicleOptions()">
+        <div id="adminPurchaseVehicleOptionsBox" class="cust-options-box"></div>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label>Date</label>
+          <input type="date" id="adminPurchaseDate">
+        </div>
+        <div>
+          <label>Quantity</label>
+          <input type="number" id="adminPurchaseQty" placeholder="1" value="1" onfocus="this.select()">
+        </div>
+      </div>
+
+      <button class="full-btn" id="addAdminPurchaseBtn" onclick="handleAdminAddPurchase()">Save Purchase</button>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases (all areas)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th></th></tr></thead>
+        <tbody id="adminPurchaseTableBody"><tr><td colspan="7">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tabAdminSettings" style="display:none;">
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
+      <button id="subTabUsersBtn" onclick="switchAdminSettingsSubTab('users')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Users</button>
+      <button id="subTabCustomersBtn" onclick="switchAdminSettingsSubTab('customers')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Customers</button>
+      <button id="subTabGodownBtn" onclick="switchAdminSettingsSubTab('godown')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Godown</button>
+      <button id="subTabProductBtn" onclick="switchAdminSettingsSubTab('product')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Product</button>
+      <button id="subTabAccountBtn" onclick="switchAdminSettingsSubTab('account')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Accounts</button>
+      <button id="subTabDataBtn" onclick="switchAdminSettingsSubTab('data')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Data Tools</button>
+    </div>
 
   <div id="tabAdminUsers" style="display:none;">
   <div class="add-user-form">
@@ -1291,6 +1359,7 @@
       <div id="purchaseCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
     </div>
 
+  </div>
   </div>
 
   <div id="tabAdminApprovals" style="display:none;">
@@ -1680,7 +1749,7 @@
     switchAdminTab('reports');
   }
 
-  const allAdminTabs = ['users', 'customers', 'godown', 'product', 'account', 'data', 'approvals', 'oldadvance', 'tripsheet', 'reports'];
+  const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'tripsheet', 'settings', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1696,18 +1765,14 @@
         btn.style.borderBottomColor = 'transparent';
       }
     });
-    if (tab === 'users') loadUsersList();
-    else if (tab === 'customers') {
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (!document.getElementById('adminCustFrom').value) document.getElementById('adminCustFrom').value = todayStr;
-      if (!document.getElementById('adminCustTo').value) document.getElementById('adminCustTo').value = todayStr;
-      generateAdminCustomerReport();
+    if (tab === 'purchase') {
+      document.getElementById('adminPurchaseDate').valueAsDate = new Date();
+      onAdminPurchaseAreaChange();
+      loadAdminPurchasesToday();
     }
-    else if (tab === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
-    else if (tab === 'product') loadAdminProducts();
-    else if (tab === 'account') loadAdminAccounts();
     else if (tab === 'approvals') loadApprovals();
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
+    else if (tab === 'settings') switchAdminSettingsSubTab('users');
     else if (tab === 'tripsheet') {
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('tripFrom').value) document.getElementById('tripFrom').value = todayStr;
@@ -1725,6 +1790,34 @@
         document.getElementById('adminDsbTo').value = todayStr;
       }
     }
+  };
+
+  window.switchAdminSettingsSubTab = function (sub) {
+    const subTabs = ['users', 'customers', 'godown', 'product', 'account', 'data'];
+    subTabs.forEach(t => {
+      const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
+      const panel = document.getElementById('tab' + key);
+      const btn = document.getElementById('subTab' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn');
+      if (t === sub) {
+        panel.style.display = 'block';
+        btn.style.background = '#1e3c72';
+        btn.style.color = '#fff';
+      } else {
+        panel.style.display = 'none';
+        btn.style.background = '#eee';
+        btn.style.color = '#333';
+      }
+    });
+    if (sub === 'users') loadUsersList();
+    else if (sub === 'customers') {
+      const todayStr = new Date().toISOString().split('T')[0];
+      if (!document.getElementById('adminCustFrom').value) document.getElementById('adminCustFrom').value = todayStr;
+      if (!document.getElementById('adminCustTo').value) document.getElementById('adminCustTo').value = todayStr;
+      generateAdminCustomerReport();
+    }
+    else if (sub === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
+    else if (sub === 'product') loadAdminProducts();
+    else if (sub === 'account') loadAdminAccounts();
   };
 
   // ---- ADMIN: Add User ----
@@ -3196,6 +3289,143 @@
       btn.disabled = false; btn.textContent = "Add Godown";
     }
   };
+
+  // ---- ADMIN: PURCHASE ENTRY (any area) ----
+  let adminPurchaseKnownVehicles = [];
+
+  window.onAdminPurchaseAreaChange = async function () {
+    const area = document.getElementById('adminPurchaseArea').value;
+
+    const prodSel = document.getElementById('adminPurchaseProduct');
+    prodSel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name + (d.unit ? ' (' + d.unit + ')' : '');
+        prodSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+
+    const godownSel = document.getElementById('adminPurchaseGodown');
+    godownSel.innerHTML = '<option value="">-- Select Godown --</option>';
+    try {
+      const q = query(collection(db, "godowns"), where("area", "==", area));
+      const snap = await getDocs(q);
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        const opt = document.createElement('option');
+        opt.value = d.name;
+        opt.textContent = d.name;
+        godownSel.appendChild(opt);
+      });
+    } catch (err) { console.error(err); }
+
+    try {
+      const q2 = query(collection(db, "vehicles"), where("area", "==", area));
+      const snap2 = await getDocs(q2);
+      adminPurchaseKnownVehicles = [];
+      snap2.forEach(docSnap => adminPurchaseKnownVehicles.push(docSnap.data().number));
+    } catch (err) { console.error(err); }
+  };
+
+  window.renderAdminPurchaseVehicleOptions = function () {
+    const box = document.getElementById('adminPurchaseVehicleOptionsBox');
+    const term = document.getElementById('adminPurchaseVehicleSearch').value.trim().toLowerCase();
+    const matches = adminPurchaseKnownVehicles.filter(v => !term || v.toLowerCase().includes(term));
+    let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectAdminPurchaseVehicle('${v}')">${v}</div>`).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല — പുതിയത് ആയി save ആകും.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectAdminPurchaseVehicle = function (number) {
+    document.getElementById('adminPurchaseVehicleSearch').value = number;
+    document.getElementById('adminPurchaseVehicleOptionsBox').style.display = 'none';
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#adminPurchaseVehicleSearch') && !e.target.closest('#adminPurchaseVehicleOptionsBox')) {
+      const box = document.getElementById('adminPurchaseVehicleOptionsBox');
+      if (box) box.style.display = 'none';
+    }
+  });
+
+  window.handleAdminAddPurchase = async function () {
+    const area = document.getElementById('adminPurchaseArea').value;
+    const product = document.getElementById('adminPurchaseProduct').value;
+    const godown = document.getElementById('adminPurchaseGodown').value;
+    const vehicle = document.getElementById('adminPurchaseVehicleSearch').value.trim();
+    const date = document.getElementById('adminPurchaseDate').value;
+    const qty = parseFloat(document.getElementById('adminPurchaseQty').value) || 0;
+    const errEl = document.getElementById('adminPurchaseErrorMsg');
+    const okEl = document.getElementById('adminPurchaseSuccessMsg');
+    const btn = document.getElementById('addAdminPurchaseBtn');
+
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!product) { errEl.textContent = "Product select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (!godown) { errEl.textContent = "Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (!date) { errEl.textContent = "Date select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = "Saving...";
+
+    try {
+      if (vehicle && !adminPurchaseKnownVehicles.some(v => v.toLowerCase() === vehicle.toLowerCase())) {
+        await addDoc(collection(db, "vehicles"), {
+          number: vehicle, driver: '', area: area,
+          createdBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+        });
+        adminPurchaseKnownVehicles.push(vehicle);
+      }
+
+      await addDoc(collection(db, "purchases"), {
+        product: product, godown: godown, vehicle: vehicle, area: area,
+        qty: qty, remainingQty: qty, rate: 0, amount: 0, date: date, status: 'approved',
+        enteredBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+      });
+
+      okEl.textContent = `Purchase saved: ${product} → ${godown} (${area}, Qty: ${qty})`;
+      okEl.style.display = 'block';
+
+      document.getElementById('adminPurchaseQty').value = '1';
+      document.getElementById('adminPurchaseVehicleSearch').value = '';
+      loadAdminPurchasesToday();
+
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = "Save Purchase";
+    }
+  };
+
+  async function loadAdminPurchasesToday() {
+    const tbody = document.getElementById('adminPurchaseTableBody');
+    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const q = query(collection(db, "purchases"), where("date", "==", todayStr));
+      const snap = await getDocs(q);
+      let rows = '';
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        rows += `<tr>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td>
+          <td><button class="del-btn" onclick="adminDeleteRecord('purchases','${docSnap.id}')">Delete</button></td>
+        </tr>`;
+      });
+      tbody.innerHTML = rows || '<tr><td colspan="7">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
+    }
+  }
+
 
   async function loadAdminGodowns() {
     const tbody = document.getElementById('godownTableBody');
