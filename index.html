@@ -1380,8 +1380,8 @@
     </div>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th></th><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th></th></tr></thead>
-        <tbody id="apprSalesBody"><tr><td colspan="12">Loading...</td></tr></tbody>
+        <thead><tr><th></th><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th></th></tr></thead>
+        <tbody id="apprSalesBody"><tr><td colspan="13">Loading...</td></tr></tbody>
       </table>
     </div>
 
@@ -2405,8 +2405,6 @@
   let allVehiclesForSale = [];
 
   async function populateSaleVehicleDropdown() {
-    document.getElementById('saleVehicleSearch').value = '';
-    document.getElementById('saleVehicle').value = '';
     try {
       const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
       const snap = await getDocs(q);
@@ -2866,10 +2864,14 @@
         tbody.innerHTML = '<tr><td colspan="9">Advance sales ഒന്നും ഇല്ല.</td></tr>';
         return;
       }
+      let items = [];
+      snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+      items.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
       let rows = '';
       let hiddenOldCount = 0;
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
+      items.forEach(d => {
+        const docSnapId = d.id;
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return; // fully linked already, shouldn't normally happen since isAdvance would be false
@@ -2877,7 +2879,7 @@
         rows += `<tr>
           <td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
           <td>${d.qty || 0}</td><td>${linkedQty}</td><td>${remaining}</td>
-          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${docSnap.id}')">Link</button></td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${docSnapId}')">Link</button></td>
         </tr>`;
       });
       tbody.innerHTML = rows || '<tr><td colspan="9">Advance sales ഒന്നും ഇല്ല.</td></tr>';
@@ -3648,8 +3650,6 @@
   let allVehiclesForPurchase = [];
 
   async function populatePurchaseVehicleDropdown() {
-    document.getElementById('purchaseVehicleSearch').value = '';
-    document.getElementById('purchaseVehicle').value = '';
     try {
       const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
       const snap = await getDocs(q);
@@ -5954,7 +5954,7 @@
     const salesBody = document.getElementById('apprSalesBody');
     const purchaseBody = document.getElementById('apprPurchaseBody');
     const collBody = document.getElementById('apprCollBody');
-    salesBody.innerHTML = '<tr><td colspan="12">Loading...</td></tr>';
+    salesBody.innerHTML = '<tr><td colspan="13">Loading...</td></tr>';
     purchaseBody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
     collBody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
 
@@ -5978,7 +5978,7 @@
 
       let salesRows = sales.map(d => `<tr>
           <td><input type="checkbox" class="apprCheck-sales" value="${d.id}" style="width:auto;"></td>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
           <td>${d.qty || '-'}</td>
           <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
           <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td>
@@ -5990,7 +5990,7 @@
             <button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button>
           </td>
         </tr>`).join('');
-      salesBody.innerHTML = salesRows || '<tr><td colspan="12">Pending sales ഒന്നും ഇല്ല.</td></tr>';
+      salesBody.innerHTML = salesRows || '<tr><td colspan="13">Pending sales ഒന്നും ഇല്ല.</td></tr>';
 
       // Collections
       let colls = [];
@@ -6030,7 +6030,7 @@
 
     } catch (err) {
       console.error(err);
-      salesBody.innerHTML = '<tr><td colspan="12">Error loading.</td></tr>';
+      salesBody.innerHTML = '<tr><td colspan="13">Error loading.</td></tr>';
     }
   }
 
@@ -6042,8 +6042,8 @@
 
       const wb = XLSX.utils.book_new();
 
-      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount']];
-      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.godown || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]));
+      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Godown', 'Vehicle', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount']];
+      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.godown || '', d.vehicle || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]));
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Pending Sales');
 
       const collData = [['Date', 'Area', 'Customer', 'Mode', 'Amount']];
@@ -6068,9 +6068,16 @@
     try {
       const q = query(collection(db, "sales"), where("isAdvance", "==", true));
       const snap = await getDocs(q);
+      let items = [];
+      snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+      items.sort((a, b) => {
+        const areaCmp = (a.area || '').localeCompare(b.area || '');
+        if (areaCmp !== 0) return areaCmp;
+        return (a.date || '').localeCompare(b.date || '');
+      });
+
       let rows = '';
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
+      items.forEach(d => {
         if ((d.date || '') > ADVANCE_SALE_USER_CUTOFF) return; // new ones — users handle these themselves
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
@@ -6078,7 +6085,7 @@
         rows += `<tr>
           <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
           <td>${remaining}</td>
-          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${docSnap.id}')">Link</button></td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td>
         </tr>`;
       });
       tbody.innerHTML = rows || '<tr><td colspan="8">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
