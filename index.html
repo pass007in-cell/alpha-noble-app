@@ -191,7 +191,7 @@
     <button id="tabCollectionBtn" onclick="switchTab('collection')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Collection</button>
     <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
     <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
-    <button id="tabTripsheetBtn" onclick="switchTab('tripsheet')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🚚 Trip Sheet</button>
+    <button id="tabReportBtn" onclick="switchTab('report')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📈 Report</button>
   </div>
 
   <div id="tabCustomers" style="display:none;">
@@ -226,7 +226,7 @@
 
   <h3 style="color:#1e3c72; margin-bottom:8px;">Customers (<span id="custCount">0</span>)</h3>
   <input type="text" id="custSearch" placeholder="🔍 Search by name or phone..." style="margin-bottom:10px;" onkeyup="filterCustomers()">
-  <div class="table-wrap">
+  <div class="table-wrap" style="margin-bottom:24px;">
     <table>
       <thead>
         <tr><th>Name</th><th>Phone</th><th>Balance</th><th></th></tr>
@@ -235,6 +235,44 @@
         <tr><td colspan="4">Loading...</td></tr>
       </tbody>
     </table>
+  </div>
+
+  <div class="add-user-form">
+    <h3>🧾 Customer Statement</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      ഒരു Customer-ന്റെ Sale &amp; Collection transactions, മറ്റ് areas-ലേത് ഉൾപ്പെടെ, date range-ൽ.
+    </p>
+    <label>Customer</label>
+    <div class="cust-search-box">
+      <input type="text" id="stmtCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+        oninput="renderStmtCustOptions()" onfocus="renderStmtCustOptions()">
+      <input type="hidden" id="stmtCustomer">
+      <div id="stmtCustOptionsBox" class="cust-options-box"></div>
+    </div>
+    <button class="full-btn" onclick="generateCustomerStatement()">Generate Statement</button>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportStatementCSV()">⬇️ Excel (CSV)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
+  </div>
+
+  <div id="stmtResultBox" style="display:none;">
+    <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
+      <div>
+        <p style="font-size:12px; color:#555;">Opening Balance</p>
+        <p style="font-size:17px; font-weight:700; color:#555;" id="stmtOpening">₹0</p>
+      </div>
+      <div>
+        <p style="font-size:12px; color:#555;">Closing Balance</p>
+        <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="stmtClosing">₹0</p>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+        <tbody id="stmtTableBody"><tr><td colspan="7">—</td></tr></tbody>
+      </table>
+    </div>
   </div>
   </div>
 
@@ -583,18 +621,28 @@
   <div id="tabReports">
 
     <div id="repTopAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">⚠️ Pending Advance Sales (Link ചെയ്യാൻ ബാക്കി)</h3>
+      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">🔗 Unlinked Sales (Link ചെയ്യാൻ ബാക്കി)</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
           <tbody id="repAdvanceSaleBody"><tr><td colspan="5">—</td></tr></tbody>
         </table>
       </div>
-      <p style="font-size:12px; color:#777; margin-top:8px;">Link ചെയ്യാൻ Sale Entry tab-ൽ പോകുക.</p>
+      <p style="font-size:12px; color:#777; margin-top:8px;">Link ചെയ്യാൻ Sale tab-ൽ പോകുക.</p>
+    </div>
+
+    <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">📦 Pending Lots</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="homeLotBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+        </table>
+      </div>
     </div>
 
     <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
-      <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📦 Current Stock (Purchase Balance)</h3>
+      <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details</h3>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
@@ -604,63 +652,98 @@
     </div>
 
     <div class="add-user-form">
-      <h3>📊 Reports</h3>
-      <div class="form-grid">
-        <div>
-          <label>From Date</label>
-          <input type="date" id="reportFrom">
-        </div>
-        <div>
-          <label>To Date</label>
-          <input type="date" id="reportTo">
-        </div>
-      </div>
-      <button class="full-btn" onclick="generateReport()">Generate Report</button>
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('user')">⬇️ Excel (CSV)</button>
-        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
-      </div>
+      <h3>📅 Day-wise Details</h3>
+      <label>Date</label>
+      <input type="date" id="homeDayDate" style="margin-bottom:14px;">
+      <button class="full-btn" onclick="generateHomeDayView()">Show</button>
     </div>
 
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px;">
+    <div id="homeDayContainer"></div>
+  </div>
+</div>
+
+<div id="tabReport" style="display:none; max-width:900px; margin:0 auto; padding:20px 16px;">
+  <div class="add-user-form">
+    <h3>📈 Report</h3>
+    <div class="form-grid">
+      <div>
+        <label>From Date</label>
+        <input type="date" id="reportFrom">
+      </div>
+      <div>
+        <label>To Date</label>
+        <input type="date" id="reportTo">
+      </div>
+    </div>
+    <button class="full-btn" onclick="generateReport(); generateUserTripSheet();">Generate</button>
+  </div>
+
+  <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
+    <button id="repSubTabSaleBtn" onclick="switchReportSubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
+    <button id="repSubTabCollectionBtn" onclick="switchReportSubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
+    <button id="repSubTabPurchaseBtn" onclick="switchReportSubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
+    <button id="repSubTabStockbookBtn" onclick="switchReportSubTab('stockbook')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Stock Book</button>
+    <button id="repSubTabTripsheetBtn" onclick="switchReportSubTab('tripsheet')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Trip Sheet</button>
+  </div>
+
+  <div id="repSubSale">
+    <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:16px;">
       <div style="background:#fff3e0; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#e65100; font-weight:600;">SALES</p>
+        <p style="font-size:12px; color:#e65100; font-weight:600;">SALES TOTAL</p>
         <p style="font-size:18px; font-weight:700; color:#e65100;" id="repSalesTotal">₹0</p>
       </div>
-      <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION</p>
-        <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="repCollTotal">₹0</p>
-      </div>
-      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE QTY</p>
-        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">0</p>
-      </div>
     </div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Sales</h3>
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('user')">⬇️ Excel (CSV)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody id="repSalesBody"><tr><td colspan="11">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <tbody id="repSalesBody"><tr><td colspan="11">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
+  </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+  <div id="repSubCollection" style="display:none;">
+    <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:16px;">
+      <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION TOTAL</p>
+        <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="repCollTotal">₹0</p>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('user')">⬇️ Excel (CSV)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th></tr></thead>
         <tbody id="repCollBody"><tr><td colspan="7">—</td></tr></tbody>
       </table>
     </div>
+  </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
+  <div id="repSubPurchase" style="display:none;">
+    <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:16px;">
+      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
+        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE QTY TOTAL</p>
+        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="repPurchaseTotal">0</p>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('user')">⬇️ Excel (CSV)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Status</th></tr></thead>
         <tbody id="repPurchaseBody"><tr><td colspan="7">—</td></tr></tbody>
       </table>
     </div>
+  </div>
 
+  <div id="repSubStockbook" style="display:none;">
     <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock)</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       Godown-വാരിയായി (Vehicle number സഹിതം), ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
@@ -705,70 +788,18 @@
       <button class="full-btn" onclick="generateDailyStockBook()">Generate</button>
     </div>
     <div id="dsbContainer" style="margin-bottom:24px;"></div>
-
-    <div class="add-user-form">
-      <h3>🧾 Customer Statement</h3>
-      <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        ഒരു Customer-ന്റെ Sale &amp; Collection transactions, മറ്റ് areas-ലേത് ഉൾപ്പെടെ, date range-ൽ.
-      </p>
-      <label>Customer</label>
-      <div class="cust-search-box">
-        <input type="text" id="stmtCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
-          oninput="renderStmtCustOptions()" onfocus="renderStmtCustOptions()">
-        <input type="hidden" id="stmtCustomer">
-        <div id="stmtCustOptionsBox" class="cust-options-box"></div>
-      </div>
-      <button class="full-btn" onclick="generateCustomerStatement()">Generate Statement</button>
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button style="flex:1; background:#2e7d32;" onclick="exportStatementCSV()">⬇️ Excel (CSV)</button>
-        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
-      </div>
-    </div>
-
-    <div id="stmtResultBox" style="display:none;">
-      <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
-        <div>
-          <p style="font-size:12px; color:#555;">Opening Balance</p>
-          <p style="font-size:17px; font-weight:700; color:#555;" id="stmtOpening">₹0</p>
-        </div>
-        <div>
-          <p style="font-size:12px; color:#555;">Closing Balance</p>
-          <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="stmtClosing">₹0</p>
-        </div>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
-          <tbody id="stmtTableBody"><tr><td colspan="7">—</td></tr></tbody>
-        </table>
-      </div>
-    </div>
   </div>
-</div>
 
-<div id="tabTripsheet" style="display:none; max-width:900px; margin:0 auto; padding:20px 16px;">
-  <div class="add-user-form">
-    <h3>🚚 Trip Sheet — Purchase Lot & Sales</h3>
+  <div id="repSubTripsheet" style="display:none;">
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report (own area മാത്രം).
     </p>
-    <div class="form-grid">
-      <div>
-        <label>From Date</label>
-        <input type="date" id="userTripFrom">
-      </div>
-      <div>
-        <label>To Date</label>
-        <input type="date" id="userTripTo">
-      </div>
-    </div>
-    <button class="full-btn" onclick="generateUserTripSheet()">Generate Trip Sheet</button>
-    <div style="display:flex; gap:10px; margin-top:10px;">
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
       <button style="flex:1; background:#2e7d32;" onclick="exportUserTripSheetExcel()">⬇️ Excel (.xlsx)</button>
       <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
     </div>
+    <div id="userTripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
   </div>
-  <div id="userTripSheetContainer">Date range select ചെയ്ത് "Generate Trip Sheet" ക്ലിക്ക് ചെയ്യുക.</div>
 </div>
 
 <!-- ADMIN CUSTOMER EDIT MODAL -->
@@ -952,7 +983,7 @@
     <button id="tabAdminPurchaseBtn" onclick="switchAdminTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🧾 Purchase</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
-    <button id="tabAdminTripsheetBtn" onclick="switchAdminTab('tripsheet')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🚚 Trip Sheet</button>
+    <button id="tabAdminReportBtn" onclick="switchAdminTab('report')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📈 Report</button>
     <button id="tabAdminSettingsBtn" onclick="switchAdminTab('settings')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">⚙️ Settings</button>
   </div>
 
@@ -1438,43 +1469,59 @@
     </div>
   </div>
 
-  <div id="tabAdminTripsheet" style="display:none;">
-    <div class="add-user-form">
-      <h3>🚚 Trip Sheet — Purchase Lot & Sales</h3>
-      <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report.
-      </p>
-      <div class="form-grid">
-        <div>
-          <label>From Date</label>
-          <input type="date" id="tripFrom">
-        </div>
-        <div>
-          <label>To Date</label>
-          <input type="date" id="tripTo">
-        </div>
+  <div id="tabAdminReports">
+
+    <div id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">🔗 Unlinked Sales (All Areas)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="adminHomeAdvanceSaleBody"><tr><td colspan="6">—</td></tr></tbody>
+        </table>
       </div>
-      <label>Area (optional)</label>
-      <select id="tripArea" style="margin-bottom:14px;">
+    </div>
+
+    <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">📦 Pending Lots (All Areas)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="adminHomeLotBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
+      <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details (All Areas)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="adminHomeStockBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="add-user-form">
+      <h3>📅 Day-wise Details (All Areas)</h3>
+      <label>Date</label>
+      <input type="date" id="adminHomeDayDate" style="margin-bottom:14px;">
+      <button class="full-btn" onclick="generateAdminHomeDayView()">Show</button>
+    </div>
+
+    <div id="adminHomeDayContainer"></div>
+  </div>
+
+  <div id="tabAdminReport" style="display:none;">
+    <div class="add-user-form">
+      <h3>📈 Report</h3>
+      <label>Area</label>
+      <select id="adminRepArea" onchange="generateAdminReport(); generateTripSheet();" style="margin-bottom:14px;">
         <option value="">-- All Areas --</option>
         <option value="MKD">MKD - Mannarkkad</option>
         <option value="PKD">PKD - Palakkad</option>
         <option value="MLT">MLT - Melattur</option>
         <option value="NLB">NLB - Nilambur</option>
       </select>
-      <button class="full-btn" onclick="generateTripSheet()">Generate Trip Sheet</button>
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button style="flex:1; background:#2e7d32;" onclick="exportTripSheetExcel()">⬇️ Excel (.xlsx)</button>
-        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
-      </div>
-    </div>
-
-    <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate Trip Sheet" ക്ലിക്ക് ചെയ്യുക.</div>
-  </div>
-
-  <div id="tabAdminReports">
-    <div class="add-user-form">
-      <h3>📊 All-Areas Reports</h3>
       <div class="form-grid">
         <div>
           <label>From Date</label>
@@ -1485,88 +1532,133 @@
           <input type="date" id="adminReportTo">
         </div>
       </div>
-      <button class="full-btn" onclick="generateAdminReport()">Generate Report</button>
-      <div style="display:flex; gap:10px; margin-top:10px;">
+      <button class="full-btn" onclick="generateAdminReport(); generateTripSheet();">Generate</button>
+    </div>
+
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
+      <button id="adminRepSubTabSaleBtn" onclick="switchAdminReportSubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
+      <button id="adminRepSubTabCollectionBtn" onclick="switchAdminReportSubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
+      <button id="adminRepSubTabPurchaseBtn" onclick="switchAdminReportSubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
+      <button id="adminRepSubTabStockbookBtn" onclick="switchAdminReportSubTab('stockbook')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Stock Book</button>
+      <button id="adminRepSubTabTripsheetBtn" onclick="switchAdminReportSubTab('tripsheet')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Trip Sheet</button>
+    </div>
+
+    <div id="adminRepSubSale">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;">
+        <div style="background:#fff3e0; border-radius:10px; padding:14px; text-align:center;">
+          <p style="font-size:12px; color:#e65100; font-weight:600;">SALES ₹</p>
+          <p style="font-size:18px; font-weight:700; color:#e65100;" id="adminRepSalesTotal">₹0</p>
+        </div>
+        <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
+          <p style="font-size:12px; color:#1565c0; font-weight:600;">SALES QTY</p>
+          <p style="font-size:18px; font-weight:700; color:#1565c0;" id="adminRepSalesQtyTotal">0</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:14px;">
         <button style="flex:1; background:#2e7d32;" onclick="exportAdminExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
-    </div>
-
-    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:20px;">
-      <div style="background:#fff3e0; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#e65100; font-weight:600;">SALES (ALL AREAS)</p>
-        <p style="font-size:18px; font-weight:700; color:#e65100;" id="adminRepSalesTotal">₹0</p>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Area-wise Summary</h3>
+      <div class="table-wrap" style="margin-bottom:20px;">
+        <table>
+          <thead><tr><th>Area</th><th>Sales ₹</th><th>Sales Qty</th><th>Collection</th><th>Purchase Qty</th></tr></thead>
+          <tbody id="adminRepAreaBody"><tr><td colspan="5">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        </table>
       </div>
-      <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION (ALL AREAS)</p>
-        <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="adminRepCollTotal">₹0</p>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Sales (Area-wise, Expand/Collapse ചെയ്യാം)</h3>
+      <div id="adminRepSalesContainer" style="margin-bottom:20px;">—</div>
+    </div>
+
+    <div id="adminRepSubCollection" style="display:none;">
+      <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:16px;">
+        <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
+          <p style="font-size:12px; color:#2e7d32; font-weight:600;">COLLECTION (ALL AREAS)</p>
+          <p style="font-size:18px; font-weight:700; color:#2e7d32;" id="adminRepCollTotal">₹0</p>
+        </div>
       </div>
-      <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
-        <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE QTY (ALL AREAS)</p>
-        <p style="font-size:18px; font-weight:700; color:#1565c0;" id="adminRepPurchaseTotal">0</p>
+      <div style="display:flex; gap:10px; margin-bottom:14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportAdminExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Collection (Area-wise, Expand/Collapse ചെയ്യാം)</h3>
+      <div id="adminRepCollContainer" style="margin-bottom:20px;">—</div>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Area-wise Summary</h3>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Area</th><th>Sales ₹</th><th>Sales Qty</th><th>Collection</th><th>Purchase Qty</th></tr></thead>
-        <tbody id="adminRepAreaBody"><tr><td colspan="5">Date range select ചെയ്ത് "Generate Report" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
-      </table>
+    <div id="adminRepSubPurchase" style="display:none;">
+      <div style="display:grid; grid-template-columns:1fr; gap:10px; margin-bottom:16px;">
+        <div style="background:#e3f2fd; border-radius:10px; padding:14px; text-align:center;">
+          <p style="font-size:12px; color:#1565c0; font-weight:600;">PURCHASE QTY (ALL AREAS)</p>
+          <p style="font-size:18px; font-weight:700; color:#1565c0;" id="adminRepPurchaseTotal">0</p>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-bottom:14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportAdminExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase (Area-wise, Expand/Collapse ചെയ്യാം)</h3>
+      <div id="adminRepPurchaseContainer" style="margin-bottom:20px;">—</div>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Sales (Area-wise)</h3>
-    <div id="adminRepSalesContainer" style="margin-bottom:20px;">—</div>
+    <div id="adminRepSubStockbook" style="display:none;">
+      <div style="display:flex; gap:10px; margin-bottom:14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportAdminExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, Vehicle സഹിതം — Area-wise)</h3>
+      <div id="adminRepLotContainer" style="margin-bottom:20px;">—</div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Collection (Area-wise)</h3>
-    <div id="adminRepCollContainer" style="margin-bottom:20px;">—</div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase (Area-wise)</h3>
-    <div id="adminRepPurchaseContainer" style="margin-bottom:20px;">—</div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, Vehicle സഹിതം — Area-wise)</h3>
-    <div id="adminRepLotContainer" style="margin-bottom:20px;">—</div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Area &amp; Item wise)</h3>
-    <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
-    </p>
-    <div class="table-wrap" style="margin-bottom:24px;">
-      <table>
-        <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
-        <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
-      </table>
-    </div>
-
-    <div class="add-user-form">
-      <h3>📅 Daily Stock Book (Item-wise)</h3>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Area &amp; Item wise)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        ഓരോ ദിവസത്തെയും Purchase Qty, Sale Qty, Balance — ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+        Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
       </p>
-      <label>Area</label>
-      <select id="adminDsbArea" style="margin-bottom:14px;">
-        <option value="MKD">MKD - Mannarkkad</option>
-        <option value="PKD">PKD - Palakkad</option>
-        <option value="MLT">MLT - Melattur</option>
-        <option value="NLB">NLB - Nilambur</option>
-      </select>
-      <label>Product</label>
-      <select id="adminDsbProduct" style="margin-bottom:14px;">
-        <option value="">-- Select Product --</option>
-      </select>
-      <div class="form-grid">
-        <div>
-          <label>From Date</label>
-          <input type="date" id="adminDsbFrom">
-        </div>
-        <div>
-          <label>To Date</label>
-          <input type="date" id="adminDsbTo">
-        </div>
+      <div class="table-wrap" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
+          <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
+        </table>
       </div>
-      <button class="full-btn" onclick="generateAdminDailyStockBook()">Generate</button>
+
+      <div class="add-user-form">
+        <h3>📅 Daily Stock Book (Item-wise)</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:10px;">
+          ഓരോ ദിവസത്തെയും Purchase Qty, Sale Qty, Balance — ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+        </p>
+        <label>Area</label>
+        <select id="adminDsbArea" style="margin-bottom:14px;">
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+        </select>
+        <label>Product</label>
+        <select id="adminDsbProduct" style="margin-bottom:14px;">
+          <option value="">-- Select Product --</option>
+        </select>
+        <div class="form-grid">
+          <div>
+            <label>From Date</label>
+            <input type="date" id="adminDsbFrom">
+          </div>
+          <div>
+            <label>To Date</label>
+            <input type="date" id="adminDsbTo">
+          </div>
+        </div>
+        <button class="full-btn" onclick="generateAdminDailyStockBook()">Generate</button>
+      </div>
+      <div id="adminDsbContainer"></div>
     </div>
-    <div id="adminDsbContainer"></div>
+
+    <div id="adminRepSubTripsheet" style="display:none;">
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report.
+      </p>
+      <div style="display:flex; gap:10px; margin-bottom:14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportTripSheetExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+      <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
+    </div>
   </div>
 </div>
 
@@ -1760,7 +1852,7 @@
     switchAdminTab('reports');
   }
 
-  const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'tripsheet', 'settings', 'reports'];
+  const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
   window.switchAdminTab = function (tab) {
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
@@ -1784,23 +1876,42 @@
     else if (tab === 'approvals') loadApprovals();
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
     else if (tab === 'settings') switchAdminSettingsSubTab('users');
-    else if (tab === 'tripsheet') {
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (!document.getElementById('tripFrom').value) document.getElementById('tripFrom').value = todayStr;
-      if (!document.getElementById('tripTo').value) document.getElementById('tripTo').value = todayStr;
-    }
-    else if (tab === 'reports') {
+    else if (tab === 'report') {
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('adminReportFrom').value) document.getElementById('adminReportFrom').value = todayStr;
       if (!document.getElementById('adminReportTo').value) document.getElementById('adminReportTo').value = todayStr;
       generateAdminReport();
+      generateTripSheet();
       populateAdminDsbProductDropdown();
       if (!document.getElementById('adminDsbFrom').value) {
         const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
         document.getElementById('adminDsbFrom').value = weekAgo.toISOString().split('T')[0];
         document.getElementById('adminDsbTo').value = todayStr;
       }
+      switchAdminReportSubTab('sale');
     }
+    else if (tab === 'reports') {
+      loadAdminHomeSummary();
+      if (!document.getElementById('adminHomeDayDate').value) {
+        document.getElementById('adminHomeDayDate').valueAsDate = new Date();
+      }
+      generateAdminHomeDayView();
+    }
+  };
+
+  window.switchAdminReportSubTab = function (sub) {
+    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet'];
+    subs.forEach(s => {
+      const panel = document.getElementById('adminRepSub' + s.charAt(0).toUpperCase() + s.slice(1));
+      const btn = document.getElementById('adminRepSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+      if (s === sub) {
+        panel.style.display = 'block';
+        btn.style.background = '#1e3c72'; btn.style.color = '#fff';
+      } else {
+        panel.style.display = 'none';
+        btn.style.background = '#eee'; btn.style.color = '#333';
+      }
+    });
   };
 
   window.switchAdminSettingsSubTab = function (sub) {
@@ -2280,7 +2391,7 @@
   }
 
   // ---- TAB SWITCHING ----
-  const allTabs = ['purchase', 'sale', 'collection', 'customers', 'vehicle', 'reports', 'tripsheet'];
+  const allTabs = ['purchase', 'sale', 'collection', 'customers', 'vehicle', 'reports', 'report'];
 
   window.switchTab = function (tab) {
     allTabs.forEach(t => {
@@ -2325,22 +2436,41 @@
     } else if (tab === 'vehicle') {
       loadVehicles();
     } else if (tab === 'reports') {
+      loadTopReportSummary();
+      loadHomePendingLots();
+      if (!document.getElementById('homeDayDate').value) {
+        document.getElementById('homeDayDate').valueAsDate = new Date();
+      }
+      generateHomeDayView();
+    } else if (tab === 'report') {
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('reportFrom').value) document.getElementById('reportFrom').value = todayStr;
       if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
       generateReport();
-      loadTopReportSummary();
+      generateUserTripSheet();
       populateDsbProductDropdown();
       if (!document.getElementById('dsbFrom').value) {
         const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
         document.getElementById('dsbFrom').value = weekAgo.toISOString().split('T')[0];
         document.getElementById('dsbTo').value = todayStr;
       }
-    } else if (tab === 'tripsheet') {
-      const todayStr = new Date().toISOString().split('T')[0];
-      if (!document.getElementById('userTripFrom').value) document.getElementById('userTripFrom').value = todayStr;
-      if (!document.getElementById('userTripTo').value) document.getElementById('userTripTo').value = todayStr;
+      switchReportSubTab('sale');
     }
+  };
+
+  window.switchReportSubTab = function (sub) {
+    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet'];
+    subs.forEach(s => {
+      const panel = document.getElementById('repSub' + s.charAt(0).toUpperCase() + s.slice(1));
+      const btn = document.getElementById('repSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+      if (s === sub) {
+        panel.style.display = 'block';
+        btn.style.background = '#1e3c72'; btn.style.color = '#fff';
+      } else {
+        panel.style.display = 'none';
+        btn.style.background = '#eee'; btn.style.color = '#333';
+      }
+    });
   };
 
   window.calcSaleAmount = function () {
@@ -4516,15 +4646,128 @@
     }
   }
 
-  // ---- USER: TRIP SHEET (strictly own area) ----
+  // ---- HOME: Pending Lots box (own-area Lot Balance) ----
+  async function loadHomePendingLots() {
+    const tbody = document.getElementById('homeLotBody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    try {
+      const [purchaseSnap, vsSnap] = await Promise.all([
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
+        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area)))
+      ]);
+      const lotMap = {};
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      vsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.product || '-') + '|-|' + (d.vehicle || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      const entries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
+      const rows = entries.map(([key, qty]) => {
+        const [product, godown, vehicle] = key.split('|');
+        return `<tr><td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
+      }).join('');
+      tbody.innerHTML = rows || '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
+    }
+  }
+
+  // ---- HOME: Single-date Sale/Collection/Purchase view ----
+  window.generateHomeDayView = async function () {
+    const date = document.getElementById('homeDayDate').value;
+    const container = document.getElementById('homeDayContainer');
+    if (!date) { alert("Date select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+    try {
+      const [salesSnap, collSnap, purchSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area), where("date", "==", date))),
+        getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area), where("date", "==", date))),
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("date", "==", date)))
+      ]);
+
+      let sales = [], colls = [], purchases = [];
+      salesSnap.forEach(docSnap => sales.push({ id: docSnap.id, ...docSnap.data() }));
+      collSnap.forEach(docSnap => colls.push({ id: docSnap.id, ...docSnap.data() }));
+      purchSnap.forEach(docSnap => purchases.push({ id: docSnap.id, ...docSnap.data() }));
+
+      const salesTotal = sales.reduce((s, d) => s + (d.amount || 0), 0);
+      const collTotal = colls.reduce((s, d) => s + (d.amount || 0), 0);
+      const purchQtyTotal = purchases.reduce((s, d) => s + (d.qty || 0), 0);
+
+      const statusBadge = (d) => (d.status || 'pending') === 'pending'
+        ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+      const actionButtons = (d, editFn, delFn) => {
+        const canEdit = (d.status || 'pending') === 'pending' && d.enteredBy === currentUserData.username;
+        return canEdit
+          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="${editFn}('${d.id}')">Edit</button>
+             <button class="del-btn" onclick="${delFn}('${d.id}')">Delete</button>`
+          : '';
+      };
+
+      const salesRows = sales.map(d => `<tr><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || 0}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editSaleRow', 'deleteSaleRow')}</td></tr>`).join('');
+      const collRows = colls.map(d => `<tr><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editCollRow', 'deleteCollRow')}</td></tr>`).join('');
+      const purchRows = purchases.map(d => `<tr><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editPurchaseRow', 'deletePurchaseRow')}</td></tr>`).join('');
+
+      container.innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+          <div style="background:#fff3e0; border-radius:10px; padding:12px; text-align:center;">
+            <p style="font-size:11px; color:#e65100; font-weight:600;">SALES</p>
+            <p style="font-size:16px; font-weight:700; color:#e65100;">₹${salesTotal.toLocaleString('en-IN')}</p>
+          </div>
+          <div style="background:#e8f5e9; border-radius:10px; padding:12px; text-align:center;">
+            <p style="font-size:11px; color:#2e7d32; font-weight:600;">COLLECTION</p>
+            <p style="font-size:16px; font-weight:700; color:#2e7d32;">₹${collTotal.toLocaleString('en-IN')}</p>
+          </div>
+          <div style="background:#e3f2fd; border-radius:10px; padding:12px; text-align:center;">
+            <p style="font-size:11px; color:#1565c0; font-weight:600;">PURCHASE QTY</p>
+            <p style="font-size:16px; font-weight:700; color:#1565c0;">${purchQtyTotal}</p>
+          </div>
+        </div>
+        <h3 style="color:#1e3c72; margin-bottom:8px;">Sale</h3>
+        <div class="table-wrap" style="margin-bottom:20px;"><table>
+          <thead><tr><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody>${salesRows || '<tr><td colspan="6">ഈ date-ൽ sales ഇല്ല.</td></tr>'}</tbody>
+        </table></div>
+        <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+        <div class="table-wrap" style="margin-bottom:20px;"><table>
+          <thead><tr><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody>${collRows || '<tr><td colspan="5">ഈ date-ൽ collections ഇല്ല.</td></tr>'}</tbody>
+        </table></div>
+        <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Status</th><th></th></tr></thead>
+          <tbody>${purchRows || '<tr><td colspan="6">ഈ date-ൽ purchases ഇല്ല.</td></tr>'}</tbody>
+        </table></div>
+      `;
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
+
+
   let lastUserTripSheetData = null;
 
   window.generateUserTripSheet = async function () {
-    const from = document.getElementById('userTripFrom').value;
-    const to = document.getElementById('userTripTo').value;
+    const from = document.getElementById('reportFrom').value;
+    const to = document.getElementById('reportTo').value;
     const container = document.getElementById('userTripSheetContainer');
 
-    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+    if (!from || !to) { return; }
 
     container.innerHTML = 'Loading...';
 
@@ -4874,15 +5117,15 @@
     areas.forEach(area => {
       const areaItems = items.filter(d => d.area === area);
       if (areaItems.length === 0) return;
-      html += `<div style="margin-bottom:14px;">
-        <div class="area-group-title">${area} (${areaItems.length})</div>
+      html += `<details open style="margin-bottom:14px; border:1px solid #ddd; border-radius:8px; overflow:hidden;">
+        <summary class="area-group-title" style="cursor:pointer; list-style:none;">${area} (${areaItems.length})</summary>
         <div class="table-wrap">
           <table>
             <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
             <tbody>${areaItems.map(rowFn).join('')}</tbody>
           </table>
         </div>
-      </div>`;
+      </details>`;
     });
     container.innerHTML = html || '<p style="color:#999; font-size:13px;">ഈ range-ൽ data ഒന്നും ഇല്ല.</p>';
   }
@@ -4891,12 +5134,12 @@
   let lastTripSheetData = null;
 
   window.generateTripSheet = async function () {
-    const from = document.getElementById('tripFrom').value;
-    const to = document.getElementById('tripTo').value;
-    const areaFilter = document.getElementById('tripArea').value;
+    const from = document.getElementById('adminReportFrom').value;
+    const to = document.getElementById('adminReportTo').value;
+    const areaFilter = document.getElementById('adminRepArea').value;
     const container = document.getElementById('tripSheetContainer');
 
-    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+    if (!from || !to) { return; }
 
     container.innerHTML = 'Loading...';
 
@@ -5074,6 +5317,149 @@
     }
   };
 
+  // ---- ADMIN HOME: All-areas Unlinked Sales / Pending Lots / Stock Details ----
+  async function loadAdminHomeSummary() {
+    // Unlinked Sales (all areas)
+    try {
+      const q = query(collection(db, "sales"), where("isAdvance", "==", true));
+      const snap = await getDocs(q);
+      let items = [];
+      snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
+      items.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      let rows = '';
+      items.forEach(d => {
+        const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+        const remaining = (d.qty || 0) - linkedQty;
+        if (remaining <= 0) return;
+        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${remaining}</td></tr>`;
+      });
+      const alertBox = document.getElementById('adminHomeAlertBox');
+      if (rows) {
+        document.getElementById('adminHomeAdvanceSaleBody').innerHTML = rows;
+        alertBox.style.display = 'block';
+      } else {
+        alertBox.style.display = 'none';
+      }
+    } catch (err) { console.error(err); }
+
+    // Pending Lots (all areas) — Area+Product+Godown+Vehicle, remainingQty > 0
+    try {
+      const [purchaseSnap, vsSnap] = await Promise.all([
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "vehicleStock"))
+      ]);
+      const lotMap = {};
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      vsSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) {
+          const key = (d.area || '-') + '|' + (d.product || '-') + '|-|' + (d.vehicle || '-');
+          lotMap[key] = (lotMap[key] || 0) + remaining;
+        }
+      });
+      const entries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
+      const rows2 = entries.map(([key, qty]) => {
+        const [area, product, godown, vehicle] = key.split('|');
+        return `<tr><td>${area}</td><td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('adminHomeLotBody').innerHTML = rows2 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
+
+      // Stock Details — Area+Product+Godown (combine godown+vehicle totals per product)
+      const stockMap = {};
+      entries.forEach(([key, qty]) => {
+        const [area, product, godown] = key.split('|');
+        const k = area + '|' + product + '|' + godown;
+        stockMap[k] = (stockMap[k] || 0) + qty;
+      });
+      const stockEntries = Object.entries(stockMap).sort((a, b) => a[0].localeCompare(b[0]));
+      const rows3 = stockEntries.map(([key, qty]) => {
+        const [area, product, godown] = key.split('|');
+        return `<tr><td>${area}</td><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+      }).join('');
+      document.getElementById('adminHomeStockBody').innerHTML = rows3 || '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      document.getElementById('adminHomeLotBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
+      document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
+    }
+  }
+
+  window.generateAdminHomeDayView = async function () {
+    const date = document.getElementById('adminHomeDayDate').value;
+    const container = document.getElementById('adminHomeDayContainer');
+    if (!date) { alert("Date select ചെയ്യുക."); return; }
+
+    container.innerHTML = 'Loading...';
+    try {
+      const [salesSnap, collSnap, purchSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("date", "==", date))),
+        getDocs(query(collection(db, "collections"), where("date", "==", date))),
+        getDocs(query(collection(db, "purchases"), where("date", "==", date)))
+      ]);
+
+      let sales = [], colls = [], purchases = [];
+      salesSnap.forEach(d => sales.push(d.data()));
+      collSnap.forEach(d => colls.push(d.data()));
+      purchSnap.forEach(d => purchases.push(d.data()));
+
+      sales.sort((a, b) => (a.area || '').localeCompare(b.area || ''));
+      colls.sort((a, b) => (a.area || '').localeCompare(b.area || ''));
+      purchases.sort((a, b) => (a.area || '').localeCompare(b.area || ''));
+
+      const salesTotal = sales.reduce((s, d) => s + (d.amount || 0), 0);
+      const collTotal = colls.reduce((s, d) => s + (d.amount || 0), 0);
+      const purchQtyTotal = purchases.reduce((s, d) => s + (d.qty || 0), 0);
+
+      const salesRows = sales.map(d => `<tr><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || 0}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      const collRows = colls.map(d => `<tr><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td></tr>`).join('');
+      const purchRows = purchases.map(d => `<tr><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td></tr>`).join('');
+
+      container.innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+          <div style="background:#fff3e0; border-radius:10px; padding:12px; text-align:center;">
+            <p style="font-size:11px; color:#e65100; font-weight:600;">SALES</p>
+            <p style="font-size:16px; font-weight:700; color:#e65100;">₹${salesTotal.toLocaleString('en-IN')}</p>
+          </div>
+          <div style="background:#e8f5e9; border-radius:10px; padding:12px; text-align:center;">
+            <p style="font-size:11px; color:#2e7d32; font-weight:600;">COLLECTION</p>
+            <p style="font-size:16px; font-weight:700; color:#2e7d32;">₹${collTotal.toLocaleString('en-IN')}</p>
+          </div>
+          <div style="background:#e3f2fd; border-radius:10px; padding:12px; text-align:center;">
+            <p style="font-size:11px; color:#1565c0; font-weight:600;">PURCHASE QTY</p>
+            <p style="font-size:16px; font-weight:700; color:#1565c0;">${purchQtyTotal}</p>
+          </div>
+        </div>
+        <h3 style="color:#1e3c72; margin-bottom:8px;">Sale</h3>
+        <div class="table-wrap" style="margin-bottom:20px;"><table>
+          <thead><tr><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th></tr></thead>
+          <tbody>${salesRows || '<tr><td colspan="5">ഇന്ന് sales ഇല്ല.</td></tr>'}</tbody>
+        </table></div>
+        <h3 style="color:#1e3c72; margin-bottom:8px;">Collection</h3>
+        <div class="table-wrap" style="margin-bottom:20px;"><table>
+          <thead><tr><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th></tr></thead>
+          <tbody>${collRows || '<tr><td colspan="4">ഇന്ന് collections ഇല്ല.</td></tr>'}</tbody>
+        </table></div>
+        <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase</h3>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th></tr></thead>
+          <tbody>${purchRows || '<tr><td colspan="5">ഇന്ന് purchases ഇല്ല.</td></tr>'}</tbody>
+        </table></div>
+      `;
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
   window.generateAdminReport = async function () {
     const from = document.getElementById('adminReportFrom').value;
     const to = document.getElementById('adminReportTo').value;
@@ -5098,11 +5484,12 @@
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
+      const areaFilter = document.getElementById('adminRepArea').value;
 
       let sales = [], purchases = [], colls = [];
-      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) sales.push({ id: docSnap.id, ...d }); });
-      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) purchases.push({ id: docSnap.id, ...d }); });
-      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) colls.push({ id: docSnap.id, ...d }); });
+      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) sales.push({ id: docSnap.id, ...d }); });
+      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) purchases.push({ id: docSnap.id, ...d }); });
+      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) colls.push({ id: docSnap.id, ...d }); });
 
       sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       purchases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -5110,10 +5497,12 @@
 
       // Overall totals
       const salesTotal = sales.reduce((s, d) => s + (d.amount || 0), 0);
+      const salesQtyTotal = sales.reduce((s, d) => s + (d.qty || 0), 0);
       const purchaseQtyTotal = purchases.reduce((s, d) => s + (d.qty || 0), 0);
       const collTotal = colls.reduce((s, d) => s + (d.amount || 0), 0);
 
       document.getElementById('adminRepSalesTotal').textContent = '₹' + salesTotal.toLocaleString('en-IN');
+      document.getElementById('adminRepSalesQtyTotal').textContent = salesQtyTotal.toLocaleString('en-IN');
       document.getElementById('adminRepPurchaseTotal').textContent = purchaseQtyTotal.toLocaleString('en-IN') + ' Qty';
       document.getElementById('adminRepCollTotal').textContent = '₹' + collTotal.toLocaleString('en-IN');
 
