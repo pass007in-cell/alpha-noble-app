@@ -447,7 +447,7 @@
 
       <div class="form-grid">
         <div>
-          <label>Amount (₹)</label>
+          <label>Amount (₹) — negative ആയാൽ Extra Discount പോലുള്ള adjustment ആയി കണക്കാക്കും</label>
           <input type="number" id="collAmount" placeholder="0" value="0" onfocus="this.select()">
         </div>
         <div>
@@ -461,10 +461,11 @@
             <option value="Bank">Bank Transfer</option>
             <option value="UPI">UPI</option>
             <option value="Cheque">Cheque</option>
+            <option value="Discount">Discount / Adjustment</option>
           </select>
         </div>
         <div id="collAccountWrap" style="display:none;">
-          <label>Account</label>
+          <label>Account (optional)</label>
           <select id="collAccount">
             <option value="">-- Select Account --</option>
           </select>
@@ -4373,8 +4374,7 @@
     errEl.style.display = 'none'; okEl.style.display = 'none';
 
     if (!custId || custId === '__new__') { errEl.textContent = "Customer select ചെയ്യുക"; errEl.style.display = 'block'; return; }
-    if (amount <= 0) { errEl.textContent = "Amount 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
-    if (mode !== 'Cash' && !account) { errEl.textContent = "Account select ചെയ്യുക"; errEl.style.display = 'block'; return; }
+    if (amount === 0) { errEl.textContent = "Amount 0 ആകാൻ പാടില്ല."; errEl.style.display = 'block'; return; }
 
     const cust = allCustomers.find(c => c.id === custId);
 
@@ -6667,6 +6667,7 @@
             <option value="Bank" ${d.mode === 'Bank' ? 'selected' : ''}>Bank Transfer</option>
             <option value="UPI" ${d.mode === 'UPI' ? 'selected' : ''}>UPI</option>
             <option value="Cheque" ${d.mode === 'Cheque' ? 'selected' : ''}>Cheque</option>
+            <option value="Discount" ${d.mode === 'Discount' ? 'selected' : ''}>Discount / Adjustment</option>
           </select>
           <div id="qeAccountWrap" style="display:${d.mode !== 'Cash' ? 'block' : 'none'};">
             <label>Account</label>
