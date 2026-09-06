@@ -885,10 +885,14 @@
     <p style="font-size:13px; color:#777; margin-bottom:14px;" id="tripLinkInfo"></p>
     <div class="error-msg" id="tripLinkErrorMsg"></div>
 
-    <label>Advance Sale</label>
-    <select id="tripLinkSaleSelect" style="margin-bottom:14px;">
-      <option value="">-- Select --</option>
-    </select>
+    <label>Advance Sale <span style="color:#999; font-weight:400;">(Customer name വച്ച് search ചെയ്യാം)</span></label>
+    <div class="cust-search-box">
+      <input type="text" id="tripLinkSaleSearch" placeholder="🔍 Customer name search ചെയ്യുക..." autocomplete="off"
+        oninput="renderTripLinkSaleOptions()" onfocus="renderTripLinkSaleOptions()">
+      <input type="hidden" id="tripLinkSaleSelect">
+      <div id="tripLinkSaleOptionsBox" class="cust-options-box"></div>
+    </div>
+    <div style="margin-bottom:16px;"></div>
 
     <label>Qty to Link</label>
     <input type="number" id="tripLinkQty" value="0" style="margin-bottom:16px;">
@@ -912,10 +916,14 @@
       <option value="">-- Select Godown --</option>
     </select>
 
-    <label>Purchase Lot</label>
-    <select id="linkAdvanceLot" style="margin-bottom:14px;">
-      <option value="">-- Select Lot --</option>
-    </select>
+    <label>Purchase Lot <span style="color:#999; font-weight:400;">(Vehicle number വച്ച് search ചെയ്യാം)</span></label>
+    <div class="cust-search-box">
+      <input type="text" id="linkAdvanceLotSearch" placeholder="🔍 Vehicle number അല്ലെങ്കിൽ date search ചെയ്യുക..." autocomplete="off"
+        oninput="renderLinkAdvanceLotOptions()" onfocus="renderLinkAdvanceLotOptions()">
+      <input type="hidden" id="linkAdvanceLot">
+      <div id="linkAdvanceLotOptionsBox" class="cust-options-box"></div>
+    </div>
+    <div style="margin-bottom:16px;"></div>
 
     <label>Qty to Link</label>
     <input type="number" id="linkAdvanceQty" value="0" style="margin-bottom:16px;">
@@ -3155,7 +3163,9 @@
 
       const godownSel = document.getElementById('linkAdvanceGodown');
       godownSel.innerHTML = '<option value="">Loading godowns...</option>';
-      document.getElementById('linkAdvanceLot').innerHTML = '<option value="">-- ആദ്യം Godown select ചെയ്യുക --</option>';
+      document.getElementById('linkAdvanceLot').value = '';
+      document.getElementById('linkAdvanceLotSearch').value = '';
+      document.getElementById('linkAdvanceLotSearch').placeholder = 'ആദ്യം Godown select ചെയ്യുക';
       document.getElementById('linkAdvanceOverlay').style.display = 'flex';
 
       // List every godown that actually has stock for this product, in this sale's own
@@ -3176,7 +3186,7 @@
 
       if (godownList.length === 0) {
         godownSel.innerHTML = '<option value="">Stock ഉള്ള godowns ഒന്നും ഇല്ല</option>';
-        document.getElementById('linkAdvanceLot').innerHTML = '<option value="">-</option>';
+        document.getElementById('linkAdvanceLotSearch').placeholder = 'Stock ഉള്ള godowns ഇല്ല';
         return;
       }
 
@@ -3191,11 +3201,14 @@
   window.refreshLinkAdvanceLots = async function () {
     const d = linkAdvanceSaleData;
     const godown = document.getElementById('linkAdvanceGodown').value;
-    const lotSel = document.getElementById('linkAdvanceLot');
-    lotSel.innerHTML = '<option value="">Loading lots...</option>';
+    const searchInput = document.getElementById('linkAdvanceLotSearch');
+    const hiddenVal = document.getElementById('linkAdvanceLot');
+    searchInput.value = '';
+    hiddenVal.value = '';
     linkAdvanceAvailLots = [];
 
-    if (!godown) { lotSel.innerHTML = '<option value="">-- ആദ്യം Godown select ചെയ്യുക --</option>'; return; }
+    if (!godown) { searchInput.placeholder = 'ആദ്യം Godown select ചെയ്യുക'; return; }
+    searchInput.placeholder = '🔍 Vehicle number അല്ലെങ്കിൽ date search ചെയ്യുക...';
 
     const lotQ = query(collection(db, "purchases"), where("area", "==", d.area), where("product", "==", d.product), where("godown", "==", godown));
     const lotSnap = await getDocs(lotQ);
@@ -3207,12 +3220,30 @@
     });
     linkAdvanceAvailLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-    lotSel.innerHTML = '<option value="">-- Select Lot --</option>' +
-      linkAdvanceAvailLots.map(l => `<option value="${l.id}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`).join('');
-
-    if (linkAdvanceAvailLots.length === 0) {
-      lotSel.innerHTML = '<option value="">Matching lots ഒന്നും ഇല്ല</option>';
+    // If exactly one lot matches, pre-select it for convenience
+    if (linkAdvanceAvailLots.length === 1) {
+      selectLinkAdvanceLot(linkAdvanceAvailLots[0].id, linkAdvanceAvailLots[0]);
     }
+  };
+
+  window.renderLinkAdvanceLotOptions = function () {
+    const box = document.getElementById('linkAdvanceLotOptionsBox');
+    const term = document.getElementById('linkAdvanceLotSearch').value.trim().toLowerCase();
+    const matches = linkAdvanceAvailLots.filter(l =>
+      !term || (l.vehicle || '').toLowerCase().includes(term) || fmtDate(l.date).toLowerCase().includes(term)
+    );
+    let html = matches.map(l =>
+      `<div class="cust-opt cust-opt-own" onmousedown='selectLinkAdvanceLot("${l.id}", ${JSON.stringify(l).replace(/'/g, "&apos;")})'>${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</div>`
+    ).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Matching lots ഒന്നും ഇല്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectLinkAdvanceLot = function (id, lot) {
+    document.getElementById('linkAdvanceLot').value = id;
+    document.getElementById('linkAdvanceLotSearch').value = `${fmtDate(lot.date)} · Avail: ${lot.remainingQty}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}`;
+    document.getElementById('linkAdvanceLotOptionsBox').style.display = 'none';
   };
 
   window.closeLinkAdvance = function () {
@@ -3237,8 +3268,9 @@
     document.getElementById('tripLinkErrorMsg').style.display = 'none';
     document.getElementById('tripLinkQty').value = remaining;
 
-    const sel = document.getElementById('tripLinkSaleSelect');
-    sel.innerHTML = '<option value="">Loading...</option>';
+    document.getElementById('tripLinkSaleSelect').value = '';
+    document.getElementById('tripLinkSaleSearch').value = '';
+    document.getElementById('tripLinkSaleSearch').placeholder = 'Loading...';
     document.getElementById('tripLinkOverlay').style.display = 'flex';
 
     try {
@@ -3262,16 +3294,35 @@
       });
       tripLinkCandidateSales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-      sel.innerHTML = '<option value="">-- Select Advance Sale --</option>' +
-        tripLinkCandidateSales.map(s => `<option value="${s.id}">${fmtDate(s.date)} · ${s.customerName || '-'} · Remaining: ${s.remainingUnlinked}</option>`).join('');
+      document.getElementById('tripLinkSaleSearch').placeholder = '🔍 Customer name search ചെയ്യുക...';
 
       if (tripLinkCandidateSales.length === 0) {
-        sel.innerHTML = '<option value="">ഈ area/product-ന് matching advance sales ഇല്ല</option>';
+        document.getElementById('tripLinkSaleSearch').placeholder = 'ഈ area/product-ന് matching advance sales ഇല്ല';
       }
     } catch (err) {
       console.error(err);
-      sel.innerHTML = '<option value="">Load ചെയ്യാൻ പറ്റിയില്ല</option>';
+      document.getElementById('tripLinkSaleSearch').placeholder = 'Load ചെയ്യാൻ പറ്റിയില്ല';
     }
+  };
+
+  window.renderTripLinkSaleOptions = function () {
+    const box = document.getElementById('tripLinkSaleOptionsBox');
+    const term = document.getElementById('tripLinkSaleSearch').value.trim().toLowerCase();
+    const matches = tripLinkCandidateSales.filter(s =>
+      !term || (s.customerName || '').toLowerCase().includes(term)
+    );
+    let html = matches.map(s =>
+      `<div class="cust-opt cust-opt-own" onmousedown='selectTripLinkSale("${s.id}", ${JSON.stringify(s).replace(/'/g, "&apos;")})'>${fmtDate(s.date)} · ${s.customerName || '-'} · Remaining: ${s.remainingUnlinked}</div>`
+    ).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Matching sales ഒന്നും ഇല്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectTripLinkSale = function (id, sale) {
+    document.getElementById('tripLinkSaleSelect').value = id;
+    document.getElementById('tripLinkSaleSearch').value = `${fmtDate(sale.date)} · ${sale.customerName || '-'} · Remaining: ${sale.remainingUnlinked}`;
+    document.getElementById('tripLinkSaleOptionsBox').style.display = 'none';
   };
 
   window.closeTripLinkModal = function () {
@@ -7323,6 +7374,14 @@
     if (!e.target.closest('#adminCustSearchInput') && !e.target.closest('#adminCustSearchOptionsBox')) {
       const box = document.getElementById('adminCustSearchOptionsBox');
       if (box) box.style.display = 'none';
+    }
+    if (!e.target.closest('#linkAdvanceLotSearch') && !e.target.closest('#linkAdvanceLotOptionsBox')) {
+      const box2 = document.getElementById('linkAdvanceLotOptionsBox');
+      if (box2) box2.style.display = 'none';
+    }
+    if (!e.target.closest('#tripLinkSaleSearch') && !e.target.closest('#tripLinkSaleOptionsBox')) {
+      const box3 = document.getElementById('tripLinkSaleOptionsBox');
+      if (box3) box3.style.display = 'none';
     }
   });
 
