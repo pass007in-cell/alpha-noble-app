@@ -621,8 +621,12 @@
 
   <div id="tabReports">
 
-    <div id="repTopAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">🔗 Unlinked Sales (Link ചെയ്യാൻ ബാക്കി)</h3>
+    <details id="repTopAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (Link ചെയ്യാൻ ബാക്കി) — <span id="repAdvanceSaleCount">0</span></summary>
+      <label style="font-size:12px; margin-top:10px; display:block;">Month</label>
+      <select id="repAdvanceSaleMonth" onchange="renderHomeAdvanceSaleList()" style="margin-bottom:10px;">
+        <option value="">-- എല്ലാ Months ഉം --</option>
+      </select>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
@@ -630,7 +634,7 @@
         </table>
       </div>
       <p style="font-size:12px; color:#777; margin-top:8px;">Link ചെയ്യാൻ Sale tab-ൽ പോകുക.</p>
-    </div>
+    </details>
 
     <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
       <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">📦 Pending Lots</h3>
@@ -1367,6 +1371,7 @@
       <input type="file" id="customerCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleCustomerCsvUploadAdmin()">Upload Customers CSV</button>
       <div id="customerCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+      <div id="customerCsvFailedRows"></div>
     </div>
 
     <div class="add-user-form">
@@ -1378,6 +1383,7 @@
       <input type="file" id="salesCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleSalesCsvUpload()">Upload Sales CSV</button>
       <div id="salesCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+      <div id="salesCsvFailedRows"></div>
     </div>
 
     <div class="add-user-form">
@@ -1389,6 +1395,7 @@
       <input type="file" id="collectionCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handleCollectionCsvUpload()">Upload Collection CSV</button>
       <div id="collectionCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+      <div id="collectionCsvFailedRows"></div>
     </div>
 
     <div class="add-user-form">
@@ -1400,6 +1407,7 @@
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
       <div id="purchaseCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+      <div id="purchaseCsvFailedRows"></div>
     </div>
 
   </div>
@@ -1455,6 +1463,32 @@
         <tbody id="apprPurchaseBody"><tr><td colspan="6">Loading...</td></tr></tbody>
       </table>
     </div>
+
+    <h3 style="color:#1565c0; margin-bottom:8px;">📝 Edited Approvals</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Approve ചെയ്ത ശേഷം users പിന്നീട് edit ചെയ്ത records — status "Approved" ആയി തന്നെ നിൽക്കും, പക്ഷെ എന്താണ് മാറ്റം വന്നത് എന്ന് ഇവിടെ track ചെയ്യാം. "Acknowledge" ചെയ്താൽ ഈ list-ൽ നിന്ന് നീങ്ങും.
+    </p>
+    <h4 style="color:#1e3c72; margin-bottom:6px; font-size:14px;">Sales</h4>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Edited By</th><th>Edited At</th><th></th></tr></thead>
+        <tbody id="editedApprSalesBody"><tr><td colspan="9">Loading...</td></tr></tbody>
+      </table>
+    </div>
+    <h4 style="color:#1e3c72; margin-bottom:6px; font-size:14px;">Collections</h4>
+    <div class="table-wrap" style="margin-bottom:16px;">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Edited By</th><th>Edited At</th><th></th></tr></thead>
+        <tbody id="editedApprCollBody"><tr><td colspan="8">Loading...</td></tr></tbody>
+      </table>
+    </div>
+    <h4 style="color:#1e3c72; margin-bottom:6px; font-size:14px;">Purchases</h4>
+    <div class="table-wrap" style="margin-bottom:24px;">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Qty</th><th>Edited By</th><th>Edited At</th><th></th></tr></thead>
+        <tbody id="editedApprPurchaseBody"><tr><td colspan="8">Loading...</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <div id="tabAdminOldadvance" style="display:none;">
@@ -1462,6 +1496,17 @@
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       Sept 1 മുതൽ ഇത് users-ന്റെ own panel-ൽ കാണും. ഇത് വരെയുള്ള (go-live-ന് മുന്നേയുള്ള) advance sales ഇവിടെ Admin മാത്രം link ചെയ്ത് clear ചെയ്യുക.
     </p>
+    <div class="form-grid" style="margin-bottom:10px;">
+      <div>
+        <label style="font-size:12px;">From Date (optional)</label>
+        <input type="date" id="oldAdvFilterFrom" onchange="loadAdminOldAdvanceSales()">
+      </div>
+      <div>
+        <label style="font-size:12px;">To Date (optional)</label>
+        <input type="date" id="oldAdvFilterTo" onchange="loadAdminOldAdvanceSales()">
+      </div>
+    </div>
+    <input type="text" id="oldAdvFilterCustomer" placeholder="🔍 Customer പേര് വച്ച് search ചെയ്യുക..." style="margin-bottom:14px;" oninput="loadAdminOldAdvanceSales()">
     <div class="table-wrap">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
@@ -1472,15 +1517,19 @@
 
   <div id="tabAdminReports">
 
-    <div id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">🔗 Unlinked Sales (All Areas)</h3>
+    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (All Areas) — <span id="adminHomeAdvanceSaleCount">0</span></summary>
+      <label style="font-size:12px; margin-top:10px; display:block;">Month</label>
+      <select id="adminHomeAdvanceSaleMonth" onchange="renderAdminHomeAdvanceSaleList()" style="margin-bottom:10px;">
+        <option value="">-- എല്ലാ Months ഉം --</option>
+      </select>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
           <tbody id="adminHomeAdvanceSaleBody"><tr><td colspan="6">—</td></tr></tbody>
         </table>
       </div>
-    </div>
+    </details>
 
     <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
       <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">📦 Pending Lots (All Areas)</h3>
@@ -1832,8 +1881,11 @@
   const ADVANCE_SALE_USER_CUTOFF = '2026-08-31';
   let editingSaleId = null;
   let editingSaleOldLots = [];
+  let editingSaleOldStatus = 'pending';
   let editingCollId = null;
+  let editingCollOldStatus = 'pending';
   let editingPurchaseId = null;
+  let editingPurchaseOldStatus = 'pending';
   let editingPurchaseOldQty = 0;
 
   async function showDashboard(userData) {
@@ -1874,7 +1926,7 @@
       onAdminPurchaseAreaChange();
       loadAdminPurchasesToday();
     }
-    else if (tab === 'approvals') loadApprovals();
+    else if (tab === 'approvals') { loadApprovals(); loadEditedApprovals(); }
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
     else if (tab === 'settings') switchAdminSettingsSubTab('users');
     else if (tab === 'report') {
@@ -2340,6 +2392,47 @@
   function normalizeName(str) {
     return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
+
+  // Renders a detailed "which rows failed and why" report under a CSV upload's status
+  // message, plus a button to download just the failed rows (with reasons) as a CSV
+  // for easy correction and re-upload.
+  function renderFailedRowsReport(containerId, failedRows) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    if (failedRows.length === 0) { container.innerHTML = ''; return; }
+
+    const rows = failedRows.map(f =>
+      `<tr><td>${f.row}</td><td>${escapeHtml(f.raw)}</td><td style="color:#d32f2f;">${escapeHtml(f.reason)}</td></tr>`
+    ).join('');
+
+    container.innerHTML = `
+      <div style="margin-top:12px; background:#fff3e0; border-radius:8px; padding:10px;">
+        <p style="font-size:13px; color:#e65100; font-weight:600; margin-bottom:8px;">⚠️ ${failedRows.length} row(s) fail ആയി — ഇവ ശരിയാക്കി വീണ്ടും upload ചെയ്യുക:</p>
+        <div class="table-wrap" style="margin-bottom:10px;">
+          <table>
+            <thead><tr><th>Row #</th><th>Data</th><th>കാരണം</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+        <button class="full-btn" style="background:#e65100;" onclick='downloadFailedRows(${JSON.stringify(failedRows).replace(/'/g, "&apos;")})'>⬇️ Failed Rows Download ചെയ്യുക (CSV)</button>
+      </div>`;
+  }
+
+  window.downloadFailedRows = function (failedRows) {
+    let csv = 'Row,Data,Reason\n';
+    failedRows.forEach(f => {
+      csv += `${f.row},"${(f.raw || '').replace(/"/g, '""')}","${(f.reason || '').replace(/"/g, '""')}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `failed-rows-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
 
   // If a vehicle number typed during Sale/Purchase entry isn't already in the Vehicles
   // master list, register it automatically so it appears in future searches.
@@ -2819,7 +2912,15 @@
             remainingQty: increment(oldAlloc.qty)
           });
         }
-        saleData.status = 'pending'; // re-submit for approval after edit
+        if (editingSaleOldStatus === 'approved') {
+          // Already approved — keep it approved, but flag for Admin's "Edited Approvals" review
+          saleData.status = 'approved';
+          saleData.editedAfterApproval = true;
+          saleData.lastEditedBy = currentUserData.username || 'unknown';
+          saleData.lastEditedAt = new Date().toISOString();
+        } else {
+          saleData.status = 'pending'; // still pending — normal re-submit flow
+        }
         saleData.updatedAt = new Date().toISOString();
         await updateDoc(doc(db, "sales", editingSaleId), saleData);
       } else {
@@ -2887,10 +2988,10 @@
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = isPending && d.enteredBy === currentUserData.username;
+        const canEdit = d.enteredBy === currentUserData.username;
         const actions = canEdit
           ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editSaleRow('${id}')">Edit</button>
-             <button class="del-btn" onclick="deleteSaleRow('${id}')">Delete</button>`
+             ${isPending ? `<button class="del-btn" onclick="deleteSaleRow('${id}')">Delete</button>` : ''}`
           : '';
         rows += `<tr>
           <td>${d.customerName || '-'}</td>
@@ -2938,6 +3039,7 @@
 
       editingSaleId = id;
       editingSaleOldLots = d.lots || [];
+      editingSaleOldStatus = d.status || 'pending';
 
       if (!d.isAdvance) {
         await refreshAvailableLots();
@@ -3840,11 +3942,20 @@
 
       if (editingPurchaseId) {
         const qtyDelta = qty - editingPurchaseOldQty;
-        await updateDoc(doc(db, "purchases", editingPurchaseId), {
+        const updateData = {
           product: product, godown: godown, vehicle: vehicle,
           qty: qty, remainingQty: increment(qtyDelta), date: date,
-          status: 'pending', updatedAt: new Date().toISOString()
-        });
+          updatedAt: new Date().toISOString()
+        };
+        if (editingPurchaseOldStatus === 'approved') {
+          updateData.status = 'approved';
+          updateData.editedAfterApproval = true;
+          updateData.lastEditedBy = currentUserData.username || 'unknown';
+          updateData.lastEditedAt = new Date().toISOString();
+        } else {
+          updateData.status = 'pending';
+        }
+        await updateDoc(doc(db, "purchases", editingPurchaseId), updateData);
         okEl.textContent = `Purchase updated: ${product} — Qty: ${qty}`;
       } else {
         await addDoc(collection(db, "purchases"), {
@@ -3898,10 +4009,10 @@
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = isPending && d.enteredBy === currentUserData.username;
+        const canEdit = d.enteredBy === currentUserData.username;
         const actions = canEdit
           ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editPurchaseRow('${id}')">Edit</button>
-             <button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>`
+             ${isPending ? `<button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>` : ''}`
           : '';
         rows += `<tr><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
@@ -3931,6 +4042,7 @@
 
       editingPurchaseId = id;
       editingPurchaseOldQty = d.qty || 0;
+      editingPurchaseOldStatus = d.status || 'pending';
       document.getElementById('addPurchaseBtn').textContent = "Update Purchase";
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -4382,11 +4494,20 @@
 
     try {
       if (editingCollId) {
-        await updateDoc(doc(db, "collections", editingCollId), {
+        const updateData = {
           customerId: custId, customerName: cust ? cust.name : '-',
           amount: amount, mode: mode, account: account, notes: notes, date: date,
-          status: 'pending', updatedAt: new Date().toISOString()
-        });
+          updatedAt: new Date().toISOString()
+        };
+        if (editingCollOldStatus === 'approved') {
+          updateData.status = 'approved';
+          updateData.editedAfterApproval = true;
+          updateData.lastEditedBy = currentUserData.username || 'unknown';
+          updateData.lastEditedAt = new Date().toISOString();
+        } else {
+          updateData.status = 'pending';
+        }
+        await updateDoc(doc(db, "collections", editingCollId), updateData);
         okEl.textContent = `Collection updated: ${cust ? cust.name : ''} — ₹${amount}`;
       } else {
         await addDoc(collection(db, "collections"), {
@@ -4444,10 +4565,10 @@
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = isPending && d.enteredBy === currentUserData.username;
+        const canEdit = d.enteredBy === currentUserData.username;
         const actions = canEdit
           ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editCollRow('${id}')">Edit</button>
-             <button class="del-btn" onclick="deleteCollRow('${id}')">Delete</button>`
+             ${isPending ? `<button class="del-btn" onclick="deleteCollRow('${id}')">Delete</button>` : ''}`
           : '';
         rows += `<tr><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
@@ -4479,6 +4600,7 @@
       document.getElementById('collNotes').value = d.notes || '';
 
       editingCollId = id;
+      editingCollOldStatus = d.status || 'pending';
       document.getElementById('addCollBtn').textContent = "Update Collection";
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -4590,8 +4712,27 @@
 
   // ---- REPORTS ----
   // ---- REPORTS: Top-of-page quick summary (Pending Advance Sales + Current Stock) ----
+  let homeAdvanceSaleCache = [];
+
+  window.renderHomeAdvanceSaleList = function () {
+    const monthFilter = document.getElementById('repAdvanceSaleMonth').value;
+    const filtered = monthFilter
+      ? homeAdvanceSaleCache.filter(d => (d.date || '').slice(0, 7) === monthFilter)
+      : homeAdvanceSaleCache;
+
+    const rows = filtered.map(d =>
+      `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td></tr>`
+    ).join('');
+
+    document.getElementById('repAdvanceSaleCount').textContent = homeAdvanceSaleCache.length;
+    document.getElementById('repAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="5">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
+
+    const alertBox = document.getElementById('repTopAlertBox');
+    alertBox.style.display = homeAdvanceSaleCache.length > 0 ? 'block' : 'none';
+  };
+
   async function loadTopReportSummary() {
-    // Pending Advance Sales
+    // Pending Advance Sales — cached, then rendered via renderHomeAdvanceSaleList() with month filter
     try {
       const q = query(
         collection(db, "sales"),
@@ -4599,22 +4740,26 @@
         where("isAdvance", "==", true)
       );
       const snap = await getDocs(q);
-      let rows = '';
+      homeAdvanceSaleCache = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old ones — Admin handles these
-        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${remaining}</td></tr>`;
+        homeAdvanceSaleCache.push({ ...d, remaining });
       });
-      const alertBox = document.getElementById('repTopAlertBox');
-      if (rows) {
-        document.getElementById('repAdvanceSaleBody').innerHTML = rows;
-        alertBox.style.display = 'block';
-      } else {
-        alertBox.style.display = 'none';
-      }
+      homeAdvanceSaleCache.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      // Populate month dropdown from distinct YYYY-MM present in the data
+      const months = Array.from(new Set(homeAdvanceSaleCache.map(d => (d.date || '').slice(0, 7)))).sort();
+      const monthSel = document.getElementById('repAdvanceSaleMonth');
+      const currentSel = monthSel.value;
+      monthSel.innerHTML = '<option value="">-- എല്ലാ Months ഉം --</option>' +
+        months.map(m => `<option value="${m}">${m}</option>`).join('');
+      if (months.includes(currentSel)) monthSel.value = currentSel;
+
+      renderHomeAdvanceSaleList();
     } catch (err) {
       console.error(err);
     }
@@ -4710,11 +4855,12 @@
       const statusBadge = (d) => (d.status || 'pending') === 'pending'
         ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
       const actionButtons = (d, editFn, delFn) => {
-        const canEdit = (d.status || 'pending') === 'pending' && d.enteredBy === currentUserData.username;
-        return canEdit
-          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="${editFn}('${d.id}')">Edit</button>
-             <button class="del-btn" onclick="${delFn}('${d.id}')">Delete</button>`
-          : '';
+        const isOwn = d.enteredBy === currentUserData.username;
+        const isPending = (d.status || 'pending') === 'pending';
+        if (!isOwn) return '';
+        let html = `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="${editFn}('${d.id}')">Edit</button>`;
+        if (isPending) html += `<button class="del-btn" onclick="${delFn}('${d.id}')">Delete</button>`;
+        return html;
       };
 
       const salesRows = sales.map(d => `<tr><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || 0}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editSaleRow', 'deleteSaleRow')}</td></tr>`).join('');
@@ -5318,29 +5464,48 @@
   };
 
   // ---- ADMIN HOME: All-areas Unlinked Sales / Pending Lots / Stock Details ----
+  let adminHomeAdvanceSaleCache = [];
+
+  window.renderAdminHomeAdvanceSaleList = function () {
+    const monthFilter = document.getElementById('adminHomeAdvanceSaleMonth').value;
+    const filtered = monthFilter
+      ? adminHomeAdvanceSaleCache.filter(d => (d.date || '').slice(0, 7) === monthFilter)
+      : adminHomeAdvanceSaleCache;
+
+    const rows = filtered.map(d =>
+      `<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td></tr>`
+    ).join('');
+
+    document.getElementById('adminHomeAdvanceSaleCount').textContent = adminHomeAdvanceSaleCache.length;
+    document.getElementById('adminHomeAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="6">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
+
+    const alertBox = document.getElementById('adminHomeAlertBox');
+    alertBox.style.display = adminHomeAdvanceSaleCache.length > 0 ? 'block' : 'none';
+  };
+
   async function loadAdminHomeSummary() {
-    // Unlinked Sales (all areas)
+    // Unlinked Sales (all areas) — cached, then rendered via renderAdminHomeAdvanceSaleList()
     try {
       const q = query(collection(db, "sales"), where("isAdvance", "==", true));
       const snap = await getDocs(q);
-      let items = [];
-      snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
-      items.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-      let rows = '';
-      items.forEach(d => {
+      adminHomeAdvanceSaleCache = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
-        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${remaining}</td></tr>`;
+        adminHomeAdvanceSaleCache.push({ ...d, remaining });
       });
-      const alertBox = document.getElementById('adminHomeAlertBox');
-      if (rows) {
-        document.getElementById('adminHomeAdvanceSaleBody').innerHTML = rows;
-        alertBox.style.display = 'block';
-      } else {
-        alertBox.style.display = 'none';
-      }
+      adminHomeAdvanceSaleCache.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      const months = Array.from(new Set(adminHomeAdvanceSaleCache.map(d => (d.date || '').slice(0, 7)))).sort();
+      const monthSel = document.getElementById('adminHomeAdvanceSaleMonth');
+      const currentSel = monthSel.value;
+      monthSel.innerHTML = '<option value="">-- എല്ലാ Months ഉം --</option>' +
+        months.map(m => `<option value="${m}">${m}</option>`).join('');
+      if (months.includes(currentSel)) monthSel.value = currentSel;
+
+      renderAdminHomeAdvanceSaleList();
     } catch (err) { console.error(err); }
 
     // Pending Lots (all areas) — Area+Product+Godown+Vehicle, remainingQty > 0
@@ -5924,6 +6089,7 @@
 
       let successCount = 0;
       let failCount = 0;
+      let failedRows = [];
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
@@ -5934,7 +6100,7 @@
         const isPrivateRaw = (cols[4] || '').trim().toLowerCase();
         const isPrivate = (isPrivateRaw === 'y' || isPrivateRaw === 'yes' || isPrivateRaw === 'true');
 
-        if (!name) { failCount++; continue; }
+        if (!name) { failCount++; failedRows.push({ row: i + 1, raw: lines[i], reason: 'Name column blank ആണ്' }); continue; }
         if (isPrivate && !name.toUpperCase().startsWith('PVT-')) name = 'PVT-' + name;
 
         try {
@@ -5951,6 +6117,7 @@
           successCount++;
         } catch (e) {
           failCount++;
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
 
         statusEl.textContent = `Uploading ${i + 1} / ${lines.length}...`;
@@ -5958,6 +6125,7 @@
 
       statusEl.style.color = '#2e7d32';
       statusEl.textContent = `Done! ${successCount} customers added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      renderFailedRowsReport('customerCsvFailedRows', failedRows);
       fileInput.value = '';
 
     } catch (err) {
@@ -5996,6 +6164,7 @@
       });
 
       let successCount = 0, failCount = 0;
+      let failedRows = [];
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
@@ -6015,7 +6184,16 @@
         const statusRaw = (cols[11] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
-        if (!date || !area || !customerName || qty <= 0) { failCount++; continue; }
+        if (!date || !area || !customerName || qty <= 0) {
+          failCount++;
+          const missing = [];
+          if (!date) missing.push('Date');
+          if (!area) missing.push('Area');
+          if (!customerName) missing.push('Customer');
+          if (qty <= 0) missing.push('Qty (0-ൽ കൂടുതൽ വേണം)');
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
+          continue;
+        }
 
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
@@ -6072,11 +6250,13 @@
           successCount++;
         } catch (e) {
           failCount++;
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
       }
 
       statusEl.style.color = '#2e7d32';
       statusEl.textContent = `Done! ${successCount} sales added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      renderFailedRowsReport('salesCsvFailedRows', failedRows);
       fileInput.value = '';
 
     } catch (err) {
@@ -6114,6 +6294,7 @@
       });
 
       let successCount = 0, failCount = 0;
+      let failedRows = [];
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
@@ -6126,7 +6307,16 @@
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
         const account = (cols[6] || '').trim();
 
-        if (!date || !area || !customerName || amount <= 0) { failCount++; continue; }
+        if (!date || !area || !customerName || amount <= 0) {
+          failCount++;
+          const missing = [];
+          if (!date) missing.push('Date');
+          if (!area) missing.push('Area');
+          if (!customerName) missing.push('Customer');
+          if (amount <= 0) missing.push('Amount (0-ൽ കൂടുതൽ വേണം)');
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
+          continue;
+        }
 
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
@@ -6152,11 +6342,13 @@
           successCount++;
         } catch (e) {
           failCount++;
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
       }
 
       statusEl.style.color = '#2e7d32';
       statusEl.textContent = `Done! ${successCount} collections added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      renderFailedRowsReport('collectionCsvFailedRows', failedRows);
       fileInput.value = '';
 
     } catch (err) {
@@ -6197,6 +6389,7 @@
       }
 
       let successCount = 0, failCount = 0;
+      let failedRows = [];
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
@@ -6209,7 +6402,16 @@
         const statusRaw = (cols[6] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
 
-        if (!date || !area || !product || qty <= 0) { failCount++; continue; }
+        if (!date || !area || !product || qty <= 0) {
+          failCount++;
+          const missing = [];
+          if (!date) missing.push('Date');
+          if (!area) missing.push('Area');
+          if (!product) missing.push('Product');
+          if (qty <= 0) missing.push('Qty (0-ൽ കൂടുതൽ വേണം)');
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
+          continue;
+        }
 
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
@@ -6222,11 +6424,13 @@
           successCount++;
         } catch (e) {
           failCount++;
+          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
       }
 
       statusEl.style.color = '#2e7d32';
       statusEl.textContent = `Done! ${successCount} purchases added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      renderFailedRowsReport('purchaseCsvFailedRows', failedRows);
       fileInput.value = '';
 
     } catch (err) {
@@ -6434,6 +6638,63 @@
     }
   }
 
+  async function loadEditedApprovals() {
+    const salesBody = document.getElementById('editedApprSalesBody');
+    const collBody = document.getElementById('editedApprCollBody');
+    const purchBody = document.getElementById('editedApprPurchaseBody');
+    salesBody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
+    collBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    purchBody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+
+    try {
+      const [salesSnap, collSnap, purchSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("editedAfterApproval", "==", true))),
+        getDocs(query(collection(db, "collections"), where("editedAfterApproval", "==", true))),
+        getDocs(query(collection(db, "purchases"), where("editedAfterApproval", "==", true)))
+      ]);
+
+      const byDate = (a, b) => (a.date || '').localeCompare(b.date || '');
+
+      let sales = []; salesSnap.forEach(d => sales.push({ id: d.id, ...d.data() })); sales.sort(byDate);
+      let colls = []; collSnap.forEach(d => colls.push({ id: d.id, ...d.data() })); colls.sort(byDate);
+      let purchases = []; purchSnap.forEach(d => purchases.push({ id: d.id, ...d.data() })); purchases.sort(byDate);
+
+      salesBody.innerHTML = sales.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
+        <td>${d.qty || '-'}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
+        <td>${d.lastEditedBy || '-'}</td><td>${d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-'}</td>
+        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('sales','${d.id}')">Acknowledge</button></td>
+      </tr>`).join('') || '<tr><td colspan="9">Edited approvals ഒന്നും ഇല്ല.</td></tr>';
+
+      collBody.innerHTML = colls.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
+        <td>${d.lastEditedBy || '-'}</td><td>${d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-'}</td>
+        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('collections','${d.id}')">Acknowledge</button></td>
+      </tr>`).join('') || '<tr><td colspan="8">Edited approvals ഒന്നും ഇല്ല.</td></tr>';
+
+      purchBody.innerHTML = purchases.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.qty || '-'}</td>
+        <td>${d.lastEditedBy || '-'}</td><td>${d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-'}</td>
+        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('purchases','${d.id}')">Acknowledge</button></td>
+      </tr>`).join('') || '<tr><td colspan="8">Edited approvals ഒന്നും ഇല്ല.</td></tr>';
+
+    } catch (err) {
+      console.error(err);
+      salesBody.innerHTML = '<tr><td colspan="9">Error loading.</td></tr>';
+    }
+  }
+
+  window.acknowledgeEdit = async function (colName, id) {
+    try {
+      await updateDoc(doc(db, colName, id), { editedAfterApproval: false });
+      loadEditedApprovals();
+    } catch (err) {
+      console.error(err);
+      alert("Acknowledge ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
   window.exportApprovalsExcel = async function () {
     if (!lastApprovalsData) { alert("ആദ്യം page load ആകട്ടെ."); return; }
     try {
@@ -6477,8 +6738,15 @@
       });
 
       let rows = '';
+      const fromFilter = document.getElementById('oldAdvFilterFrom').value;
+      const toFilter = document.getElementById('oldAdvFilterTo').value;
+      const custFilter = document.getElementById('oldAdvFilterCustomer').value.trim().toLowerCase();
+
       items.forEach(d => {
         if ((d.date || '') > ADVANCE_SALE_USER_CUTOFF) return; // new ones — users handle these themselves
+        if (fromFilter && (d.date || '') < fromFilter) return;
+        if (toFilter && (d.date || '') > toFilter) return;
+        if (custFilter && !(d.customerName || '').toLowerCase().includes(custFilter)) return;
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
