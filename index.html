@@ -799,6 +799,11 @@
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report (own area മാത്രം).
     </p>
+    <label style="font-size:12px;">Sort by</label>
+    <select id="userTripSortBy" onchange="onUserTripSortChange()" style="margin-bottom:14px;">
+      <option value="date">Date</option>
+      <option value="vehicle">Vehicle Number</option>
+    </select>
     <div style="display:flex; gap:10px; margin-bottom:14px;">
       <button style="flex:1; background:#2e7d32;" onclick="exportUserTripSheetExcel()">⬇️ Excel (.xlsx)</button>
       <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
@@ -1711,6 +1716,11 @@
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report.
       </p>
+      <label style="font-size:12px;">Sort by</label>
+      <select id="adminTripSortBy" onchange="onAdminTripSortChange()" style="margin-bottom:14px;">
+        <option value="date">Date</option>
+        <option value="vehicle">Vehicle Number</option>
+      </select>
       <div style="display:flex; gap:10px; margin-bottom:14px;">
         <button style="flex:1; background:#2e7d32;" onclick="exportTripSheetExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
@@ -4959,6 +4969,10 @@
 
   let lastUserTripSheetData = null;
 
+  window.onUserTripSortChange = function () {
+    if (lastUserTripSheetData) renderUserTripSheet(lastUserTripSheetData.lots, lastUserTripSheetData.salesByLot);
+  };
+
   window.generateUserTripSheet = async function () {
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
@@ -5014,6 +5028,15 @@
       container.innerHTML = '<p style="color:#999; font-size:13px;">ഈ range-ൽ purchase lots ഒന്നും ഇല്ല.</p>';
       return;
     }
+
+    const sortBy = document.getElementById('userTripSortBy').value;
+    lots = [...lots].sort((a, b) => {
+      if (sortBy === 'vehicle') {
+        const vCmp = (a.vehicle || '').localeCompare(b.vehicle || '');
+        return vCmp !== 0 ? vCmp : (a.date || '').localeCompare(b.date || '');
+      }
+      return (a.date || '').localeCompare(b.date || '');
+    });
 
     let html = '';
     lots.forEach(lot => {
@@ -5330,6 +5353,10 @@
   // ---- ADMIN: TRIP SHEET (Purchase Lot + linked Sales) ----
   let lastTripSheetData = null;
 
+  window.onAdminTripSortChange = function () {
+    if (lastTripSheetData) renderTripSheet(lastTripSheetData.lots, lastTripSheetData.salesByLot);
+  };
+
   window.generateTripSheet = async function () {
     const from = document.getElementById('adminReportFrom').value;
     const to = document.getElementById('adminReportTo').value;
@@ -5392,6 +5419,17 @@
       container.innerHTML = '<p style="color:#999; font-size:13px;">ഈ range-ൽ purchase lots ഒന്നും ഇല്ല.</p>';
       return;
     }
+
+    const sortBy = document.getElementById('adminTripSortBy').value;
+    lots = [...lots].sort((a, b) => {
+      if (sortBy === 'vehicle') {
+        const vCmp = (a.vehicle || '').localeCompare(b.vehicle || '');
+        return vCmp !== 0 ? vCmp : (a.date || '').localeCompare(b.date || '');
+      }
+      const dateCmp = (a.date || '').localeCompare(b.date || '');
+      if (dateCmp !== 0) return dateCmp;
+      return (a.area || '').localeCompare(b.area || '');
+    });
 
     let html = '';
     lots.forEach(lot => {
