@@ -186,13 +186,113 @@
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabReportsBtn" onclick="switchTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">🏠 Home</button>
-    <button id="tabPurchaseBtn" onclick="switchTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Purchase</button>
-    <button id="tabSaleBtn" onclick="switchTab('sale')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Sale</button>
-    <button id="tabCollectionBtn" onclick="switchTab('collection')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Collection</button>
-    <button id="tabCustomersBtn" onclick="switchTab('customers')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Customers</button>
-    <button id="tabVehicleBtn" onclick="switchTab('vehicle')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">Vehicle</button>
+    <button id="tabEntryBtn" onclick="switchTab('entry')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📝 Entry</button>
+    <button id="tabLinkingBtn" onclick="switchTab('linking')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Linking &amp; Stock</button>
     <button id="tabReportBtn" onclick="switchTab('report')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📈 Report</button>
   </div>
+
+  <div id="tabLinking" style="display:none;">
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
+      <button id="linkingSubTabUnlinkedBtn" onclick="switchLinkingSubTab('unlinked')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">🔗 Unlinked Sales</button>
+      <button id="linkingSubTabLotsBtn" onclick="switchLinkingSubTab('lots')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">📦 Pending Lots</button>
+      <button id="linkingSubTabTransferBtn" onclick="switchLinkingSubTab('transfer')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Stock Transfer</button>
+    </div>
+
+    <div id="linkingSubUnlinked">
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">Purchase ചെയ്യുന്നതിന് മുന്നേ ചെയ്ത Sales — stock വന്നതിന് ശേഷം ഇവിടെ നിന്ന് manual ആയി matching Purchase Lot-ലേക്ക് link ചെയ്യാം.</p>
+      <input type="text" id="unlinkedSalesSearch" placeholder="🔍 Customer / Product / Godown / Vehicle search ചെയ്യുക..." oninput="filterUnlinkedSalesList()" style="margin-bottom:14px;">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Total Qty</th><th>Linked</th><th>Remaining</th><th></th></tr>
+          </thead>
+          <tbody id="advanceSaleTableBody">
+            <tr><td colspan="9">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="linkingSubLots" style="display:none;">
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">Row click ചെയ്താൽ, ആ lot-ന്റെ details ഉം, അതിൽ നിന്ന് Sale link ചെയ്യാനുള്ള option ഉം കാണിക്കും.</p>
+      <input type="text" id="pendingLotsSearch" placeholder="🔍 Product / Godown / Vehicle search ചെയ്യുക..." oninput="filterPendingLotsList()" style="margin-bottom:14px;">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+          <tbody id="homeLotBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="linkingSubTransfer" style="display:none;">
+      <div class="add-user-form" style="background:#e3f2fd;">
+        <h3 style="color:#1565c0;">🔄 Stock Transfer</h3>
+        <p style="font-size:12px; color:#555; margin-bottom:12px;">
+          ഒരു Purchase Lot-ൽ നിന്ന് സ്റ്റോക്ക് വേറെ Godown-ലേക്ക് (ഉദാ: "PKD-OWN" — ഇത് Admin Panel-ൽ Godown ആയി create ചെയ്യണം) അല്ലെങ്കിൽ വേറെ Vehicle-ലേക്ക് transfer ചെയ്യാം.
+        </p>
+        <div class="error-msg" id="transferErrorMsg"></div>
+        <div class="success-msg" id="transferSuccessMsg"></div>
+
+        <div class="form-grid">
+          <div>
+            <label>Product</label>
+            <select id="transferProduct" onchange="refreshTransferLots()">
+              <option value="">-- Select Product --</option>
+            </select>
+          </div>
+          <div>
+            <label>From Godown</label>
+            <select id="transferFromGodown" onchange="refreshTransferLots()">
+              <option value="">-- Select Godown --</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Source Lot</label>
+        <select id="transferLot" style="margin-bottom:16px;">
+          <option value="">-- Product, Godown select ചെയ്യുക --</option>
+        </select>
+
+        <div class="form-grid">
+          <div>
+            <label>Transfer Qty</label>
+            <input type="number" id="transferQty" placeholder="0" value="0" onfocus="this.select()">
+          </div>
+          <div>
+            <label>Destination Type</label>
+            <select id="transferDestType" onchange="toggleTransferDestType()">
+              <option value="godown">Godown</option>
+              <option value="vehicle">Vehicle</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="transferToGodownWrap">
+          <label>To Godown</label>
+          <select id="transferToGodown" style="margin-bottom:16px;">
+            <option value="">-- Select Godown --</option>
+          </select>
+        </div>
+        <div id="transferToVehicleWrap" style="display:none;">
+          <label>To Vehicle</label>
+          <select id="transferToVehicle" style="margin-bottom:16px;">
+            <option value="">-- Select Vehicle --</option>
+          </select>
+        </div>
+
+        <button class="full-btn" style="background:#1565c0;" onclick="handleStockTransfer()">Transfer Stock</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabEntry" style="display:none;">
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
+      <button id="entrySubTabSaleBtn" onclick="switchEntrySubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
+      <button id="entrySubTabPurchaseBtn" onclick="switchEntrySubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
+      <button id="entrySubTabCollectionBtn" onclick="switchEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
+      <button id="entrySubTabCustomersBtn" onclick="switchEntrySubTab('customers')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Customers</button>
+      <button id="entrySubTabVehicleBtn" onclick="switchEntrySubTab('vehicle')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Vehicle</button>
+    </div>
 
   <div id="tabCustomers" style="display:none;">
   <div class="add-user-form">
@@ -393,21 +493,6 @@
         </tbody>
       </table>
     </div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">🔗 Advance Sales (Stock വന്നാൽ link ചെയ്യുക)</h3>
-    <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Purchase ചെയ്യുന്നതിന് മുന്നേ ചെയ്ത Sales — stock വന്നതിന് ശേഷം ഇവിടെ നിന്ന് manual ആയി matching Purchase Lot-ലേക്ക് link ചെയ്യാം.
-    </p>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Total Qty</th><th>Linked</th><th>Remaining</th><th></th></tr>
-        </thead>
-        <tbody id="advanceSaleTableBody">
-          <tr><td colspan="9">Loading...</td></tr>
-        </tbody>
-      </table>
-    </div>
   </div>
 
   <div id="tabCollection" style="display:none;">
@@ -533,64 +618,6 @@
         <tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
       </table>
     </div>
-
-    <div class="add-user-form" style="background:#e3f2fd;">
-      <h3 style="color:#1565c0;">🔄 Stock Transfer</h3>
-      <p style="font-size:12px; color:#555; margin-bottom:12px;">
-        ഒരു Purchase Lot-ൽ നിന്ന് സ്റ്റോക്ക് വേറെ Godown-ലേക്ക് (ഉദാ: "PKD-OWN" — ഇത് Admin Panel-ൽ Godown ആയി create ചെയ്യണം) അല്ലെങ്കിൽ വേറെ Vehicle-ലേക്ക് transfer ചെയ്യാം.
-      </p>
-      <div class="error-msg" id="transferErrorMsg"></div>
-      <div class="success-msg" id="transferSuccessMsg"></div>
-
-      <div class="form-grid">
-        <div>
-          <label>Product</label>
-          <select id="transferProduct" onchange="refreshTransferLots()">
-            <option value="">-- Select Product --</option>
-          </select>
-        </div>
-        <div>
-          <label>From Godown</label>
-          <select id="transferFromGodown" onchange="refreshTransferLots()">
-            <option value="">-- Select Godown --</option>
-          </select>
-        </div>
-      </div>
-
-      <label>Source Lot</label>
-      <select id="transferLot" style="margin-bottom:16px;">
-        <option value="">-- Product, Godown select ചെയ്യുക --</option>
-      </select>
-
-      <div class="form-grid">
-        <div>
-          <label>Transfer Qty</label>
-          <input type="number" id="transferQty" placeholder="0" value="0" onfocus="this.select()">
-        </div>
-        <div>
-          <label>Destination Type</label>
-          <select id="transferDestType" onchange="toggleTransferDestType()">
-            <option value="godown">Godown</option>
-            <option value="vehicle">Vehicle</option>
-          </select>
-        </div>
-      </div>
-
-      <div id="transferToGodownWrap">
-        <label>To Godown</label>
-        <select id="transferToGodown" style="margin-bottom:16px;">
-          <option value="">-- Select Godown --</option>
-        </select>
-      </div>
-      <div id="transferToVehicleWrap" style="display:none;">
-        <label>To Vehicle</label>
-        <select id="transferToVehicle" style="margin-bottom:16px;">
-          <option value="">-- Select Vehicle --</option>
-        </select>
-      </div>
-
-      <button class="full-btn" style="background:#1565c0;" onclick="handleStockTransfer()">Transfer Stock</button>
-    </div>
   </div>
 
   <div id="tabVehicle" style="display:none;">
@@ -618,32 +645,22 @@
       </table>
     </div>
   </div>
+  </div>
 
   <div id="tabReports">
 
-    <details id="repTopAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (Link ചെയ്യാൻ ബാക്കി) — <span id="repAdvanceSaleCount">0</span></summary>
-      <label style="font-size:12px; margin-top:10px; display:block;">Month</label>
-      <select id="repAdvanceSaleMonth" onchange="renderHomeAdvanceSaleList()" style="margin-bottom:10px;">
-        <option value="">-- എല്ലാ Months ഉം --</option>
-      </select>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th><th></th></tr></thead>
-          <tbody id="repAdvanceSaleBody"><tr><td colspan="6">—</td></tr></tbody>
-        </table>
+    <div id="homeUnlinkedSummary" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchTab('linking')">
+      <div>
+        <strong style="color:#e65100;">🔗 Unlinked Sales</strong>
+        <span style="color:#777; font-size:13px;"> — <span id="repAdvanceSaleCount">0</span> ബാക്കി, link ചെയ്യാൻ</span>
       </div>
-    </details>
+      <span style="color:#1565c0; font-size:13px;">Linking tab-ൽ →</span>
+    </div>
 
-    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">📦 Pending Lots (click ചെയ്ത് link ചെയ്യാം)</summary>
-      <div class="table-wrap" style="margin-top:10px;">
-        <table>
-          <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
-          <tbody id="homeLotBody"><tr><td colspan="4">Loading...</td></tr></tbody>
-        </table>
-      </div>
-    </details>
+    <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchTab('linking')">
+      <strong style="color:#e65100;">📦 Pending Lots</strong>
+      <span style="color:#1565c0; font-size:13px;">Linking tab-ൽ →</span>
+    </div>
 
     <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
       <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details</h3>
@@ -798,6 +815,8 @@
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report (own area മാത്രം).
     </p>
+    <label style="font-size:12px;">Search (Product / Godown / Vehicle / Customer)</label>
+    <input type="text" id="userTripSearch" placeholder="🔍 Search ചെയ്യുക..." oninput="onUserTripSortChange()" style="margin-bottom:14px;">
     <label style="font-size:12px;">Sort by</label>
     <select id="userTripSortBy" onchange="onUserTripSortChange()" style="margin-bottom:14px;">
       <option value="date">Date</option>
@@ -1009,7 +1028,7 @@
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">🏠 Home</button>
-    <button id="tabAdminPurchaseBtn" onclick="switchAdminTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🧾 Purchase</button>
+    <button id="tabAdminPurchaseBtn" onclick="switchAdminTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📝 Entry</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
     <button id="tabAdminReportBtn" onclick="switchAdminTab('report')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📈 Report</button>
@@ -1017,6 +1036,125 @@
   </div>
 
   <div id="tabAdminPurchase" style="display:none;">
+    <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
+      <button id="adminEntrySubTabSaleBtn" onclick="switchAdminEntrySubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
+      <button id="adminEntrySubTabPurchaseBtn" onclick="switchAdminEntrySubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
+      <button id="adminEntrySubTabCollectionBtn" onclick="switchAdminEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
+    </div>
+
+    <div id="adminEntrySubSale">
+      <div class="add-user-form">
+        <h3>🧾 Sale Entry (Admin)</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:14px;">ഏത് area-ക്ക് വേണ്ടിയും Admin-ന് നേരിട്ട് Sale entry ചെയ്യാം.</p>
+        <div class="error-msg" id="adminSaleErrorMsg"></div>
+        <div class="success-msg" id="adminSaleSuccessMsg"></div>
+
+        <label>Area</label>
+        <select id="adminSaleArea" onchange="onAdminSaleAreaChange()" style="margin-bottom:14px;">
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+        </select>
+
+        <label>Customer</label>
+        <div class="cust-search-box">
+          <input type="text" id="adminSaleCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+            oninput="renderAdminSaleCustOptions()" onfocus="renderAdminSaleCustOptions()">
+          <input type="hidden" id="adminSaleCustomer">
+          <div id="adminSaleCustOptionsBox" class="cust-options-box"></div>
+        </div>
+        <button type="button" style="background:none; border:1.5px dashed #999; color:#666; width:100%; padding:8px; margin:6px 0 14px; font-size:13px;" onclick="toggleAdminSaleQuickAddCust()">+ പുതിയ Customer ചേർക്കുക</button>
+        <div id="adminSaleQuickAddCustBox" style="display:none; background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px;">
+          <input type="text" id="adminSaleQuickCustName" placeholder="Customer Name" style="margin-bottom:10px;">
+          <input type="text" id="adminSaleQuickCustPhone" placeholder="Phone (optional)" style="margin-bottom:10px;">
+          <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:400; font-size:13px;">
+            <input type="checkbox" id="adminSaleQuickCustIsPrivate" style="width:auto; margin:0;">
+            Private Customer
+          </label>
+          <button class="full-btn" style="background:#2e7d32;" onclick="handleAdminSaleQuickAddCustomer()">Save &amp; Select</button>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label>Product</label>
+            <select id="adminSaleProduct" onchange="refreshAdminSaleLots()">
+              <option value="">-- Select Product --</option>
+            </select>
+          </div>
+          <div>
+            <label>Godown</label>
+            <select id="adminSaleGodown" onchange="refreshAdminSaleLots()">
+              <option value="">-- Select Godown --</option>
+            </select>
+          </div>
+        </div>
+
+        <label>Vehicle Number (optional)</label>
+        <div class="cust-search-box">
+          <input type="text" id="adminSaleVehicleSearch" placeholder="🔍 Vehicle search അല്ലെങ്കിൽ പുതിയത് type ചെയ്യുക..." autocomplete="off"
+            oninput="renderAdminSaleVehicleOptions()" onfocus="renderAdminSaleVehicleOptions()">
+          <div id="adminSaleVehicleOptionsBox" class="cust-options-box"></div>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label>Date</label>
+            <input type="date" id="adminSaleDate">
+          </div>
+          <div>
+            <label>Quantity</label>
+            <input type="number" id="adminSaleQty" placeholder="1" value="1" onfocus="this.select()" oninput="calcAdminSaleAmount(); checkAdminSaleLotQtyTotal();">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>Unit Price (₹)</label>
+            <input type="number" id="adminSaleRate" placeholder="0" value="0" onfocus="this.select()" oninput="calcAdminSaleAmount();">
+          </div>
+          <div>
+            <label>Discount Rate (₹/unit)</label>
+            <input type="number" id="adminSaleDiscRate" placeholder="0" value="0" onfocus="this.select()" oninput="calcAdminSaleAmount();">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label>Discount Amount (₹)</label>
+            <input type="number" id="adminSaleDiscAmt" placeholder="0" value="0" onfocus="this.select()" oninput="calcAdminSaleAmount();">
+          </div>
+          <div>
+            <label>Freight (₹)</label>
+            <input type="number" id="adminSaleFreight" placeholder="0" value="0" onfocus="this.select()" oninput="calcAdminSaleAmount();">
+          </div>
+        </div>
+        <label>Net Amount (₹)</label>
+        <input type="number" id="adminSaleAmount" placeholder="0" value="0" style="margin-bottom:14px;">
+
+        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:400;">
+          <input type="checkbox" id="adminSaleIsAdvance" style="width:auto; margin:0;" onchange="toggleAdminAdvanceSale()">
+          Advance Sale (Purchase ഇതുവരെ ചെയ്തിട്ടില്ല)
+        </label>
+
+        <div id="adminSaleLotSection">
+          <label>Purchase Lot(s) <span style="color:#999; font-weight:400;">(qty split ചെയ്യാം)</span></label>
+          <div id="adminSaleLotRows"></div>
+          <button type="button" style="width:auto; background:none; border:1.5px dashed #999; color:#666; padding:8px 14px; font-size:13px;" onclick="addAdminSaleLotRow()">+ Add Lot</button>
+          <p class="error-msg" id="adminSaleLotQtyWarning" style="display:none; margin-top:8px;"></p>
+        </div>
+
+        <button class="full-btn" id="addAdminSaleBtn" onclick="handleAdminAddSale()" style="margin-top:16px;">Save Sale</button>
+      </div>
+
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales (all areas)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody id="adminSaleTableBody"><tr><td colspan="8">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="adminEntrySubPurchase" style="display:none;">
     <div class="add-user-form">
       <h3>🧾 Purchase Entry (Admin)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:14px;">
@@ -1075,6 +1213,72 @@
         <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th></th></tr></thead>
         <tbody id="adminPurchaseTableBody"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table>
+    </div>
+    </div>
+
+    <div id="adminEntrySubCollection" style="display:none;">
+      <div class="add-user-form">
+        <h3>💰 Collection Entry (Admin)</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:14px;">ഏത് area-ക്ക് വേണ്ടിയും Admin-ന് നേരിട്ട് Collection entry ചെയ്യാം.</p>
+        <div class="error-msg" id="adminCollErrorMsg"></div>
+        <div class="success-msg" id="adminCollSuccessMsg"></div>
+
+        <label>Area</label>
+        <select id="adminCollArea" onchange="onAdminCollAreaChange()" style="margin-bottom:14px;">
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+        </select>
+
+        <label>Customer</label>
+        <div class="cust-search-box">
+          <input type="text" id="adminCollCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+            oninput="renderAdminCollCustOptions()" onfocus="renderAdminCollCustOptions()">
+          <input type="hidden" id="adminCollCustomer">
+          <div id="adminCollCustOptionsBox" class="cust-options-box"></div>
+        </div>
+        <p id="adminCollCustBalance" style="display:none; font-size:13px; color:#555; margin-bottom:14px;"></p>
+
+        <div class="form-grid">
+          <div>
+            <label>Amount (₹)</label>
+            <input type="number" id="adminCollAmount" placeholder="0" value="0" onfocus="this.select()">
+          </div>
+          <div>
+            <label>Date</label>
+            <input type="date" id="adminCollDate">
+          </div>
+          <div>
+            <label>Mode</label>
+            <select id="adminCollMode" onchange="toggleAdminCollAccountField()">
+              <option value="Cash">Cash</option>
+              <option value="Bank">Bank Transfer</option>
+              <option value="UPI">UPI</option>
+              <option value="Cheque">Cheque</option>
+              <option value="Discount">Discount / Adjustment</option>
+            </select>
+          </div>
+          <div id="adminCollAccountWrap" style="display:none;">
+            <label>Account (optional)</label>
+            <select id="adminCollAccount">
+              <option value="">-- Select Account --</option>
+            </select>
+          </div>
+        </div>
+        <label>Notes (optional)</label>
+        <input type="text" id="adminCollNotes" placeholder="e.g. Ref number" style="margin-bottom:14px;">
+
+        <button class="full-btn" id="addAdminCollBtn" onclick="handleAdminAddCollection()">Save Collection</button>
+      </div>
+
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Collections (all areas)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+          <tbody id="adminCollTableBody"><tr><td colspan="7">Loading...</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -1727,6 +1931,8 @@
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report.
       </p>
+      <label style="font-size:12px;">Search (Product / Godown / Vehicle / Area / Customer)</label>
+      <input type="text" id="adminTripSearch" placeholder="🔍 Search ചെയ്യുക..." oninput="onAdminTripSortChange()" style="margin-bottom:14px;">
       <label style="font-size:12px;">Sort by</label>
       <select id="adminTripSortBy" onchange="onAdminTripSortChange()" style="margin-bottom:14px;">
         <option value="date">Date</option>
@@ -1911,10 +2117,13 @@
   let editingSaleId = null;
   let editingSaleOldLots = [];
   let editingSaleOldStatus = 'pending';
+  let editingSaleOldDate = '';
   let editingCollId = null;
   let editingCollOldStatus = 'pending';
+  let editingCollOldDate = '';
   let editingPurchaseId = null;
   let editingPurchaseOldStatus = 'pending';
+  let editingPurchaseOldDate = '';
   let editingPurchaseOldQty = 0;
 
   async function showDashboard(userData) {
@@ -1951,9 +2160,7 @@
       }
     });
     if (tab === 'purchase') {
-      document.getElementById('adminPurchaseDate').valueAsDate = new Date();
-      onAdminPurchaseAreaChange();
-      loadAdminPurchasesToday();
+      switchAdminEntrySubTab('sale');
     }
     else if (tab === 'approvals') { loadApprovals(); loadEditedApprovals(); }
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
@@ -1994,6 +2201,34 @@
         btn.style.background = '#eee'; btn.style.color = '#333';
       }
     });
+  };
+
+  window.switchAdminEntrySubTab = function (sub) {
+    const subs = ['sale', 'purchase', 'collection'];
+    subs.forEach(s => {
+      const panel = document.getElementById('adminEntrySub' + s.charAt(0).toUpperCase() + s.slice(1));
+      const btn = document.getElementById('adminEntrySubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+      if (s === sub) {
+        panel.style.display = 'block';
+        btn.style.background = '#1e3c72'; btn.style.color = '#fff';
+      } else {
+        panel.style.display = 'none';
+        btn.style.background = '#eee'; btn.style.color = '#333';
+      }
+    });
+    if (sub === 'sale') {
+      document.getElementById('adminSaleDate').valueAsDate = new Date();
+      onAdminSaleAreaChange();
+      loadAdminSalesToday();
+    } else if (sub === 'purchase') {
+      document.getElementById('adminPurchaseDate').valueAsDate = new Date();
+      onAdminPurchaseAreaChange();
+      loadAdminPurchasesToday();
+    } else if (sub === 'collection') {
+      document.getElementById('adminCollDate').valueAsDate = new Date();
+      onAdminCollAreaChange();
+      loadAdminCollectionsToday();
+    }
   };
 
   window.switchAdminSettingsSubTab = function (sub) {
@@ -2418,6 +2653,18 @@
   // Normalizes a customer name for matching: trims, collapses multiple/extra
   // spaces into one, lowercases. Prevents "EBM H/M ( X )" vs "EBM H/M (  X )"
   // (extra space) from being treated as two different customers.
+  // A user may edit their own entry only until the 2nd of the month AFTER the entry's
+  // own date — e.g. anything dated in September can be edited through Oct 2nd, then
+  // locks for regular users (Admin is unaffected by this window).
+  function isUserEditWindowOpen(dateStr) {
+    if (!dateStr) return true;
+    const parts = dateStr.split('-').map(Number);
+    const y = parts[0], m = parts[1];
+    if (!y || !m) return true;
+    const cutoff = new Date(y, m, 2, 23, 59, 59, 999); // JS month is 0-indexed, so `m` here = next month
+    return new Date() <= cutoff;
+  }
+
   function normalizeName(str) {
     return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
@@ -2514,7 +2761,7 @@
   }
 
   // ---- TAB SWITCHING ----
-  const allTabs = ['purchase', 'sale', 'collection', 'customers', 'vehicle', 'reports', 'report'];
+  const allTabs = ['entry', 'linking', 'reports', 'report'];
 
   window.switchTab = function (tab) {
     allTabs.forEach(t => {
@@ -2531,33 +2778,10 @@
       }
     });
 
-    if (tab === 'sale') {
-      populateSaleCustomerDropdown();
-      populateSaleProductDropdown();
-      populateSaleGodownDropdown();
-      populateSaleVehicleDropdown();
-      document.getElementById('saleDate').valueAsDate = new Date();
-      loadTodaysSales();
-      loadAdvanceSales();
-    } else if (tab === 'collection') {
-      populateCollCustomerDropdown();
-      populateCollAccountDropdown();
-      document.getElementById('collDate').valueAsDate = new Date();
-      loadTodaysCollections();
-      editingCollId = null;
-      document.getElementById('addCollBtn').textContent = "Save Collection";
-    } else if (tab === 'purchase') {
-      populatePurchaseProductDropdown();
-      populatePurchaseGodownDropdown();
-      populatePurchaseVehicleDropdown();
-      document.getElementById('purchaseDate').valueAsDate = new Date();
-      loadTodaysPurchases();
-      populateTransferDropdowns();
-      editingPurchaseId = null;
-      editingPurchaseOldQty = 0;
-      document.getElementById('addPurchaseBtn').textContent = "Save Purchase";
-    } else if (tab === 'vehicle') {
-      loadVehicles();
+    if (tab === 'entry') {
+      switchEntrySubTab('sale');
+    } else if (tab === 'linking') {
+      switchLinkingSubTab('unlinked');
     } else if (tab === 'reports') {
       loadTopReportSummary();
       loadHomePendingLots();
@@ -2578,6 +2802,73 @@
         document.getElementById('dsbTo').value = todayStr;
       }
       switchReportSubTab('sale');
+    }
+  };
+
+  window.switchEntrySubTab = function (sub) {
+    const subs = ['sale', 'purchase', 'collection', 'customers', 'vehicle'];
+    subs.forEach(s => {
+      const panel = document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1));
+      const btn = document.getElementById('entrySubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+      if (s === sub) {
+        panel.style.display = 'block';
+        btn.style.background = '#1e3c72'; btn.style.color = '#fff';
+      } else {
+        panel.style.display = 'none';
+        btn.style.background = '#eee'; btn.style.color = '#333';
+      }
+    });
+
+    if (sub === 'sale') {
+      populateSaleCustomerDropdown();
+      populateSaleProductDropdown();
+      populateSaleGodownDropdown();
+      populateSaleVehicleDropdown();
+      document.getElementById('saleDate').valueAsDate = new Date();
+      loadTodaysSales();
+    } else if (sub === 'purchase') {
+      populatePurchaseProductDropdown();
+      populatePurchaseGodownDropdown();
+      populatePurchaseVehicleDropdown();
+      document.getElementById('purchaseDate').valueAsDate = new Date();
+      loadTodaysPurchases();
+      editingPurchaseId = null;
+      editingPurchaseOldQty = 0;
+      document.getElementById('addPurchaseBtn').textContent = "Save Purchase";
+    } else if (sub === 'collection') {
+      populateCollCustomerDropdown();
+      populateCollAccountDropdown();
+      document.getElementById('collDate').valueAsDate = new Date();
+      loadTodaysCollections();
+      editingCollId = null;
+      document.getElementById('addCollBtn').textContent = "Save Collection";
+    } else if (sub === 'customers') {
+      loadCustomersList();
+    } else if (sub === 'vehicle') {
+      loadVehicles();
+    }
+  };
+
+  window.switchLinkingSubTab = function (sub) {
+    const subs = ['unlinked', 'lots', 'transfer'];
+    subs.forEach(s => {
+      const panel = document.getElementById('linkingSub' + s.charAt(0).toUpperCase() + s.slice(1));
+      const btn = document.getElementById('linkingSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
+      if (s === sub) {
+        panel.style.display = 'block';
+        btn.style.background = '#1e3c72'; btn.style.color = '#fff';
+      } else {
+        panel.style.display = 'none';
+        btn.style.background = '#eee'; btn.style.color = '#333';
+      }
+    });
+
+    if (sub === 'unlinked') {
+      loadAdvanceSales();
+    } else if (sub === 'lots') {
+      loadHomePendingLots();
+    } else if (sub === 'transfer') {
+      populateTransferDropdowns();
     }
   };
 
@@ -2934,6 +3225,11 @@
       };
 
       if (editingSaleId) {
+        if (!isUserEditWindowOpen(editingSaleOldDate)) {
+          errEl.textContent = "ഈ Sale-ന്റെ Edit period കഴിഞ്ഞു (അടുത്ത മാസം 2-ന് ശേഷം edit ചെയ്യാൻ പറ്റില്ല).";
+          errEl.style.display = 'block';
+          return;
+        }
         // Restore stock from the OLD lot allocations before applying the new ones
         for (const oldAlloc of editingSaleOldLots) {
           const colName = oldAlloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
@@ -3017,11 +3313,7 @@
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = d.enteredBy === currentUserData.username;
-        const actions = canEdit
-          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editSaleRow('${id}')">Edit</button>
-             ${isPending ? `<button class="del-btn" onclick="deleteSaleRow('${id}')">Delete</button>` : ''}`
-          : '';
+        const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
         rows += `<tr>
           <td>${d.customerName || '-'}</td>
           <td>${d.product || '-'}</td>
@@ -3069,6 +3361,7 @@
       editingSaleId = id;
       editingSaleOldLots = d.lots || [];
       editingSaleOldStatus = d.status || 'pending';
+      editingSaleOldDate = d.date || '';
 
       if (!d.isAdvance) {
         await refreshAvailableLots();
@@ -3123,6 +3416,25 @@
   };
 
   // ---- ADVANCE SALE → PURCHASE LOT LINKING ----
+  // Simple client-side row filter — hides <tr> rows whose visible text doesn't match
+  // the search term. Works directly on the already-rendered table, no data re-fetch needed.
+  function filterTableRows(inputId, tbodyId) {
+    const term = document.getElementById(inputId).value.trim().toLowerCase();
+    const rows = document.querySelectorAll('#' + tbodyId + ' tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = (!term || text.includes(term)) ? '' : 'none';
+    });
+  }
+
+  window.filterUnlinkedSalesList = function () {
+    filterTableRows('unlinkedSalesSearch', 'advanceSaleTableBody');
+  };
+
+  window.filterPendingLotsList = function () {
+    filterTableRows('pendingLotsSearch', 'homeLotBody');
+  };
+
   async function loadAdvanceSales() {
     const tbody = document.getElementById('advanceSaleTableBody');
     tbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
@@ -3611,6 +3923,584 @@
   // ---- ADMIN: PURCHASE ENTRY (any area) ----
   let adminPurchaseKnownVehicles = [];
 
+  // ---- ADMIN: SALE ENTRY (any area) ----
+  let adminSaleAllCustomers = [];
+  let adminSaleAvailableLots = [];
+  let adminSaleKnownVehicles = [];
+  let adminEditingSaleId = null;
+  let adminEditingSaleOldLots = [];
+  let adminEditingSaleOldStatus = 'pending';
+
+  window.onAdminSaleAreaChange = async function () {
+    const area = document.getElementById('adminSaleArea').value;
+
+    // Products (global master)
+    const prodSel = document.getElementById('adminSaleProduct');
+    prodSel.innerHTML = '<option value="">-- Select Product --</option>';
+    try {
+      const snap = await getDocs(collection(db, "products"));
+      snap.forEach(ds => { const p = ds.data(); const opt = document.createElement('option'); opt.value = p.name; opt.textContent = p.name + (p.unit ? ' (' + p.unit + ')' : ''); prodSel.appendChild(opt); });
+    } catch (err) { console.error(err); }
+
+    // Godowns (own area, strict)
+    const godownSel = document.getElementById('adminSaleGodown');
+    godownSel.innerHTML = '<option value="">-- Select Godown --</option>';
+    try {
+      const snap = await getDocs(query(collection(db, "godowns"), where("area", "==", area)));
+      snap.forEach(ds => { const g = ds.data(); const opt = document.createElement('option'); opt.value = g.name; opt.textContent = g.name; godownSel.appendChild(opt); });
+    } catch (err) { console.error(err); }
+
+    // Vehicles (own area)
+    try {
+      const snap = await getDocs(query(collection(db, "vehicles"), where("area", "==", area)));
+      adminSaleKnownVehicles = [];
+      snap.forEach(ds => adminSaleKnownVehicles.push(ds.data().number));
+    } catch (err) { console.error(err); }
+
+    // Customers (own area first, then others)
+    try {
+      const snap = await getDocs(collection(db, "customers"));
+      adminSaleAllCustomers = [];
+      snap.forEach(ds => adminSaleAllCustomers.push({ id: ds.id, ...ds.data() }));
+      adminSaleAllCustomers.sort((a, b) => {
+        if (a.area === area && b.area !== area) return -1;
+        if (a.area !== area && b.area === area) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    } catch (err) { console.error(err); }
+
+    document.getElementById('adminSaleLotRows').innerHTML = '';
+    adminSaleAvailableLots = [];
+  };
+
+  window.renderAdminSaleCustOptions = function () {
+    const box = document.getElementById('adminSaleCustOptionsBox');
+    const term = document.getElementById('adminSaleCustSearchInput').value.trim().toLowerCase();
+    const area = document.getElementById('adminSaleArea').value;
+    const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
+    const own = adminSaleAllCustomers.filter(c => c.area === area && matches(c));
+    const other = adminSaleAllCustomers.filter(c => c.area !== area && matches(c));
+
+    let html = own.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectAdminSaleCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name}${c.phone ? ' (' + c.phone + ')' : ''}</div>`).join('');
+    if (other.length > 0) {
+      html += `<div class="cust-opt-header">— മറ്റ് Areas Customers —</div>`;
+      html += other.map(c => `<div class="cust-opt cust-opt-other" onmousedown="selectAdminSaleCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name} [${c.area}]</div>`).join('');
+    }
+    if (own.length === 0 && other.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectAdminSaleCustomer = function (id, name) {
+    document.getElementById('adminSaleCustomer').value = id;
+    document.getElementById('adminSaleCustSearchInput').value = name;
+    document.getElementById('adminSaleCustOptionsBox').style.display = 'none';
+  };
+
+  window.toggleAdminSaleQuickAddCust = function () {
+    const box = document.getElementById('adminSaleQuickAddCustBox');
+    box.style.display = (box.style.display === 'none' || !box.style.display) ? 'block' : 'none';
+  };
+
+  window.handleAdminSaleQuickAddCustomer = async function () {
+    let name = document.getElementById('adminSaleQuickCustName').value.trim();
+    const phone = document.getElementById('adminSaleQuickCustPhone').value.trim();
+    const area = document.getElementById('adminSaleArea').value;
+    const isPrivate = document.getElementById('adminSaleQuickCustIsPrivate').checked;
+    if (!name) { alert("Customer Name നൽകുക."); return; }
+    if (isPrivate && !name.toUpperCase().startsWith('PVT-')) name = 'PVT-' + name;
+    try {
+      const ref = await addDoc(collection(db, "customers"), {
+        name: name, phone: phone, area: area, openingBalance: 0, notes: '', isPrivate: isPrivate,
+        createdBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+      });
+      adminSaleAllCustomers.push({ id: ref.id, name, phone, area, openingBalance: 0, isPrivate });
+      selectAdminSaleCustomer(ref.id, name);
+      document.getElementById('adminSaleQuickAddCustBox').style.display = 'none';
+      document.getElementById('adminSaleQuickCustName').value = '';
+      document.getElementById('adminSaleQuickCustPhone').value = '';
+    } catch (err) { console.error(err); alert("Add ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.renderAdminSaleVehicleOptions = function () {
+    const box = document.getElementById('adminSaleVehicleOptionsBox');
+    const term = document.getElementById('adminSaleVehicleSearch').value.trim().toLowerCase();
+    const matches = adminSaleKnownVehicles.filter(v => !term || v.toLowerCase().includes(term));
+    let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectAdminSaleVehicle('${v}')">${v}</div>`).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല — പുതിയത് ആയി save ആകും.</div>';
+    box.innerHTML = html; box.style.display = 'block';
+  };
+  window.selectAdminSaleVehicle = function (v) {
+    document.getElementById('adminSaleVehicleSearch').value = v;
+    document.getElementById('adminSaleVehicleOptionsBox').style.display = 'none';
+  };
+
+  window.refreshAdminSaleLots = async function () {
+    const product = document.getElementById('adminSaleProduct').value;
+    const godown = document.getElementById('adminSaleGodown').value;
+    const area = document.getElementById('adminSaleArea').value;
+    document.getElementById('adminSaleLotRows').innerHTML = '';
+    adminSaleAvailableLots = [];
+    if (!product || !godown) return;
+    try {
+      const q = query(collection(db, "purchases"), where("area", "==", area), where("product", "==", product), where("godown", "==", godown));
+      const snap = await getDocs(q);
+      snap.forEach(ds => {
+        const d = ds.data();
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (remaining > 0) adminSaleAvailableLots.push({ id: ds.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, source: 'godown' });
+      });
+      adminSaleAvailableLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      if (adminSaleAvailableLots.length > 0) addAdminSaleLotRow();
+    } catch (err) { console.error(err); }
+  };
+
+  window.addAdminSaleLotRow = function () {
+    const container = document.getElementById('adminSaleLotRows');
+    const row = document.createElement('div');
+    row.className = 'lot-row';
+    let optionsHtml = '<option value="">-- Select Lot --</option>';
+    adminSaleAvailableLots.forEach(l => {
+      optionsHtml += `<option value="${l.id}" data-source="${l.source}">${fmtDate(l.date)} · Avail: ${l.remainingQty}${l.vehicle ? ' · Veh: ' + l.vehicle : ''}</option>`;
+    });
+    row.innerHTML = `
+      <select class="adminSaleLotSelect">${optionsHtml}</select>
+      <input type="number" class="adminSaleLotQty" placeholder="Qty" oninput="checkAdminSaleLotQtyTotal()">
+      <span class="lot-remove" onclick="this.parentElement.remove(); checkAdminSaleLotQtyTotal();">✕</span>
+    `;
+    container.appendChild(row);
+  };
+
+  window.checkAdminSaleLotQtyTotal = function () {
+    const saleQty = parseFloat(document.getElementById('adminSaleQty').value) || 0;
+    const lotSelects = document.querySelectorAll('.adminSaleLotSelect');
+    const lotQtyInputs = document.querySelectorAll('.adminSaleLotQty');
+    let total = 0;
+    lotQtyInputs.forEach(inp => total += (parseFloat(inp.value) || 0));
+    const warnEl = document.getElementById('adminSaleLotQtyWarning');
+
+    for (let i = 0; i < lotSelects.length; i++) {
+      const lotId = lotSelects[i].value;
+      const rowQty = parseFloat(lotQtyInputs[i].value) || 0;
+      const lotInfo = adminSaleAvailableLots.find(l => l.id === lotId);
+      if (lotInfo) {
+        const priorOwnAlloc = adminEditingSaleId
+          ? adminEditingSaleOldLots.filter(a => a.purchaseId === lotId).reduce((s, a) => s + (a.qty || 0), 0)
+          : 0;
+        const effectiveAvail = lotInfo.remainingQty + priorOwnAlloc;
+        if (rowQty > effectiveAvail) {
+          warnEl.textContent = `⚠️ ഒരു Lot-ൽ ${effectiveAvail} Qty മാത്രമേ ഉള്ളൂ, ${rowQty} നൽകിയിരിക്കുന്നു.`;
+          warnEl.style.display = 'block';
+          return false;
+        }
+      }
+    }
+    if (lotQtyInputs.length > 0 && total !== saleQty) {
+      warnEl.textContent = `Lot-കളിലെ ആകെ Qty (${total}) Sale Qty (${saleQty}) ന് സമമല്ല.`;
+      warnEl.style.display = 'block';
+      return false;
+    }
+    warnEl.style.display = 'none';
+    return true;
+  };
+
+  window.calcAdminSaleAmount = function () {
+    const qty = parseFloat(document.getElementById('adminSaleQty').value) || 0;
+    const rate = parseFloat(document.getElementById('adminSaleRate').value) || 0;
+    const discRate = parseFloat(document.getElementById('adminSaleDiscRate').value) || 0;
+    const freight = parseFloat(document.getElementById('adminSaleFreight').value) || 0;
+    const discAmt = qty * discRate;
+    document.getElementById('adminSaleDiscAmt').value = discAmt;
+    document.getElementById('adminSaleAmount').value = (qty * rate) - discAmt - freight;
+  };
+
+  window.toggleAdminAdvanceSale = function () {
+    const isAdvance = document.getElementById('adminSaleIsAdvance').checked;
+    document.getElementById('adminSaleLotSection').style.display = isAdvance ? 'none' : 'block';
+  };
+
+  window.handleAdminAddSale = async function () {
+    const area = document.getElementById('adminSaleArea').value;
+    const custId = document.getElementById('adminSaleCustomer').value;
+    const product = document.getElementById('adminSaleProduct').value;
+    const qty = parseFloat(document.getElementById('adminSaleQty').value) || 0;
+    const rate = parseFloat(document.getElementById('adminSaleRate').value) || 0;
+    const amount = parseFloat(document.getElementById('adminSaleAmount').value) || 0;
+    const isAdvance = document.getElementById('adminSaleIsAdvance').checked;
+    const errEl = document.getElementById('adminSaleErrorMsg');
+    const okEl = document.getElementById('adminSaleSuccessMsg');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!custId) { errEl.textContent = "Customer select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (!product) { errEl.textContent = "Product select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (qty <= 0) { errEl.textContent = "Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; errEl.style.display = 'block'; return; }
+
+    const cust = adminSaleAllCustomers.find(c => c.id === custId);
+    let lotAllocations = [];
+
+    if (!isAdvance) {
+      const lotSelects = document.querySelectorAll('.adminSaleLotSelect');
+      const lotQtyInputs = document.querySelectorAll('.adminSaleLotQty');
+      if (lotSelects.length === 0) {
+        errEl.textContent = "Purchase Lot select ചെയ്യുക, അല്ലെങ്കിൽ 'Advance Sale' ആയി mark ചെയ്യുക.";
+        errEl.style.display = 'block'; return;
+      }
+      if (!checkAdminSaleLotQtyTotal()) { errEl.textContent = "Lot Qty ശരിയാക്കുക."; errEl.style.display = 'block'; return; }
+      for (let i = 0; i < lotSelects.length; i++) {
+        const lotId = lotSelects[i].value;
+        const lotQty = parseFloat(lotQtyInputs[i].value) || 0;
+        const lotSource = lotSelects[i].selectedOptions[0] ? (lotSelects[i].selectedOptions[0].dataset.source || 'godown') : 'godown';
+        if (!lotId || lotQty <= 0) { errEl.textContent = "എല്ലാ Lot row-കളിലും Lot ഉം Qty ഉം നൽകുക."; errEl.style.display = 'block'; return; }
+        lotAllocations.push({ purchaseId: lotId, qty: lotQty, source: lotSource });
+      }
+    }
+
+    const saleVehicleNum = document.getElementById('adminSaleVehicleSearch').value.trim();
+
+    try {
+      await ensureVehicleRegistered(saleVehicleNum);
+
+      const saleData = {
+        customerId: custId, customerName: cust ? cust.name : '-', area: area, product: product,
+        godown: document.getElementById('adminSaleGodown').value, vehicle: saleVehicleNum,
+        qty: qty, rate: rate,
+        discRate: parseFloat(document.getElementById('adminSaleDiscRate').value) || 0,
+        discAmt: parseFloat(document.getElementById('adminSaleDiscAmt').value) || 0,
+        freight: parseFloat(document.getElementById('adminSaleFreight').value) || 0,
+        amount: amount, date: document.getElementById('adminSaleDate').value,
+        isAdvance: isAdvance, lots: lotAllocations,
+        enteredBy: currentUserData.username || 'admin'
+      };
+
+      if (adminEditingSaleId) {
+        for (const oldAlloc of adminEditingSaleOldLots) {
+          const colName = oldAlloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+          await updateDoc(doc(db, colName, oldAlloc.purchaseId), { remainingQty: increment(oldAlloc.qty) });
+        }
+        if (adminEditingSaleOldStatus === 'approved') {
+          saleData.status = 'approved'; saleData.editedAfterApproval = true;
+          saleData.lastEditedBy = currentUserData.username || 'admin'; saleData.lastEditedAt = new Date().toISOString();
+        } else {
+          saleData.status = 'pending';
+        }
+        saleData.updatedAt = new Date().toISOString();
+        await updateDoc(doc(db, "sales", adminEditingSaleId), saleData);
+      } else {
+        saleData.status = 'approved'; // Admin-entered sales go straight to approved
+        saleData.createdAt = new Date().toISOString();
+        await addDoc(collection(db, "sales"), saleData);
+      }
+
+      for (const alloc of lotAllocations) {
+        const colName = alloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+        await updateDoc(doc(db, colName, alloc.purchaseId), { remainingQty: increment(-alloc.qty) });
+      }
+
+      okEl.textContent = `Sale saved: ${cust ? cust.name : ''} — ₹${amount}`;
+      okEl.style.display = 'block';
+
+      document.getElementById('adminSaleCustomer').value = '';
+      document.getElementById('adminSaleCustSearchInput').value = '';
+      document.getElementById('adminSaleQty').value = '1';
+      document.getElementById('adminSaleRate').value = '0';
+      document.getElementById('adminSaleDiscRate').value = '0';
+      document.getElementById('adminSaleDiscAmt').value = '0';
+      document.getElementById('adminSaleFreight').value = '0';
+      document.getElementById('adminSaleAmount').value = '0';
+      document.getElementById('adminSaleVehicleSearch').value = '';
+      document.getElementById('adminSaleIsAdvance').checked = false;
+      toggleAdminAdvanceSale();
+      document.getElementById('adminSaleLotRows').innerHTML = '';
+      adminEditingSaleId = null; adminEditingSaleOldLots = [];
+      document.getElementById('addAdminSaleBtn').textContent = "Save Sale";
+
+      loadAdminSalesToday();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
+
+  window.editAdminSaleRow = async function (id) {
+    try {
+      const snap = await getDoc(doc(db, "sales", id));
+      if (!snap.exists()) return;
+      const d = snap.data();
+      document.getElementById('adminSaleArea').value = d.area || 'MKD';
+      await onAdminSaleAreaChange();
+      await new Promise(r => setTimeout(r, 50));
+
+      document.getElementById('adminSaleCustomer').value = d.customerId;
+      document.getElementById('adminSaleCustSearchInput').value = d.customerName || '';
+      document.getElementById('adminSaleProduct').value = d.product || '';
+      document.getElementById('adminSaleGodown').value = d.godown || '';
+      document.getElementById('adminSaleVehicleSearch').value = d.vehicle || '';
+      document.getElementById('adminSaleDate').value = d.date || '';
+      document.getElementById('adminSaleQty').value = d.qty || 0;
+      document.getElementById('adminSaleRate').value = d.rate || 0;
+      document.getElementById('adminSaleDiscRate').value = d.discRate || 0;
+      document.getElementById('adminSaleDiscAmt').value = d.discAmt || 0;
+      document.getElementById('adminSaleFreight').value = d.freight || 0;
+      document.getElementById('adminSaleAmount').value = d.amount || 0;
+      document.getElementById('adminSaleIsAdvance').checked = !!d.isAdvance;
+      toggleAdminAdvanceSale();
+
+      adminEditingSaleId = id;
+      adminEditingSaleOldLots = d.lots || [];
+      adminEditingSaleOldStatus = d.status || 'pending';
+
+      if (!d.isAdvance) {
+        await refreshAdminSaleLots();
+        document.getElementById('adminSaleLotRows').innerHTML = '';
+        adminEditingSaleOldLots.forEach(alloc => {
+          addAdminSaleLotRow();
+          const rows = document.querySelectorAll('#adminSaleLotRows .lot-row');
+          const lastRow = rows[rows.length - 1];
+          const sel = lastRow.querySelector('.adminSaleLotSelect');
+          if (![...sel.options].some(o => o.value === alloc.purchaseId)) {
+            const opt = document.createElement('option');
+            opt.value = alloc.purchaseId; opt.textContent = 'Current Lot'; opt.dataset.source = alloc.source || 'godown';
+            sel.appendChild(opt);
+          }
+          sel.value = alloc.purchaseId;
+          lastRow.querySelector('.adminSaleLotQty').value = alloc.qty;
+        });
+      }
+
+      document.getElementById('addAdminSaleBtn').textContent = "Update Sale";
+      switchAdminEntrySubTab('sale');
+      window.scrollTo(0, 0);
+    } catch (err) { console.error(err); alert("Load ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.deleteAdminSaleRow = async function (id) {
+    if (!confirm("ഈ Sale delete ചെയ്യണോ? (Stock lot balance തിരിച്ച് add ചെയ്യും)")) return;
+    try {
+      const snap = await getDoc(doc(db, "sales", id));
+      if (snap.exists()) {
+        const lots = snap.data().lots || [];
+        for (const alloc of lots) {
+          const colName = alloc.source === 'vehicle' ? 'vehicleStock' : 'purchases';
+          await updateDoc(doc(db, colName, alloc.purchaseId), { remainingQty: increment(alloc.qty) });
+        }
+      }
+      await deleteDoc(doc(db, "sales", id));
+      loadAdminSalesToday();
+    } catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  async function loadAdminSalesToday() {
+    const tbody = document.getElementById('adminSaleTableBody');
+    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const q = query(collection(db, "sales"), where("date", "==", todayStr));
+      const snap = await getDocs(q);
+      let rows = '';
+      snap.forEach(ds => {
+        const d = ds.data();
+        const badge = (d.status || 'pending') === 'pending' ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+        rows += `<tr>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
+          <td>${d.qty || 0}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="editAdminSaleRow('${ds.id}')">Edit</button>
+              <button class="del-btn" onclick="deleteAdminSaleRow('${ds.id}')">Delete</button></td>
+        </tr>`;
+      });
+      tbody.innerHTML = rows || '<tr><td colspan="8">ഇന്ന് sales ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) { console.error(err); tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>'; }
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#adminSaleCustSearchInput') && !e.target.closest('#adminSaleCustOptionsBox')) {
+      const b = document.getElementById('adminSaleCustOptionsBox'); if (b) b.style.display = 'none';
+    }
+    if (!e.target.closest('#adminSaleVehicleSearch') && !e.target.closest('#adminSaleVehicleOptionsBox')) {
+      const b = document.getElementById('adminSaleVehicleOptionsBox'); if (b) b.style.display = 'none';
+    }
+  });
+
+  // ---- ADMIN: COLLECTION ENTRY (any area) ----
+  let adminCollAllCustomers = [];
+  let adminEditingCollId = null;
+  let adminEditingCollOldStatus = 'pending';
+
+  window.onAdminCollAreaChange = async function () {
+    const area = document.getElementById('adminCollArea').value;
+    try {
+      const snap = await getDocs(collection(db, "customers"));
+      adminCollAllCustomers = [];
+      snap.forEach(ds => adminCollAllCustomers.push({ id: ds.id, ...ds.data() }));
+      adminCollAllCustomers.sort((a, b) => {
+        if (a.area === area && b.area !== area) return -1;
+        if (a.area !== area && b.area === area) return 1;
+        return (a.name || '').localeCompare(b.name || '');
+      });
+    } catch (err) { console.error(err); }
+
+    const accSel = document.getElementById('adminCollAccount');
+    accSel.innerHTML = '<option value="">-- Select Account --</option>';
+    try {
+      const snap2 = await getDocs(collection(db, "accounts"));
+      snap2.forEach(ds => { const a = ds.data(); const opt = document.createElement('option'); opt.value = a.name; opt.textContent = a.name; accSel.appendChild(opt); });
+    } catch (err) { console.error(err); }
+  };
+
+  window.renderAdminCollCustOptions = function () {
+    const box = document.getElementById('adminCollCustOptionsBox');
+    const term = document.getElementById('adminCollCustSearchInput').value.trim().toLowerCase();
+    const area = document.getElementById('adminCollArea').value;
+    const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
+    const own = adminCollAllCustomers.filter(c => c.area === area && matches(c));
+    const other = adminCollAllCustomers.filter(c => c.area !== area && matches(c));
+
+    let html = own.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectAdminCollCustomer('${c.id}','${escapeHtml(c.name)}',${c.openingBalance || 0})">${c.name}${c.phone ? ' (' + c.phone + ')' : ''}</div>`).join('');
+    if (other.length > 0) {
+      html += `<div class="cust-opt-header">— മറ്റ് Areas Customers —</div>`;
+      html += other.map(c => `<div class="cust-opt cust-opt-other" onmousedown="selectAdminCollCustomer('${c.id}','${escapeHtml(c.name)}',${c.openingBalance || 0})">${c.name} [${c.area}]</div>`).join('');
+    }
+    if (own.length === 0 && other.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectAdminCollCustomer = function (id, name, opening) {
+    document.getElementById('adminCollCustomer').value = id;
+    document.getElementById('adminCollCustSearchInput').value = name;
+    document.getElementById('adminCollCustOptionsBox').style.display = 'none';
+    const balEl = document.getElementById('adminCollCustBalance');
+    balEl.textContent = `Opening Balance: ₹${(opening || 0).toLocaleString('en-IN')}`;
+    balEl.style.display = 'block';
+  };
+
+  window.toggleAdminCollAccountField = function () {
+    const mode = document.getElementById('adminCollMode').value;
+    document.getElementById('adminCollAccountWrap').style.display = (mode === 'Cash') ? 'none' : 'block';
+  };
+
+  window.handleAdminAddCollection = async function () {
+    const area = document.getElementById('adminCollArea').value;
+    const custId = document.getElementById('adminCollCustomer').value;
+    const amount = parseFloat(document.getElementById('adminCollAmount').value) || 0;
+    const date = document.getElementById('adminCollDate').value;
+    const mode = document.getElementById('adminCollMode').value;
+    const account = document.getElementById('adminCollAccount').value;
+    const notes = document.getElementById('adminCollNotes').value.trim();
+    const errEl = document.getElementById('adminCollErrorMsg');
+    const okEl = document.getElementById('adminCollSuccessMsg');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+
+    if (!custId) { errEl.textContent = "Customer select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (amount === 0) { errEl.textContent = "Amount 0 ആകാൻ പാടില്ല."; errEl.style.display = 'block'; return; }
+
+    const cust = adminCollAllCustomers.find(c => c.id === custId);
+
+    try {
+      if (adminEditingCollId) {
+        const updateData = {
+          customerId: custId, customerName: cust ? cust.name : '-', area: area,
+          amount: amount, mode: mode, account: account, notes: notes, date: date,
+          updatedAt: new Date().toISOString()
+        };
+        if (adminEditingCollOldStatus === 'approved') {
+          updateData.status = 'approved'; updateData.editedAfterApproval = true;
+          updateData.lastEditedBy = currentUserData.username || 'admin'; updateData.lastEditedAt = new Date().toISOString();
+        } else {
+          updateData.status = 'pending';
+        }
+        await updateDoc(doc(db, "collections", adminEditingCollId), updateData);
+        okEl.textContent = `Collection updated: ${cust ? cust.name : ''} — ₹${amount}`;
+      } else {
+        await addDoc(collection(db, "collections"), {
+          customerId: custId, customerName: cust ? cust.name : '-', area: area,
+          amount: amount, mode: mode, account: account, notes: notes, date: date, status: 'approved',
+          enteredBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+        });
+        okEl.textContent = `Collection saved: ${cust ? cust.name : ''} — ₹${amount}`;
+      }
+      okEl.style.display = 'block';
+
+      document.getElementById('adminCollAmount').value = '0';
+      document.getElementById('adminCollNotes').value = '';
+      document.getElementById('adminCollCustomer').value = '';
+      document.getElementById('adminCollCustSearchInput').value = '';
+      document.getElementById('adminCollCustBalance').style.display = 'none';
+      document.getElementById('adminCollMode').value = 'Cash';
+      document.getElementById('adminCollAccount').value = '';
+      toggleAdminCollAccountField();
+      adminEditingCollId = null;
+      document.getElementById('addAdminCollBtn').textContent = "Save Collection";
+
+      loadAdminCollectionsToday();
+    } catch (err) {
+      console.error(err);
+      errEl.textContent = "Collection save ചെയ്യാൻ പറ്റിയില്ല.";
+      errEl.style.display = 'block';
+    }
+  };
+
+  window.editAdminCollRow = async function (id) {
+    try {
+      const snap = await getDoc(doc(db, "collections", id));
+      if (!snap.exists()) return;
+      const d = snap.data();
+      document.getElementById('adminCollArea').value = d.area || 'MKD';
+      await onAdminCollAreaChange();
+
+      document.getElementById('adminCollCustomer').value = d.customerId;
+      document.getElementById('adminCollCustSearchInput').value = d.customerName || '';
+      document.getElementById('adminCollAmount').value = d.amount || 0;
+      document.getElementById('adminCollDate').value = d.date || '';
+      document.getElementById('adminCollMode').value = d.mode || 'Cash';
+      toggleAdminCollAccountField();
+      document.getElementById('adminCollAccount').value = d.account || '';
+      document.getElementById('adminCollNotes').value = d.notes || '';
+
+      adminEditingCollId = id;
+      adminEditingCollOldStatus = d.status || 'pending';
+      document.getElementById('addAdminCollBtn').textContent = "Update Collection";
+      switchAdminEntrySubTab('collection');
+      window.scrollTo(0, 0);
+    } catch (err) { console.error(err); alert("Load ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.deleteAdminCollRow = async function (id) {
+    if (!confirm("ഈ Collection delete ചെയ്യണോ?")) return;
+    try {
+      await deleteDoc(doc(db, "collections", id));
+      loadAdminCollectionsToday();
+    } catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  async function loadAdminCollectionsToday() {
+    const tbody = document.getElementById('adminCollTableBody');
+    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const q = query(collection(db, "collections"), where("date", "==", todayStr));
+      const snap = await getDocs(q);
+      let rows = '';
+      snap.forEach(ds => {
+        const d = ds.data();
+        const badge = (d.status || 'pending') === 'pending' ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+        rows += `<tr>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="editAdminCollRow('${ds.id}')">Edit</button>
+              <button class="del-btn" onclick="deleteAdminCollRow('${ds.id}')">Delete</button></td>
+        </tr>`;
+      });
+      tbody.innerHTML = rows || '<tr><td colspan="7">ഇന്ന് collections ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) { console.error(err); tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>'; }
+  }
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#adminCollCustSearchInput') && !e.target.closest('#adminCollCustOptionsBox')) {
+      const b = document.getElementById('adminCollCustOptionsBox'); if (b) b.style.display = 'none';
+    }
+  });
+
   window.onAdminPurchaseAreaChange = async function () {
     const area = document.getElementById('adminPurchaseArea').value;
 
@@ -4006,6 +4896,11 @@
     if (!product) { errEl.textContent = "Product select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (!godown) { errEl.textContent = "Godown select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (qty <= 0) { errEl.textContent = "Quantity 0-ൽ കൂടുതൽ ആയിരിക്കണം"; errEl.style.display = 'block'; return; }
+    if (editingPurchaseId && !isUserEditWindowOpen(editingPurchaseOldDate)) {
+      errEl.textContent = "ഈ Purchase-ന്റെ Edit period കഴിഞ്ഞു (അടുത്ത മാസം 2-ന് ശേഷം edit ചെയ്യാൻ പറ്റില്ല).";
+      errEl.style.display = 'block';
+      return;
+    }
 
     btn.disabled = true; btn.textContent = "Saving...";
 
@@ -4081,11 +4976,7 @@
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = d.enteredBy === currentUserData.username;
-        const actions = canEdit
-          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editPurchaseRow('${id}')">Edit</button>
-             ${isPending ? `<button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>` : ''}`
-          : '';
+        const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
         rows += `<tr><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
       rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td>${totalQty}</td><td colspan="2"></td></tr>`;
@@ -4115,6 +5006,7 @@
       editingPurchaseId = id;
       editingPurchaseOldQty = d.qty || 0;
       editingPurchaseOldStatus = d.status || 'pending';
+      editingPurchaseOldDate = d.date || '';
       document.getElementById('addPurchaseBtn').textContent = "Update Purchase";
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -4559,6 +5451,11 @@
 
     if (!custId || custId === '__new__') { errEl.textContent = "Customer select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (amount === 0) { errEl.textContent = "Amount 0 ആകാൻ പാടില്ല."; errEl.style.display = 'block'; return; }
+    if (editingCollId && !isUserEditWindowOpen(editingCollOldDate)) {
+      errEl.textContent = "ഈ Collection-ന്റെ Edit period കഴിഞ്ഞു (അടുത്ത മാസം 2-ന് ശേഷം edit ചെയ്യാൻ പറ്റില്ല).";
+      errEl.style.display = 'block';
+      return;
+    }
 
     const cust = allCustomers.find(c => c.id === custId);
 
@@ -4637,11 +5534,7 @@
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = d.enteredBy === currentUserData.username;
-        const actions = canEdit
-          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editCollRow('${id}')">Edit</button>
-             ${isPending ? `<button class="del-btn" onclick="deleteCollRow('${id}')">Delete</button>` : ''}`
-          : '';
+        const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
         rows += `<tr><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
@@ -4673,6 +5566,7 @@
 
       editingCollId = id;
       editingCollOldStatus = d.status || 'pending';
+      editingCollOldDate = d.date || '';
       document.getElementById('addCollBtn').textContent = "Update Collection";
       window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -4784,28 +5678,8 @@
 
   // ---- REPORTS ----
   // ---- REPORTS: Top-of-page quick summary (Pending Advance Sales + Current Stock) ----
-  let homeAdvanceSaleCache = [];
-
-  window.renderHomeAdvanceSaleList = function () {
-    const monthFilter = document.getElementById('repAdvanceSaleMonth').value;
-    const filtered = monthFilter
-      ? homeAdvanceSaleCache.filter(d => (d.date || '').slice(0, 7) === monthFilter)
-      : homeAdvanceSaleCache;
-
-    const rows = filtered.map(d =>
-      `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td>
-        <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td></tr>`
-    ).join('');
-
-    document.getElementById('repAdvanceSaleCount').textContent = homeAdvanceSaleCache.length;
-    document.getElementById('repAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="6">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
-
-    const alertBox = document.getElementById('repTopAlertBox');
-    alertBox.style.display = homeAdvanceSaleCache.length > 0 ? 'block' : 'none';
-  };
-
   async function loadTopReportSummary() {
-    // Pending Advance Sales — cached, then rendered via renderHomeAdvanceSaleList() with month filter
+    // Unlinked Sales — just a count + link to the Linking tab (full list lives there now)
     try {
       const q = query(
         collection(db, "sales"),
@@ -4813,26 +5687,17 @@
         where("isAdvance", "==", true)
       );
       const snap = await getDocs(q);
-      homeAdvanceSaleCache = [];
+      let count = 0;
       snap.forEach(docSnap => {
         const d = docSnap.data();
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old ones — Admin handles these
-        homeAdvanceSaleCache.push({ id: docSnap.id, ...d, remaining });
+        count++;
       });
-      homeAdvanceSaleCache.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-
-      // Populate month dropdown from distinct YYYY-MM present in the data
-      const months = Array.from(new Set(homeAdvanceSaleCache.map(d => (d.date || '').slice(0, 7)))).sort();
-      const monthSel = document.getElementById('repAdvanceSaleMonth');
-      const currentSel = monthSel.value;
-      monthSel.innerHTML = '<option value="">-- എല്ലാ Months ഉം --</option>' +
-        months.map(m => `<option value="${m}">${m}</option>`).join('');
-      if (months.includes(currentSel)) monthSel.value = currentSel;
-
-      renderHomeAdvanceSaleList();
+      document.getElementById('repAdvanceSaleCount').textContent = count;
+      document.getElementById('homeUnlinkedSummary').style.display = count > 0 ? 'flex' : 'none';
     } catch (err) {
       console.error(err);
     }
@@ -4958,7 +5823,9 @@
       const actionButtons = (d, editFn, delFn) => {
         const isOwn = d.enteredBy === currentUserData.username;
         const isPending = (d.status || 'pending') === 'pending';
+        const editWindowOpen = isUserEditWindowOpen(d.date);
         if (!isOwn) return '';
+        if (!editWindowOpen) return '<span style="color:#999; font-size:12px;">Edit period കഴിഞ്ഞു</span>';
         let html = `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="${editFn}('${d.id}')">Edit</button>`;
         if (isPending) html += `<button class="del-btn" onclick="${delFn}('${d.id}')">Delete</button>`;
         return html;
@@ -5013,6 +5880,27 @@
     if (lastUserTripSheetData) renderUserTripSheet(lastUserTripSheetData.lots, lastUserTripSheetData.salesByLot);
   };
 
+  // Merges Purchase lots that share the same Area+Date+Product+Godown+Vehicle into one
+  // display card. Keeps track of every constituent purchase doc id (`ids`) — the first
+  // one with remaining stock is used as the "acting" lot for Link/Transfer actions.
+  function mergeTripSheetLots(lots) {
+    const groups = {};
+    const order = [];
+    lots.forEach(l => {
+      const key = [l.area || '', l.date || '', l.product || '', l.godown || '', l.vehicle || ''].join('|');
+      if (!groups[key]) {
+        groups[key] = { ...l, qty: 0, remainingQty: 0, ids: [] };
+        order.push(key);
+      }
+      const g = groups[key];
+      g.qty += (l.qty || 0);
+      const rem = (l.remainingQty !== undefined) ? l.remainingQty : l.qty;
+      g.remainingQty += (rem || 0);
+      g.ids.push(l.id);
+    });
+    return order.map(k => groups[k]);
+  }
+
   window.generateUserTripSheet = async function () {
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
@@ -5040,16 +5928,19 @@
         if (d.area !== currentUserData.area) return;
         lots.push({ id: docSnap.id, ...d });
       });
+      lots = mergeTripSheetLots(lots);
       lots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
       let allSales = [];
       salesSnap.forEach(docSnap => allSales.push({ id: docSnap.id, ...docSnap.data() }));
 
+      // Keyed by individual purchase doc id (not the merged group) — each merged lot's
+      // `ids` array is used at render time to pull together all its linked sales.
       const salesByLot = {};
       allSales.forEach(s => {
         (s.lots || []).forEach(alloc => {
           if (!salesByLot[alloc.purchaseId]) salesByLot[alloc.purchaseId] = [];
-          salesByLot[alloc.purchaseId].push({ sale: s, qty: alloc.qty });
+          salesByLot[alloc.purchaseId].push({ sale: s, qty: alloc.qty, sourceLotId: alloc.purchaseId });
         });
       });
 
@@ -5069,8 +5960,26 @@
       return;
     }
 
+    const searchTerm = (document.getElementById('userTripSearch')?.value || '').trim().toLowerCase();
+    let filteredLots = lots;
+    if (searchTerm) {
+      filteredLots = lots.filter(lot => {
+        if ((lot.product || '').toLowerCase().includes(searchTerm)) return true;
+        if ((lot.godown || '').toLowerCase().includes(searchTerm)) return true;
+        if ((lot.vehicle || '').toLowerCase().includes(searchTerm)) return true;
+        const ids = lot.ids || [lot.id];
+        const anySales = ids.some(id => (salesByLot[id] || []).some(x => (x.sale.customerName || '').toLowerCase().includes(searchTerm)));
+        return anySales;
+      });
+    }
+
+    if (filteredLots.length === 0) {
+      container.innerHTML = '<p style="color:#999; font-size:13px;">Search-ന് matching lots ഒന്നും ഇല്ല.</p>';
+      return;
+    }
+
     const sortBy = document.getElementById('userTripSortBy').value;
-    lots = [...lots].sort((a, b) => {
+    filteredLots = [...filteredLots].sort((a, b) => {
       if (sortBy === 'vehicle') {
         const vCmp = (a.vehicle || '').localeCompare(b.vehicle || '');
         return vCmp !== 0 ? vCmp : (a.date || '').localeCompare(b.date || '');
@@ -5079,19 +5988,22 @@
     });
 
     let html = '';
-    lots.forEach(lot => {
+    filteredLots.forEach(lot => {
       const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
-      const linkedSales = salesByLot[lot.id] || [];
+      const ids = lot.ids || [lot.id];
+      const actingId = ids[0];
+      let linkedSales = [];
+      ids.forEach(id => { linkedSales = linkedSales.concat(salesByLot[id] || []); });
       const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
 
       html += `<div style="border:1px solid #ddd; border-radius:10px; margin-bottom:14px; overflow:hidden;">
         <div style="background:#eef2f7; color:#1e3c72; font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; border-bottom:2px solid #1e3c72;">
-          <div><strong>${fmtDate(lot.date)}</strong> · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
+          <div><strong>${fmtDate(lot.date)}</strong> · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}${ids.length > 1 ? ` <span style="font-size:11px; color:#777;">(${ids.length} entries merged)</span>` : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
         ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
-          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
+          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
@@ -5100,7 +6012,7 @@
           <tbody>${linkedSales.map(x => `<tr>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
-            <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${lot.id}',${x.qty})">Unlink</button></td>
+            <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${x.sourceLotId}',${x.qty})">Unlink</button></td>
           </tr>`).join('')}</tbody>
         </table></div>`;
       } else {
@@ -5424,6 +6336,7 @@
         if (areaFilter && d.area !== areaFilter) return;
         lots.push({ id: docSnap.id, ...d });
       });
+      lots = mergeTripSheetLots(lots);
       lots.sort((a, b) => {
         const dateCmp = (a.date || '').localeCompare(b.date || '');
         if (dateCmp !== 0) return dateCmp;
@@ -5435,12 +6348,13 @@
       let allSales = [];
       salesSnap.forEach(docSnap => allSales.push({ id: docSnap.id, ...docSnap.data() }));
 
-      // Build lotId -> [ {sale, qtyFromThisLot} ]
+      // Keyed by individual purchase doc id (not the merged group) — each merged lot's
+      // `ids` array is used at render time to pull together all its linked sales.
       const salesByLot = {};
       allSales.forEach(s => {
         (s.lots || []).forEach(alloc => {
           if (!salesByLot[alloc.purchaseId]) salesByLot[alloc.purchaseId] = [];
-          salesByLot[alloc.purchaseId].push({ sale: s, qty: alloc.qty });
+          salesByLot[alloc.purchaseId].push({ sale: s, qty: alloc.qty, sourceLotId: alloc.purchaseId });
         });
       });
 
@@ -5460,8 +6374,27 @@
       return;
     }
 
+    const searchTerm = (document.getElementById('adminTripSearch')?.value || '').trim().toLowerCase();
+    let filteredLots = lots;
+    if (searchTerm) {
+      filteredLots = lots.filter(lot => {
+        if ((lot.product || '').toLowerCase().includes(searchTerm)) return true;
+        if ((lot.godown || '').toLowerCase().includes(searchTerm)) return true;
+        if ((lot.vehicle || '').toLowerCase().includes(searchTerm)) return true;
+        if ((lot.area || '').toLowerCase().includes(searchTerm)) return true;
+        const ids = lot.ids || [lot.id];
+        const anySales = ids.some(id => (salesByLot[id] || []).some(x => (x.sale.customerName || '').toLowerCase().includes(searchTerm)));
+        return anySales;
+      });
+    }
+
+    if (filteredLots.length === 0) {
+      container.innerHTML = '<p style="color:#999; font-size:13px;">Search-ന് matching lots ഒന്നും ഇല്ല.</p>';
+      return;
+    }
+
     const sortBy = document.getElementById('adminTripSortBy').value;
-    lots = [...lots].sort((a, b) => {
+    filteredLots = [...filteredLots].sort((a, b) => {
       if (sortBy === 'vehicle') {
         const vCmp = (a.vehicle || '').localeCompare(b.vehicle || '');
         return vCmp !== 0 ? vCmp : (a.date || '').localeCompare(b.date || '');
@@ -5472,19 +6405,22 @@
     });
 
     let html = '';
-    lots.forEach(lot => {
+    filteredLots.forEach(lot => {
       const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
-      const linkedSales = salesByLot[lot.id] || [];
+      const ids = lot.ids || [lot.id];
+      const actingId = ids[0];
+      let linkedSales = [];
+      ids.forEach(id => { linkedSales = linkedSales.concat(salesByLot[id] || []); });
       const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
 
       html += `<div style="border:1px solid #ddd; border-radius:10px; margin-bottom:14px; overflow:hidden;">
         <div style="background:#eef2f7; color:#1e3c72; font-weight:700; padding:10px 14px; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px; border-bottom:2px solid #1e3c72;">
-          <div><strong>${fmtDate(lot.date)}</strong> · ${lot.area || '-'} · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}</div>
+          <div><strong>${fmtDate(lot.date)}</strong> · ${lot.area || '-'} · ${lot.product || '-'} · Godown: ${lot.godown || '-'}${lot.vehicle ? ' · Veh: ' + lot.vehicle : ''}${ids.length > 1 ? ` <span style="font-size:11px; color:#777;">(${ids.length} entries merged)</span>` : ''}</div>
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
         ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
-          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${lot.id}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
+          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || ''}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
@@ -5493,7 +6429,7 @@
           <tbody>${linkedSales.map(x => `<tr>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
-            <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${lot.id}',${x.qty})">Unlink</button></td>
+            <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${x.sourceLotId}',${x.qty})">Unlink</button></td>
           </tr>`).join('')}</tbody>
         </table></div>`;
       } else {
