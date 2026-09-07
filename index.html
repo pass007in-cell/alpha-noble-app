@@ -629,22 +629,21 @@
       </select>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
-          <tbody id="repAdvanceSaleBody"><tr><td colspan="5">—</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th><th></th></tr></thead>
+          <tbody id="repAdvanceSaleBody"><tr><td colspan="6">—</td></tr></tbody>
         </table>
       </div>
-      <p style="font-size:12px; color:#777; margin-top:8px;">Link ചെയ്യാൻ Sale tab-ൽ പോകുക.</p>
     </details>
 
-    <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">📦 Pending Lots</h3>
-      <div class="table-wrap">
+    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">📦 Pending Lots (click ചെയ്ത് link ചെയ്യാം)</summary>
+      <div class="table-wrap" style="margin-top:10px;">
         <table>
           <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
           <tbody id="homeLotBody"><tr><td colspan="4">Loading...</td></tr></tbody>
         </table>
       </div>
-    </div>
+    </details>
 
     <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
       <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details</h3>
@@ -844,6 +843,18 @@
       <button style="flex:1;" onclick="saveCustomerEdit()">Save</button>
       <button style="flex:1; background:#999;" onclick="closeCustomerEdit()">Cancel</button>
     </div>
+  </div>
+</div>
+
+<!-- HOME: PENDING LOT DETAIL MODAL -->
+<div id="homeLotDetailOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:460px; max-height:85vh; overflow-y:auto;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+      <h3 style="color:#1e3c72; font-size:17px;" id="homeLotDetailTitle">Lot Details</h3>
+      <span style="cursor:pointer; font-size:22px; color:#999;" onclick="closeHomeLotDetail()">&times;</span>
+    </div>
+    <p style="font-size:12px; color:#777; margin-bottom:14px;">ഇത് ഈ Product+Godown+Vehicle combination-ന്റെ കീഴിലുള്ള individual purchase lots ആണ് — ഓരോന്നിനും വേറെ വേറെ Advance Sale link ചെയ്യാം.</p>
+    <div id="homeLotDetailBody"></div>
   </div>
 </div>
 
@@ -1538,21 +1549,21 @@
       </select>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
-          <tbody id="adminHomeAdvanceSaleBody"><tr><td colspan="6">—</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining Qty</th><th></th></tr></thead>
+          <tbody id="adminHomeAdvanceSaleBody"><tr><td colspan="7">—</td></tr></tbody>
         </table>
       </div>
     </details>
 
-    <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
-      <h3 style="color:#e65100; font-size:15px; margin-bottom:8px;">📦 Pending Lots (All Areas)</h3>
-      <div class="table-wrap">
+    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+      <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">📦 Pending Lots (All Areas) — click ചെയ്ത് link ചെയ്യാം</summary>
+      <div class="table-wrap" style="margin-top:10px;">
         <table>
           <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
           <tbody id="adminHomeLotBody"><tr><td colspan="5">Loading...</td></tr></tbody>
         </table>
       </div>
-    </div>
+    </details>
 
     <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
       <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details (All Areas)</h3>
@@ -4782,11 +4793,12 @@
       : homeAdvanceSaleCache;
 
     const rows = filtered.map(d =>
-      `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td></tr>`
+      `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td>
+        <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td></tr>`
     ).join('');
 
     document.getElementById('repAdvanceSaleCount').textContent = homeAdvanceSaleCache.length;
-    document.getElementById('repAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="5">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
+    document.getElementById('repAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="6">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
 
     const alertBox = document.getElementById('repTopAlertBox');
     alertBox.style.display = homeAdvanceSaleCache.length > 0 ? 'block' : 'none';
@@ -4808,7 +4820,7 @@
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old ones — Admin handles these
-        homeAdvanceSaleCache.push({ ...d, remaining });
+        homeAdvanceSaleCache.push({ id: docSnap.id, ...d, remaining });
       });
       homeAdvanceSaleCache.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
@@ -4853,9 +4865,12 @@
   }
 
   // ---- HOME: Pending Lots box (own-area Lot Balance) ----
+  let homeLotDetailCache = {};
+
   async function loadHomePendingLots() {
     const tbody = document.getElementById('homeLotBody');
     tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    homeLotDetailCache = {};
     try {
       const [purchaseSnap, vsSnap] = await Promise.all([
         getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
@@ -4868,6 +4883,8 @@
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
+          if (!homeLotDetailCache[key]) homeLotDetailCache[key] = [];
+          homeLotDetailCache[key].push({ id: docSnap.id, date: d.date, remaining, source: 'godown' });
         }
       });
       vsSnap.forEach(docSnap => {
@@ -4876,12 +4893,16 @@
         if (remaining > 0) {
           const key = (d.product || '-') + '|-|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
+          if (!homeLotDetailCache[key]) homeLotDetailCache[key] = [];
+          homeLotDetailCache[key].push({ id: docSnap.id, date: d.date, remaining, source: 'vehicle' });
         }
       });
       const entries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
       const rows = entries.map(([key, qty]) => {
         const [product, godown, vehicle] = key.split('|');
-        return `<tr><td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
+        return `<tr style="cursor:pointer;" onclick="openHomeLotDetail('${key.replace(/'/g, "\\'")}','${currentUserData.area}')">
+          <td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty} <span style="color:#1565c0; font-size:11px;">▸ Link</span></td>
+        </tr>`;
       }).join('');
       tbody.innerHTML = rows || '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
@@ -4889,6 +4910,25 @@
       tbody.innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
     }
   }
+
+  window.openHomeLotDetail = function (key, area) {
+    const [product, godown, vehicle] = key.split('|');
+    const lots = homeLotDetailCache[key] || [];
+    document.getElementById('homeLotDetailTitle').textContent = `${product} — ${godown}${vehicle !== '-' ? ' (' + vehicle + ')' : ''}`;
+
+    const rows = lots.map(l => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border:1px solid #eee; border-radius:8px; margin-bottom:8px;">
+        <div><strong>${fmtDate(l.date)}</strong><br><span style="font-size:12px; color:#777;">Remaining: ${l.remaining}</span></div>
+        <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="closeHomeLotDetail(); openTripLinkModal('${l.id}','${product.replace(/'/g, "\\'")}','${area}','${godown.replace(/'/g, "\\'")}',${l.remaining})">🔗 Link Sale</button>
+      </div>`).join('');
+
+    document.getElementById('homeLotDetailBody').innerHTML = rows || '<p style="color:#999; font-size:13px;">Details കണ്ടെത്തിയില്ല.</p>';
+    document.getElementById('homeLotDetailOverlay').style.display = 'flex';
+  };
+
+  window.closeHomeLotDetail = function () {
+    document.getElementById('homeLotDetailOverlay').style.display = 'none';
+  };
 
   // ---- HOME: Single-date Sale/Collection/Purchase view ----
   window.generateHomeDayView = async function () {
@@ -5055,14 +5095,14 @@
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
-        html += `<table>
+        html += `<div class="table-wrap"><table>
           <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
           <tbody>${linkedSales.map(x => `<tr>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
             <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${lot.id}',${x.qty})">Unlink</button></td>
           </tr>`).join('')}</tbody>
-        </table>`;
+        </table></div>`;
       } else {
         html += `<p style="padding:10px 14px; color:#999; font-size:13px;">ഈ lot-ൽ നിന്ന് ഇതുവരെ sale ഒന്നും link ചെയ്തിട്ടില്ല.</p>`;
       }
@@ -5448,14 +5488,14 @@
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
-        html += `<table>
+        html += `<div class="table-wrap"><table>
           <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
           <tbody>${linkedSales.map(x => `<tr>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
             <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${lot.id}',${x.qty})">Unlink</button></td>
           </tr>`).join('')}</tbody>
-        </table>`;
+        </table></div>`;
       } else {
         html += `<p style="padding:10px 14px; color:#999; font-size:13px;">ഈ lot-ൽ നിന്ന് ഇതുവരെ sale ഒന്നും link ചെയ്തിട്ടില്ല.</p>`;
       }
@@ -5562,11 +5602,12 @@
       : adminHomeAdvanceSaleCache;
 
     const rows = filtered.map(d =>
-      `<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td></tr>`
+      `<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td>
+        <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td></tr>`
     ).join('');
 
     document.getElementById('adminHomeAdvanceSaleCount').textContent = adminHomeAdvanceSaleCache.length;
-    document.getElementById('adminHomeAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="6">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
+    document.getElementById('adminHomeAdvanceSaleBody').innerHTML = rows || '<tr><td colspan="7">ഈ month-ൽ ഒന്നും ഇല്ല.</td></tr>';
 
     const alertBox = document.getElementById('adminHomeAlertBox');
     alertBox.style.display = adminHomeAdvanceSaleCache.length > 0 ? 'block' : 'none';
@@ -5583,7 +5624,7 @@
         const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
         const remaining = (d.qty || 0) - linkedQty;
         if (remaining <= 0) return;
-        adminHomeAdvanceSaleCache.push({ ...d, remaining });
+        adminHomeAdvanceSaleCache.push({ id: docSnap.id, ...d, remaining });
       });
       adminHomeAdvanceSaleCache.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
@@ -5604,12 +5645,15 @@
         getDocs(collection(db, "vehicleStock"))
       ]);
       const lotMap = {};
+      adminHomeLotDetailCache = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.area || '-') + '|' + (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
+          if (!adminHomeLotDetailCache[key]) adminHomeLotDetailCache[key] = [];
+          adminHomeLotDetailCache[key].push({ id: docSnap.id, date: d.date, remaining, source: 'godown' });
         }
       });
       vsSnap.forEach(docSnap => {
@@ -5618,12 +5662,16 @@
         if (remaining > 0) {
           const key = (d.area || '-') + '|' + (d.product || '-') + '|-|' + (d.vehicle || '-');
           lotMap[key] = (lotMap[key] || 0) + remaining;
+          if (!adminHomeLotDetailCache[key]) adminHomeLotDetailCache[key] = [];
+          adminHomeLotDetailCache[key].push({ id: docSnap.id, date: d.date, remaining, source: 'vehicle' });
         }
       });
       const entries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
       const rows2 = entries.map(([key, qty]) => {
         const [area, product, godown, vehicle] = key.split('|');
-        return `<tr><td>${area}</td><td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty}</td></tr>`;
+        return `<tr style="cursor:pointer;" onclick="openAdminHomeLotDetail('${key.replace(/'/g, "\\'")}')">
+          <td>${area}</td><td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty} <span style="color:#1565c0; font-size:11px;">▸ Link</span></td>
+        </tr>`;
       }).join('');
       document.getElementById('adminHomeLotBody').innerHTML = rows2 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
 
@@ -5646,6 +5694,23 @@
       document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
     }
   }
+
+  let adminHomeLotDetailCache = {};
+
+  window.openAdminHomeLotDetail = function (key) {
+    const [area, product, godown, vehicle] = key.split('|');
+    const lots = adminHomeLotDetailCache[key] || [];
+    document.getElementById('homeLotDetailTitle').textContent = `${area} — ${product} — ${godown}${vehicle !== '-' ? ' (' + vehicle + ')' : ''}`;
+
+    const rows = lots.map(l => `
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border:1px solid #eee; border-radius:8px; margin-bottom:8px;">
+        <div><strong>${fmtDate(l.date)}</strong><br><span style="font-size:12px; color:#777;">Remaining: ${l.remaining}</span></div>
+        <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="closeHomeLotDetail(); openTripLinkModal('${l.id}','${product.replace(/'/g, "\\'")}','${area}','${godown.replace(/'/g, "\\'")}',${l.remaining})">🔗 Link Sale</button>
+      </div>`).join('');
+
+    document.getElementById('homeLotDetailBody').innerHTML = rows || '<p style="color:#999; font-size:13px;">Details കണ്ടെത്തിയില്ല.</p>';
+    document.getElementById('homeLotDetailOverlay').style.display = 'flex';
+  };
 
   window.generateAdminHomeDayView = async function () {
     const date = document.getElementById('adminHomeDayDate').value;
