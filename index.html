@@ -1821,8 +1821,17 @@
 
   <div id="tabAdminReports">
 
-    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" open>
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (All Areas) — <span id="adminHomeAdvanceSaleCount">0</span></summary>
+
+      <h4 style="font-size:13px; color:#e65100; margin:12px 0 6px;">Area-wise Count</h4>
+      <div class="table-wrap" style="margin-bottom:14px;">
+        <table>
+          <thead><tr><th>Area</th><th>Unlinked Sales Count</th></tr></thead>
+          <tbody id="adminHomeAdvanceAreaCountBody"><tr><td colspan="2">—</td></tr></tbody>
+        </table>
+      </div>
+
       <label style="font-size:12px; margin-top:10px; display:block;">Month</label>
       <select id="adminHomeAdvanceSaleMonth" onchange="renderAdminHomeAdvanceSaleList()" style="margin-bottom:10px;">
         <option value="">-- എല്ലാ Months ഉം --</option>
@@ -1835,9 +1844,18 @@
       </div>
     </details>
 
-    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" open>
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">📦 Pending Lots (All Areas) — click ചെയ്ത് link ചെയ്യാം</summary>
-      <div class="table-wrap" style="margin-top:10px;">
+
+      <h4 style="font-size:13px; color:#e65100; margin:12px 0 6px;">Area-wise Count</h4>
+      <div class="table-wrap" style="margin-bottom:14px;">
+        <table>
+          <thead><tr><th>Area</th><th>Pending Lots (Product+Godown+Vehicle combinations)</th></tr></thead>
+          <tbody id="adminHomeLotAreaCountBody"><tr><td colspan="2">—</td></tr></tbody>
+        </table>
+      </div>
+
+      <div class="table-wrap">
         <table>
           <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
           <tbody id="adminHomeLotBody"><tr><td colspan="5">Loading...</td></tr></tbody>
@@ -6614,6 +6632,23 @@
       ? adminHomeAdvanceSaleCache.filter(d => (d.date || '').slice(0, 7) === monthFilter)
       : adminHomeAdvanceSaleCache;
 
+    // Area-wise count (always over ALL unlinked sales, not just the month filter, so admin
+    // sees the true total pending per area at a glance)
+    const areaCounts = {};
+    adminHomeAdvanceSaleCache.forEach(d => {
+      const area = d.area || '-';
+      areaCounts[area] = (areaCounts[area] || 0) + 1;
+    });
+    const areaOrder = ['MKD', 'PKD', 'MLT', 'NLB'];
+    let areaCountRows = '';
+    areaOrder.forEach(area => {
+      if (areaCounts[area]) areaCountRows += `<tr><td>${area}</td><td>${areaCounts[area]}</td></tr>`;
+    });
+    Object.keys(areaCounts).forEach(area => {
+      if (!areaOrder.includes(area)) areaCountRows += `<tr><td>${area}</td><td>${areaCounts[area]}</td></tr>`;
+    });
+    document.getElementById('adminHomeAdvanceAreaCountBody').innerHTML = areaCountRows || '<tr><td colspan="2">ഒന്നും ബാക്കി ഇല്ല.</td></tr>';
+
     const rows = filtered.map(d =>
       `<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td>
         <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td></tr>`
@@ -6688,6 +6723,22 @@
       }).join('');
       document.getElementById('adminHomeLotBody').innerHTML = rows2 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
 
+      // Area-wise Pending Lots count (how many distinct Product+Godown+Vehicle lots per area)
+      const lotAreaCounts = {};
+      entries.forEach(([key]) => {
+        const area = key.split('|')[0];
+        lotAreaCounts[area] = (lotAreaCounts[area] || 0) + 1;
+      });
+      const areaOrderForLots = ['MKD', 'PKD', 'MLT', 'NLB'];
+      let lotAreaCountRows = '';
+      areaOrderForLots.forEach(area => {
+        if (lotAreaCounts[area]) lotAreaCountRows += `<tr><td>${area}</td><td>${lotAreaCounts[area]}</td></tr>`;
+      });
+      Object.keys(lotAreaCounts).forEach(area => {
+        if (!areaOrderForLots.includes(area)) lotAreaCountRows += `<tr><td>${area}</td><td>${lotAreaCounts[area]}</td></tr>`;
+      });
+      document.getElementById('adminHomeLotAreaCountBody').innerHTML = lotAreaCountRows || '<tr><td colspan="2">Stock ഒന്നും ഇല്ല.</td></tr>';
+
       // Stock Details — Area+Product+Godown (combine godown+vehicle totals per product)
       const stockMap = {};
       entries.forEach(([key, qty]) => {
@@ -6704,6 +6755,7 @@
     } catch (err) {
       console.error(err);
       document.getElementById('adminHomeLotBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
+      document.getElementById('adminHomeLotAreaCountBody').innerHTML = '<tr><td colspan="2">Error loading.</td></tr>';
       document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
     }
   }
