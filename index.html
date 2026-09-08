@@ -1802,6 +1802,16 @@
     </p>
     <div class="form-grid" style="margin-bottom:10px;">
       <div>
+        <label style="font-size:12px;">Area (optional)</label>
+        <select id="oldAdvFilterArea" onchange="renderOldAdvanceSalesList()">
+          <option value="">-- All Areas --</option>
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+        </select>
+      </div>
+      <div>
         <label style="font-size:12px;">From Date (optional)</label>
         <input type="date" id="oldAdvFilterFrom" onchange="renderOldAdvanceSalesList()">
       </div>
@@ -1887,7 +1897,7 @@
     <div class="add-user-form">
       <h3>📈 Report</h3>
       <label>Area</label>
-      <select id="adminRepArea" onchange="generateAdminReport(); generateTripSheet();" style="margin-bottom:14px;">
+      <select id="adminRepArea" onchange="generateAdminReport(); generateTripSheet(); loadTripSheetUnlinkedSales();" style="margin-bottom:14px;">
         <option value="">-- All Areas --</option>
         <option value="MKD">MKD - Mannarkkad</option>
         <option value="PKD">PKD - Palakkad</option>
@@ -1904,7 +1914,7 @@
           <input type="date" id="adminReportTo">
         </div>
       </div>
-      <button class="full-btn" onclick="generateAdminReport(); generateTripSheet();">Generate</button>
+      <button class="full-btn" onclick="generateAdminReport(); generateTripSheet(); loadTripSheetUnlinkedSales();">Generate</button>
     </div>
 
     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
@@ -2022,6 +2032,17 @@
     </div>
 
     <div id="adminRepSubTripsheet" style="display:none;">
+      <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" open>
+        <summary style="color:#e65100; font-size:14px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales in ഈ Area/Period — <span id="tripUnlinkedSalesCount">0</span></summary>
+        <p style="font-size:12px; color:#777; margin:10px 0;">മുകളിലെ Area + Date range-ന് അനുസരിച്ചാണ് ഈ list — Purchase Lot-കൾ (താഴെ) ബാക്കി ഉള്ളവയും ഇവിടെ Sales-ഉം ഒരുമിച്ച് നോക്കി link ചെയ്യാം.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
+            <tbody id="tripUnlinkedSalesBody"><tr><td colspan="7">"Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+          </table>
+        </div>
+      </details>
+
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         ദിവസേനയുള്ള ഓരോ Purchase Lot-ന്റെയും താഴെ, ആ lot-ൽ നിന്ന് നടന്ന Sales കാണിക്കുന്ന report.
       </p>
@@ -2295,6 +2316,7 @@
         btn.style.background = '#eee'; btn.style.color = '#333';
       }
     });
+    if (sub === 'tripsheet') loadTripSheetUnlinkedSales();
   };
 
   window.switchAdminEntrySubTab = function (sub) {
@@ -3975,6 +3997,9 @@
       if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
       if (document.getElementById('saleTableBody')) loadTodaysSales();
       if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+      if (document.getElementById('tripUnlinkedSalesBody')) loadTripSheetUnlinkedSales();
+      if (document.getElementById('tripSheetContainer') && lastTripSheetData) generateTripSheet();
+      if (document.getElementById('adminHomeAlertBox')) loadAdminHomeSummary();
 
     } catch (err) {
       console.error(err);
@@ -6404,6 +6429,48 @@
     if (lastTripSheetData) renderTripSheet(lastTripSheetData.lots, lastTripSheetData.salesByLot);
   };
 
+  // Shows Advance Sales still needing a lot — scoped to the same Area + Date range
+  // currently selected for the Trip Sheet, so admin can see both sides (available lots
+  // below, waiting sales here) for the same period and link them to each other.
+  window.loadTripSheetUnlinkedSales = async function () {
+    const from = document.getElementById('adminReportFrom').value;
+    const to = document.getElementById('adminReportTo').value;
+    const areaFilter = document.getElementById('adminRepArea').value;
+    const tbody = document.getElementById('tripUnlinkedSalesBody');
+    if (!from || !to) { tbody.innerHTML = '<tr><td colspan="7">Date range select ചെയ്യുക.</td></tr>'; return; }
+
+    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    try {
+      const q = query(collection(db, "sales"), where("isAdvance", "==", true));
+      const snap = await getDocs(q);
+      let items = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d.date < from || d.date > to) return;
+        if (areaFilter && d.area !== areaFilter) return;
+        const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+        const remaining = (d.qty || 0) - linkedQty;
+        if (remaining <= 0) return;
+        items.push({ id: docSnap.id, ...d, remaining });
+      });
+      items.sort((a, b) => {
+        const areaCmp = (a.area || '').localeCompare(b.area || '');
+        if (areaCmp !== 0) return areaCmp;
+        return (a.date || '').localeCompare(b.date || '');
+      });
+
+      document.getElementById('tripUnlinkedSalesCount').textContent = items.length;
+      const rows = items.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.remaining}</td>
+        <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td>
+      </tr>`).join('');
+      tbody.innerHTML = rows || '<tr><td colspan="7">ഈ Area/Period-ൽ Unlinked Sales ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
+    }
+  };
+
   window.generateTripSheet = async function () {
     const from = document.getElementById('adminReportFrom').value;
     const to = document.getElementById('adminReportTo').value;
@@ -8023,6 +8090,23 @@
     }
   };
 
+  // Builds Excel rows with a highlighted "AREA: XXX" separator row + blank row whenever
+  // the area changes, so each area's block is visually distinct when scrolling the sheet.
+  function buildAreaSeparatedRows(items, header, rowFn) {
+    const data = [header];
+    let lastArea = null;
+    items.forEach(d => {
+      const area = d.area || '-';
+      if (area !== lastArea) {
+        if (lastArea !== null) data.push([]); // blank spacer row between areas
+        data.push([`AREA: ${area}`]);
+        lastArea = area;
+      }
+      data.push(rowFn(d));
+    });
+    return data;
+  }
+
   window.exportApprovalsExcel = async function () {
     if (!lastApprovalsData) { alert("ആദ്യം page load ആകട്ടെ."); return; }
     try {
@@ -8031,16 +8115,25 @@
 
       const wb = XLSX.utils.book_new();
 
-      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Godown', 'Vehicle', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount']];
-      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.godown || '', d.vehicle || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]));
+      const salesData = buildAreaSeparatedRows(
+        sales,
+        ['Date', 'Area', 'Customer', 'Product', 'Godown', 'Vehicle', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount'],
+        d => [fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.godown || '', d.vehicle || '', d.qty || 0, d.rate || 0, d.discAmt || 0, d.freight || 0, d.amount || 0]
+      );
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Pending Sales');
 
-      const collData = [['Date', 'Area', 'Customer', 'Mode', 'Amount']];
-      colls.forEach(d => collData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.mode || '', d.amount || 0]));
+      const collData = buildAreaSeparatedRows(
+        colls,
+        ['Date', 'Area', 'Customer', 'Mode', 'Amount'],
+        d => [fmtDate(d.date), d.area || '', d.customerName || '', d.mode || '', d.amount || 0]
+      );
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(collData), 'Pending Collection');
 
-      const purchData = [['Date', 'Area', 'Product', 'Qty']];
-      purchases.forEach(d => purchData.push([fmtDate(d.date), d.area || '', d.product || '', d.qty || 0]));
+      const purchData = buildAreaSeparatedRows(
+        purchases,
+        ['Date', 'Area', 'Product', 'Qty'],
+        d => [fmtDate(d.date), d.area || '', d.product || '', d.qty || 0]
+      );
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(purchData), 'Pending Purchase');
 
       XLSX.writeFile(wb, `pending-approvals-${new Date().toISOString().split('T')[0]}.xlsx`);
@@ -8081,9 +8174,11 @@
     const fromFilter = document.getElementById('oldAdvFilterFrom').value;
     const toFilter = document.getElementById('oldAdvFilterTo').value;
     const custFilter = document.getElementById('oldAdvFilterCustomer').value.trim().toLowerCase();
+    const areaFilter = document.getElementById('oldAdvFilterArea').value;
 
     oldAdvanceSalesCache.forEach(d => {
       if ((d.date || '') > ADVANCE_SALE_USER_CUTOFF) return; // new ones — users handle these themselves
+      if (areaFilter && d.area !== areaFilter) return;
       if (fromFilter && (d.date || '') < fromFilter) return;
       if (toFilter && (d.date || '') > toFilter) return;
       if (custFilter && !(d.customerName || '').toLowerCase().includes(custFilter)) return;
