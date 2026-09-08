@@ -1699,6 +1699,28 @@
     <p style="font-size:13px; color:#777; margin-bottom:16px;">
       Area users enter ചെയ്ത pending records ഇവിടെ കാണാം (Area-wise, Date-wise sort ചെയ്തത്) — Approve ചെയ്യുകയോ, ചെറിയ correction (Quick Edit) വരുത്തുകയോ, Delete ചെയ്യുകയോ ചെയ്യാം.
     </p>
+
+    <div class="form-grid" style="margin-bottom:14px;">
+      <div>
+        <label style="font-size:12px;">Area (optional)</label>
+        <select id="apprFilterArea" onchange="loadApprovals()">
+          <option value="">-- All Areas --</option>
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+        </select>
+      </div>
+      <div>
+        <label style="font-size:12px;">From Date (optional)</label>
+        <input type="date" id="apprFilterFrom" onchange="loadApprovals()">
+      </div>
+      <div>
+        <label style="font-size:12px;">To Date (optional)</label>
+        <input type="date" id="apprFilterTo" onchange="loadApprovals()">
+      </div>
+    </div>
+
     <div style="display:flex; gap:10px; margin-bottom:20px;">
       <button style="flex:1; background:#2e7d32;" onclick="exportApprovalsExcel()">⬇️ Excel (.xlsx)</button>
       <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
@@ -7819,9 +7841,19 @@
         return (a.date || '').localeCompare(b.date || '');
       };
 
+      const areaFilter = document.getElementById('apprFilterArea').value;
+      const fromFilter = document.getElementById('apprFilterFrom').value;
+      const toFilter = document.getElementById('apprFilterTo').value;
+      const matchesFilter = (d) => {
+        if (areaFilter && d.area !== areaFilter) return false;
+        if (fromFilter && (d.date || '') < fromFilter) return false;
+        if (toFilter && (d.date || '') > toFilter) return false;
+        return true;
+      };
+
       // Sales
       let sales = [];
-      salesSnap.forEach(docSnap => sales.push({ id: docSnap.id, ...docSnap.data() }));
+      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (matchesFilter(d)) sales.push({ id: docSnap.id, ...d }); });
       sales.sort(sortByAreaDate);
 
       let salesRows = sales.map(d => `<tr>
@@ -7842,7 +7874,7 @@
 
       // Collections
       let colls = [];
-      collSnap.forEach(docSnap => colls.push({ id: docSnap.id, ...docSnap.data() }));
+      collSnap.forEach(docSnap => { const d = docSnap.data(); if (matchesFilter(d)) colls.push({ id: docSnap.id, ...d }); });
       colls.sort(sortByAreaDate);
 
       let collRows = colls.map(d => `<tr>
@@ -7859,7 +7891,7 @@
 
       // Purchases
       let purchases = [];
-      purchaseSnap.forEach(docSnap => purchases.push({ id: docSnap.id, ...docSnap.data() }));
+      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (matchesFilter(d)) purchases.push({ id: docSnap.id, ...d }); });
       purchases.sort(sortByAreaDate);
 
       let purchaseRows = purchases.map(d => `<tr>
