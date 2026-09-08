@@ -4678,7 +4678,8 @@
         const d = docSnap.data();
         rows += `<tr>
           <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td>
-          <td><button class="del-btn" onclick="adminDeleteRecord('purchases','${docSnap.id}')">Delete</button></td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${docSnap.id}')">Edit</button>
+              <button class="del-btn" onclick="adminDeleteRecord('purchases','${docSnap.id}')">Delete</button></td>
         </tr>`;
       });
       tbody.innerHTML = rows || '<tr><td colspan="7">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>';
@@ -8148,6 +8149,14 @@
         godownSnap2.forEach(ds => { const g = ds.data(); godownOptions2 += `<option value="${g.name}" ${g.name === d.godown ? 'selected' : ''}>${g.name}</option>`; });
 
         fieldsDiv.innerHTML = `
+          <label>Area</label>
+          <select id="qeArea" style="margin-bottom:14px;">
+            <option value="MKD" ${d.area === 'MKD' ? 'selected' : ''}>MKD - Mannarkkad</option>
+            <option value="PKD" ${d.area === 'PKD' ? 'selected' : ''}>PKD - Palakkad</option>
+            <option value="MLT" ${d.area === 'MLT' ? 'selected' : ''}>MLT - Melattur</option>
+            <option value="NLB" ${d.area === 'NLB' ? 'selected' : ''}>NLB - Nilambur</option>
+          </select>
+          <p style="font-size:11px; color:#e65100; margin:-8px 0 12px;">നിലവിൽ ഉള്ളത്: "${d.area || '-'}" (Bulk upload mistake ആണെങ്കിൽ ഇവിടെ ശരിയാക്കാം)</p>
           <label>Product</label>
           <select id="qeProduct" style="margin-bottom:14px;">${prodOptions2}</select>
           <label>Godown</label>
@@ -8252,6 +8261,7 @@
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
         const remainingQty = parseFloat(document.getElementById('qeRemainingQty').value) || 0;
         await updateDoc(doc(db, "purchases", quickEditId), {
+          area: document.getElementById('qeArea').value,
           product: document.getElementById('qeProduct').value,
           godown: document.getElementById('qeGodown').value,
           vehicle: document.getElementById('qeVehicle').value.trim(),
@@ -8272,6 +8282,7 @@
       closeQuickEdit();
       loadApprovals();
       if (document.getElementById('tabAdminReports').style.display !== 'none') generateAdminReport();
+      if (document.getElementById('adminPurchaseTableBody')) loadAdminPurchasesToday();
     } catch (err) {
       console.error(err);
       alert("Save ചെയ്യാൻ പറ്റിയില്ല.");
