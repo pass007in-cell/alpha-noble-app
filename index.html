@@ -1562,6 +1562,52 @@
     <div id="dupGroupsContainer"></div>
 
     <div class="add-user-form" style="background:#fff3e0;">
+      <h3 style="color:#e65100;">🔧 Fix/Delete Records with Wrong Area</h3>
+      <p style="font-size:13px; color:#777; margin-bottom:14px;">
+        ഉദാ: Bulk upload-ൽ "Area" column-ൽ MLT/NLB-ന് പകരം godown പേര് (IGST-NBL പോലുള്ളത്) തെറ്റായി പോയാൽ, ആ records ഇവിടെ കണ്ടെത്തി ശരിയായ Area-ലേക്ക് മാറ്റാം അല്ലെങ്കിൽ delete ചെയ്യാം.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>Data Type</label>
+          <select id="fixAreaDataType">
+            <option value="purchases">Purchases</option>
+            <option value="sales">Sales</option>
+            <option value="collections">Collections</option>
+            <option value="customers">Customers</option>
+          </select>
+        </div>
+        <div>
+          <label>ഇപ്പോൾ (തെറ്റായി) ഉള്ള Area value</label>
+          <input type="text" id="fixAreaWrongValue" placeholder="ഉദാ: IGST-NBL">
+        </div>
+      </div>
+      <button class="full-btn" style="background:#e65100;" onclick="scanWrongAreaRecords()">🔍 Records കണ്ടെത്തുക</button>
+      <div id="fixAreaScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="fixAreaResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:10px;"><strong><span id="fixAreaCount">0</span></strong> records കണ്ടെത്തി.</p>
+        <div class="table-wrap" style="margin-bottom:14px; max-height:300px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Date</th><th>Details</th></tr></thead>
+            <tbody id="fixAreaListBody"></tbody>
+          </table>
+        </div>
+
+        <label>ശരിയായ Area-ലേക്ക് മാറ്റുക</label>
+        <select id="fixAreaCorrectValue" style="margin-bottom:12px;">
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+        </select>
+        <div style="display:flex; gap:10px;">
+          <button class="full-btn" style="background:#2e7d32; flex:1;" onclick="applyFixWrongArea()">✅ ശരിയായ Area ആക്കുക</button>
+          <button class="full-btn" style="background:#c62828; flex:1;" onclick="deleteWrongAreaRecords()">🗑️ ഇവ Delete ചെയ്യുക</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">⚠️ Bulk Delete (Test Data)</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         Test ചെയ്യാൻ ഉപയോഗിച്ച data ഒറ്റയടിക്ക് നീക്കാൻ. <strong>ഈ action permanent ആണ്, തിരിച്ചെടുക്കാൻ പറ്റില്ല.</strong>
@@ -7098,6 +7144,105 @@
       console.error(err);
       statusEl.style.color = '#d32f2f';
       statusEl.textContent = "Merge ചെയ്യാൻ പറ്റിയില്ല.";
+    }
+  };
+
+  // ---- ADMIN: FIX/DELETE RECORDS WITH WRONG AREA VALUE ----
+  let wrongAreaMatchedDocs = [];
+
+  window.scanWrongAreaRecords = async function () {
+    const colName = document.getElementById('fixAreaDataType').value;
+    const wrongValue = document.getElementById('fixAreaWrongValue').value.trim();
+    const statusEl = document.getElementById('fixAreaScanStatus');
+    const resultBox = document.getElementById('fixAreaResultBox');
+
+    if (!wrongValue) { statusEl.textContent = "തെറ്റായി ഉള്ള Area value നൽകുക."; statusEl.style.color = '#d32f2f'; return; }
+
+    statusEl.textContent = "Scanning...";
+    statusEl.style.color = '#555';
+    resultBox.style.display = 'none';
+
+    try {
+      const q = query(collection(db, colName), where("area", "==", wrongValue));
+      const snap = await getDocs(q);
+      wrongAreaMatchedDocs = [];
+      snap.forEach(docSnap => wrongAreaMatchedDocs.push({ id: docSnap.id, ...docSnap.data() }));
+
+      if (wrongAreaMatchedDocs.length === 0) {
+        statusEl.textContent = `Area = "${wrongValue}" ആയി ${colName}-ൽ records ഒന്നും കണ്ടെത്തിയില്ല.`;
+        statusEl.style.color = '#e65100';
+        return;
+      }
+
+      statusEl.textContent = '';
+      document.getElementById('fixAreaCount').textContent = wrongAreaMatchedDocs.length;
+
+      const rows = wrongAreaMatchedDocs.map(d => {
+        let details = '';
+        if (colName === 'purchases') details = `${d.product || '-'} · ${d.godown || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}`;
+        else if (colName === 'sales') details = `${d.customerName || '-'} · ${d.product || '-'} · Qty: ${d.qty || 0} · ₹${d.amount || 0}`;
+        else if (colName === 'collections') details = `${d.customerName || '-'} · ${d.mode || '-'} · ₹${d.amount || 0}`;
+        else details = `${d.name || '-'} · ${d.phone || '-'}`;
+        return `<tr><td>${fmtDate(d.date) || '-'}</td><td>${details}</td></tr>`;
+      }).join('');
+      document.getElementById('fixAreaListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.applyFixWrongArea = async function () {
+    const colName = document.getElementById('fixAreaDataType').value;
+    const correctArea = document.getElementById('fixAreaCorrectValue').value;
+    if (wrongAreaMatchedDocs.length === 0) return;
+    if (!confirm(`${wrongAreaMatchedDocs.length} records-ന്റെ Area, "${correctArea}" ആയി മാറ്റണോ?`)) return;
+
+    const statusEl = document.getElementById('fixAreaScanStatus');
+    statusEl.textContent = "Updating...";
+    statusEl.style.color = '#555';
+
+    try {
+      for (const d of wrongAreaMatchedDocs) {
+        await updateDoc(doc(db, colName, d.id), { area: correctArea });
+      }
+      statusEl.textContent = `✅ ${wrongAreaMatchedDocs.length} records-ന്റെ Area "${correctArea}" ആയി മാറ്റി.`;
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('fixAreaResultBox').style.display = 'none';
+      wrongAreaMatchedDocs = [];
+      document.getElementById('fixAreaWrongValue').value = '';
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Update ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.deleteWrongAreaRecords = async function () {
+    const colName = document.getElementById('fixAreaDataType').value;
+    if (wrongAreaMatchedDocs.length === 0) return;
+    if (!confirm(`⚠️ ${wrongAreaMatchedDocs.length} records permanent ആയി delete ചെയ്യണോ? ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
+
+    const statusEl = document.getElementById('fixAreaScanStatus');
+    statusEl.textContent = "Deleting...";
+    statusEl.style.color = '#555';
+
+    try {
+      for (const d of wrongAreaMatchedDocs) {
+        await deleteDoc(doc(db, colName, d.id));
+      }
+      statusEl.textContent = `✅ ${wrongAreaMatchedDocs.length} records delete ചെയ്തു.`;
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('fixAreaResultBox').style.display = 'none';
+      wrongAreaMatchedDocs = [];
+      document.getElementById('fixAreaWrongValue').value = '';
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Delete ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
     }
   };
 
