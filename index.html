@@ -40,6 +40,14 @@
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
     display: none;
   }
+  /* PCs/laptops have plenty of horizontal room — let the app use more of it instead of
+     staying squeezed into a mobile-width column. */
+  @media (min-width: 1000px) {
+    .admin-box { max-width: 1200px; }
+  }
+  @media (min-width: 1400px) {
+    .admin-box { max-width: 1400px; }
+  }
   .logo { text-align: center; margin-bottom: 24px; }
   .logo h1 { color: #1e3c72; font-size: 26px; font-weight: 700; }
   .logo p { color: #888; font-size: 13px; margin-top: 4px; }
@@ -683,7 +691,7 @@
   </div>
 </div>
 
-<div id="tabReport" style="display:none; max-width:900px; margin:0 auto; padding:20px 16px;">
+<div id="tabReport" style="display:none; margin:0 auto; padding:20px 16px;">
   <div class="add-user-form">
     <h3>📈 Report</h3>
     <div class="form-grid">
@@ -1727,14 +1735,14 @@
     <div class="form-grid" style="margin-bottom:10px;">
       <div>
         <label style="font-size:12px;">From Date (optional)</label>
-        <input type="date" id="oldAdvFilterFrom" onchange="loadAdminOldAdvanceSales()">
+        <input type="date" id="oldAdvFilterFrom" onchange="renderOldAdvanceSalesList()">
       </div>
       <div>
         <label style="font-size:12px;">To Date (optional)</label>
-        <input type="date" id="oldAdvFilterTo" onchange="loadAdminOldAdvanceSales()">
+        <input type="date" id="oldAdvFilterTo" onchange="renderOldAdvanceSalesList()">
       </div>
     </div>
-    <input type="text" id="oldAdvFilterCustomer" placeholder="🔍 Customer പേര് വച്ച് search ചെയ്യുക..." style="margin-bottom:14px;" oninput="loadAdminOldAdvanceSales()">
+    <input type="text" id="oldAdvFilterCustomer" placeholder="🔍 Customer പേര് വച്ച് search ചെയ്യുക..." style="margin-bottom:14px;" oninput="renderOldAdvanceSalesList()">
     <div class="table-wrap">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
@@ -7813,45 +7821,53 @@
   };
 
   // ---- ADMIN: OLD ADVANCE SALES (up to go-live cutoff) ----
+  let oldAdvanceSalesCache = [];
+
   async function loadAdminOldAdvanceSales() {
     const tbody = document.getElementById('adminOldAdvanceBody');
     tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     try {
       const q = query(collection(db, "sales"), where("isAdvance", "==", true));
       const snap = await getDocs(q);
-      let items = [];
-      snap.forEach(docSnap => items.push({ id: docSnap.id, ...docSnap.data() }));
-      items.sort((a, b) => {
+      oldAdvanceSalesCache = [];
+      snap.forEach(docSnap => oldAdvanceSalesCache.push({ id: docSnap.id, ...docSnap.data() }));
+      oldAdvanceSalesCache.sort((a, b) => {
         const areaCmp = (a.area || '').localeCompare(b.area || '');
         if (areaCmp !== 0) return areaCmp;
         return (a.date || '').localeCompare(b.date || '');
       });
-
-      let rows = '';
-      const fromFilter = document.getElementById('oldAdvFilterFrom').value;
-      const toFilter = document.getElementById('oldAdvFilterTo').value;
-      const custFilter = document.getElementById('oldAdvFilterCustomer').value.trim().toLowerCase();
-
-      items.forEach(d => {
-        if ((d.date || '') > ADVANCE_SALE_USER_CUTOFF) return; // new ones — users handle these themselves
-        if (fromFilter && (d.date || '') < fromFilter) return;
-        if (toFilter && (d.date || '') > toFilter) return;
-        if (custFilter && !(d.customerName || '').toLowerCase().includes(custFilter)) return;
-        const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
-        const remaining = (d.qty || 0) - linkedQty;
-        if (remaining <= 0) return;
-        rows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
-          <td>${remaining}</td>
-          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td>
-        </tr>`;
-      });
-      tbody.innerHTML = rows || '<tr><td colspan="8">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
+      renderOldAdvanceSalesList();
     } catch (err) {
       console.error(err);
       tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
     }
   }
+
+  // Filters the already-fetched cache instantly — no network call per keystroke, so no
+  // race condition between overlapping async fetches when typing fast.
+  window.renderOldAdvanceSalesList = function () {
+    const tbody = document.getElementById('adminOldAdvanceBody');
+    let rows = '';
+    const fromFilter = document.getElementById('oldAdvFilterFrom').value;
+    const toFilter = document.getElementById('oldAdvFilterTo').value;
+    const custFilter = document.getElementById('oldAdvFilterCustomer').value.trim().toLowerCase();
+
+    oldAdvanceSalesCache.forEach(d => {
+      if ((d.date || '') > ADVANCE_SALE_USER_CUTOFF) return; // new ones — users handle these themselves
+      if (fromFilter && (d.date || '') < fromFilter) return;
+      if (toFilter && (d.date || '') > toFilter) return;
+      if (custFilter && !(d.customerName || '').toLowerCase().includes(custFilter)) return;
+      const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+      const remaining = (d.qty || 0) - linkedQty;
+      if (remaining <= 0) return;
+      rows += `<tr>
+        <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
+        <td>${remaining}</td>
+        <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td>
+      </tr>`;
+    });
+    tbody.innerHTML = rows || '<tr><td colspan="8">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
+  };
 
   window.approveRecord = async function (colName, id) {
     try {
