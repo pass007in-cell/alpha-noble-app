@@ -825,6 +825,12 @@
     </p>
     <label style="font-size:12px;">Search (Product / Godown / Vehicle / Customer)</label>
     <input type="text" id="userTripSearch" placeholder="🔍 Search ചെയ്യുക..." oninput="onUserTripSortChange()" style="margin-bottom:14px;">
+    <label style="font-size:12px;">Show</label>
+    <select id="userTripStatusFilter" onchange="onUserTripSortChange()" style="margin-bottom:14px;">
+      <option value="all">എല്ലാ Lots ഉം</option>
+      <option value="incomplete">Incomplete മാത്രം (Remaining &gt; 0)</option>
+      <option value="completed">Completed മാത്രം (Remaining = 0)</option>
+    </select>
     <label style="font-size:12px;">Sort by</label>
     <select id="userTripSortBy" onchange="onUserTripSortChange()" style="margin-bottom:14px;">
       <option value="date">Date</option>
@@ -2048,6 +2054,12 @@
       </p>
       <label style="font-size:12px;">Search (Product / Godown / Vehicle / Area / Customer)</label>
       <input type="text" id="adminTripSearch" placeholder="🔍 Search ചെയ്യുക..." oninput="onAdminTripSortChange()" style="margin-bottom:14px;">
+      <label style="font-size:12px;">Show</label>
+      <select id="adminTripStatusFilter" onchange="onAdminTripSortChange()" style="margin-bottom:14px;">
+        <option value="all">എല്ലാ Lots ഉം</option>
+        <option value="incomplete">Incomplete മാത്രം (Remaining &gt; 0)</option>
+        <option value="completed">Completed മാത്രം (Remaining = 0)</option>
+      </select>
       <label style="font-size:12px;">Sort by</label>
       <select id="adminTripSortBy" onchange="onAdminTripSortChange()" style="margin-bottom:14px;">
         <option value="date">Date</option>
@@ -6093,8 +6105,16 @@
       });
     }
 
+    const statusFilter = document.getElementById('userTripStatusFilter')?.value || 'all';
+    if (statusFilter !== 'all') {
+      filteredLots = filteredLots.filter(lot => {
+        const rem = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
+        return statusFilter === 'incomplete' ? rem > 0 : rem <= 0;
+      });
+    }
+
     if (filteredLots.length === 0) {
-      container.innerHTML = '<p style="color:#999; font-size:13px;">Search-ന് matching lots ഒന്നും ഇല്ല.</p>';
+      container.innerHTML = '<p style="color:#999; font-size:13px;">Search/Filter-ന് matching lots ഒന്നും ഇല്ല.</p>';
       return;
     }
 
@@ -6550,8 +6570,16 @@
       });
     }
 
+    const statusFilter = document.getElementById('adminTripStatusFilter')?.value || 'all';
+    if (statusFilter !== 'all') {
+      filteredLots = filteredLots.filter(lot => {
+        const rem = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
+        return statusFilter === 'incomplete' ? rem > 0 : rem <= 0;
+      });
+    }
+
     if (filteredLots.length === 0) {
-      container.innerHTML = '<p style="color:#999; font-size:13px;">Search-ന് matching lots ഒന്നും ഇല്ല.</p>';
+      container.innerHTML = '<p style="color:#999; font-size:13px;">Search/Filter-ന് matching lots ഒന്നും ഇല്ല.</p>';
       return;
     }
 
