@@ -1599,7 +1599,12 @@
           </table>
         </div>
 
-        <label>ശരിയായ Area-ലേക്ക് മാറ്റുക</label>
+        <div style="background:#e3f2fd; border-radius:10px; padding:12px; margin-bottom:16px;">
+          <p style="font-size:12px; color:#1565c0; margin-bottom:8px;"><strong>Area ഉം Godown ഉും സ്ഥാനം മാറിപ്പോയെങ്കിൽ</strong> (ഉദാ: Area="IGST-ALP", Godown="PKD" ആയി കിടക്കുന്നു) — ഇത് ഒറ്റ ക്ലിക്കിൽ ശരിയാക്കാം:</p>
+          <button class="full-btn" style="background:#1565c0;" onclick="swapAreaGodownRecords()">🔄 Area ⟷ Godown Swap ചെയ്യുക</button>
+        </div>
+
+        <label>അല്ലെങ്കിൽ, ശരിയായ Area-ലേക്ക് മാറ്റുക (Godown മാറ്റില്ല)</label>
         <select id="fixAreaCorrectValue" style="margin-bottom:12px;">
           <option value="MKD">MKD - Mannarkkad</option>
           <option value="PKD">PKD - Palakkad</option>
@@ -7361,6 +7366,38 @@
     } catch (err) {
       console.error(err);
       statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // For the common mistake where Area and Godown got swapped during bulk upload
+  // (e.g. Area="IGST-ALP", Godown="PKD" instead of the correct Area="PKD", Godown="IGST-ALP")
+  // — swaps whatever is currently in each matched record's `area` and `godown` fields.
+  window.swapAreaGodownRecords = async function () {
+    const colName = document.getElementById('fixAreaDataType').value;
+    if (colName !== 'purchases' && colName !== 'sales') {
+      alert("Swap ചെയ്യാൻ 'Purchases' അല്ലെങ്കിൽ 'Sales' select ചെയ്യുക (Godown ഉള്ള data types മാത്രം).");
+      return;
+    }
+    if (wrongAreaMatchedDocs.length === 0) return;
+    if (!confirm(`${wrongAreaMatchedDocs.length} records-ന്റെ Area, Godown fields തമ്മിൽ swap ചെയ്യണോ?`)) return;
+
+    const statusEl = document.getElementById('fixAreaScanStatus');
+    statusEl.textContent = "Swapping...";
+    statusEl.style.color = '#555';
+
+    try {
+      for (const d of wrongAreaMatchedDocs) {
+        await updateDoc(doc(db, colName, d.id), { area: d.godown || '', godown: d.area || '' });
+      }
+      statusEl.textContent = `✅ ${wrongAreaMatchedDocs.length} records-ന്റെ Area ⟷ Godown swap ചെയ്തു.`;
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('fixAreaResultBox').style.display = 'none';
+      wrongAreaMatchedDocs = [];
+      document.getElementById('fixAreaWrongValue').value = '';
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Swap ചെയ്യാൻ പറ്റിയില്ല.";
       statusEl.style.color = '#d32f2f';
     }
   };
