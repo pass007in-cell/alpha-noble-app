@@ -3639,8 +3639,10 @@
       // landed under a different godown name within the same area.
       const purchSnap = await getDocs(query(collection(db, "purchases"), where("product", "==", d.product), where("area", "==", d.area)));
       const godownSet = new Set();
+      const isAdminUser = currentUserData.role === 'admin';
       purchSnap.forEach(docSnap => {
         const pd = docSnap.data();
+        if (!isAdminUser && (pd.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remainingQty = (pd.remainingQty !== undefined) ? pd.remainingQty : pd.qty;
         if (remainingQty <= 0) return;
         godownSet.add(pd.godown);
@@ -3679,8 +3681,10 @@
     const lotQ = query(collection(db, "purchases"), where("area", "==", d.area), where("product", "==", d.product), where("godown", "==", godown));
     const lotSnap = await getDocs(lotQ);
 
+    const isAdminUser = currentUserData.role === 'admin';
     lotSnap.forEach(docSnap => {
       const ld = docSnap.data();
+      if (!isAdminUser && (ld.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
       const rem = (ld.remainingQty !== undefined) ? ld.remainingQty : ld.qty;
       if (rem > 0) linkAdvanceAvailLots.push({ id: docSnap.id, date: ld.date, remainingQty: rem, vehicle: ld.vehicle });
     });
@@ -5236,6 +5240,7 @@
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
+        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           availableTransferLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, rate: d.rate || 0 });
@@ -5745,6 +5750,7 @@
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
+        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, source: 'godown' });
@@ -5881,6 +5887,7 @@
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
+        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
@@ -5891,6 +5898,7 @@
       });
       vsSnap.forEach(docSnap => {
         const d = docSnap.data();
+        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|-|' + (d.vehicle || '-');
@@ -6059,6 +6067,7 @@
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
         if (!inRange(d.date)) return;
+        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         // Trip Sheet respects the Area exactly as entered on the purchase — even for
         // IGST- shared godowns, the entering area "owns" that load for tracking purposes.
         // (Lot Balance / Current Stock elsewhere still pool shared-godown stock for selling.)
