@@ -773,28 +773,6 @@
   </div>
 
   <div id="repSubStockbook" style="display:none;">
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock)</h3>
-    <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Godown-വാരിയായി (Vehicle number സഹിതം), ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
-    </p>
-    <div class="table-wrap" style="margin-bottom:20px;">
-      <table>
-        <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
-        <tbody id="repLotBody"><tr><td colspan="4">—</td></tr></tbody>
-      </table>
-    </div>
-
-    <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book</h3>
-    <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
-    </p>
-    <div class="table-wrap" style="margin-bottom:24px;">
-      <table>
-        <thead><tr><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
-        <tbody id="repStockBookBody"><tr><td colspan="4">—</td></tr></tbody>
-      </table>
-    </div>
-
     <div class="add-user-form">
       <h3>📅 Stock Book — Date, Opening, Purchase, Sale, Closing (Item-wise)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
@@ -817,6 +795,28 @@
       <button class="full-btn" onclick="generateDailyStockBook()">Generate</button>
     </div>
     <div id="dsbContainer" style="margin-bottom:24px;"></div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Summary)</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
+    </p>
+    <div class="table-wrap" style="margin-bottom:24px;">
+      <table>
+        <thead><tr><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
+        <tbody id="repStockBookBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
+
+    <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock)</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      Godown-വാരിയായി (Vehicle number സഹിതം), ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
+    </p>
+    <div class="table-wrap" style="margin-bottom:20px;">
+      <table>
+        <thead><tr><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining Qty</th></tr></thead>
+        <tbody id="repLotBody"><tr><td colspan="4">—</td></tr></tbody>
+      </table>
+    </div>
   </div>
 
   <div id="repSubTripsheet" style="display:none;">
@@ -1997,19 +1997,6 @@
         <button style="flex:1; background:#2e7d32;" onclick="exportAdminExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
-      <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, Vehicle സഹിതം — Area-wise)</h3>
-      <div id="adminRepLotContainer" style="margin-bottom:20px;">—</div>
-
-      <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book (Area &amp; Item wise)</h3>
-      <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
-      </p>
-      <div class="table-wrap" style="margin-bottom:24px;">
-        <table>
-          <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
-          <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
-        </table>
-      </div>
 
       <div class="add-user-form">
         <h3>📅 Stock Book — Date, Opening, Purchase, Sale, Closing (Item-wise)</h3>
@@ -2040,7 +2027,21 @@
         </div>
         <button class="full-btn" onclick="generateAdminDailyStockBook()">Generate</button>
       </div>
-      <div id="adminDsbContainer"></div>
+      <div id="adminDsbContainer" style="margin-bottom:24px;"></div>
+
+      <h3 style="color:#1e3c72; margin-bottom:8px;">📘 Stock Book Summary (Area &amp; Item wise)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Date range-ലെ Purchase Qty, Sale Qty, ഒപ്പം ഇപ്പോഴത്തെ Remaining Stock.
+      </p>
+      <div class="table-wrap" style="margin-bottom:24px;">
+        <table>
+          <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
+          <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
+        </table>
+      </div>
+
+      <h3 style="color:#1e3c72; margin-bottom:8px;">📦 Lot Balance (Godown Stock, Vehicle സഹിതം — Area-wise)</h3>
+      <div id="adminRepLotContainer" style="margin-bottom:20px;">—</div>
     </div>
 
     <div id="adminRepSubTripsheet" style="display:none;">
