@@ -796,9 +796,9 @@
     </div>
 
     <div class="add-user-form">
-      <h3>📅 Daily Stock Book (Item-wise)</h3>
+      <h3>📅 Stock Book — Date, Opening, Purchase, Sale, Closing (Item-wise)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        ഓരോ ദിവസത്തെയും Purchase Qty, Sale Qty, Balance — ആകെ Purchase/Sale മാത്രം നോക്കി കണക്കാക്കുന്നത് (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+        ആകെ Purchase/Sale മാത്രം നോക്കി കണക്കാക്കുന്നത് (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
       </p>
       <label>Product</label>
       <select id="dsbProduct" style="margin-bottom:14px;">
@@ -2012,17 +2012,18 @@
       </div>
 
       <div class="add-user-form">
-        <h3>📅 Daily Stock Book (Item-wise)</h3>
+        <h3>📅 Stock Book — Date, Opening, Purchase, Sale, Closing (Item-wise)</h3>
         <p style="font-size:12px; color:#777; margin-bottom:10px;">
-          ഓരോ ദിവസത്തെയും Purchase Qty, Sale Qty, Balance — ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+          ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
         </p>
         <label>Area</label>
-        <select id="adminDsbArea" style="margin-bottom:14px;">
-          <option value="MKD">MKD - Mannarkkad</option>
-          <option value="PKD">PKD - Palakkad</option>
-          <option value="MLT">MLT - Melattur</option>
-          <option value="NLB">NLB - Nilambur</option>
-        </select>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
+          <button type="button" id="adminDsbAreaTabMKD" onclick="switchAdminDsbArea('MKD')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">MKD</button>
+          <button type="button" id="adminDsbAreaTabPKD" onclick="switchAdminDsbArea('PKD')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">PKD</button>
+          <button type="button" id="adminDsbAreaTabMLT" onclick="switchAdminDsbArea('MLT')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">MLT</button>
+          <button type="button" id="adminDsbAreaTabNLB" onclick="switchAdminDsbArea('NLB')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">NLB</button>
+        </div>
+        <input type="hidden" id="adminDsbArea" value="MKD">
         <label>Product</label>
         <select id="adminDsbProduct" style="margin-bottom:14px;">
           <option value="">-- Select Product --</option>
@@ -6273,23 +6274,25 @@
       return;
     }
 
-    // Running balance carried from the very first transaction date, so the balance shown
-    // for the range is accurate even if earlier activity happened before "From Date".
+    // Running balance carried from the very first transaction date, so Opening/Closing
+    // shown for the range is accurate even if earlier activity happened before "From Date".
     let runningBalance = 0;
     let rows = '';
     allDates.forEach(date => {
       const p = purchByDate[date] || 0;
       const s = saleByDate[date] || 0;
+      const opening = runningBalance;
       runningBalance += p - s;
+      const closing = runningBalance;
       if (date >= from && date <= to) {
-        rows += `<tr><td>${fmtDate(date)}</td><td>${p}</td><td>${s}</td><td><strong>${runningBalance}</strong></td></tr>`;
+        rows += `<tr><td>${fmtDate(date)}</td><td>${opening}</td><td>${p}</td><td>${s}</td><td><strong>${closing}</strong></td></tr>`;
       }
     });
 
     container.innerHTML = `<div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Purchase Qty</th><th>Sale Qty</th><th>Balance</th></tr></thead>
-        <tbody>${rows || '<tr><td colspan="4">ഈ range-ൽ ഒന്നും ഇല്ല.</td></tr>'}</tbody>
+        <thead><tr><th>Date</th><th>Opening</th><th>Purchase</th><th>Sale</th><th>Closing</th></tr></thead>
+        <tbody>${rows || '<tr><td colspan="5">ഈ range-ൽ ഒന്നും ഇല്ല.</td></tr>'}</tbody>
       </table>
     </div>`;
   }
@@ -6691,6 +6694,16 @@
       if (currentVal) sel.value = currentVal;
     } catch (err) { console.error(err); }
   }
+
+  window.switchAdminDsbArea = function (area) {
+    document.getElementById('adminDsbArea').value = area;
+    ['MKD', 'PKD', 'MLT', 'NLB'].forEach(a => {
+      const btn = document.getElementById('adminDsbAreaTab' + a);
+      if (a === area) { btn.style.background = '#1e3c72'; btn.style.color = '#fff'; }
+      else { btn.style.background = '#eee'; btn.style.color = '#333'; }
+    });
+    generateAdminDailyStockBook();
+  };
 
   window.generateAdminDailyStockBook = async function () {
     const area = document.getElementById('adminDsbArea').value;
