@@ -1570,7 +1570,7 @@
     <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">🔧 Fix/Delete Records with Wrong Area</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
-        ഉദാ: Bulk upload-ൽ "Area" column-ൽ MLT/NLB-ന് പകരം godown പേര് (IGST-NBL പോലുള്ളത്) തെറ്റായി പോയാൽ, ആ records ഇവിടെ കണ്ടെത്തി ശരിയായ Area-ലേക്ക് മാറ്റാം അല്ലെങ്കിൽ delete ചെയ്യാം.
+        ഉദാ: Bulk upload-ൽ Area/Godown മാറിപ്പോയാൽ, ആ records ഇവിടെ കണ്ടെത്തി ശരിയാക്കാം അല്ലെങ്കിൽ delete ചെയ്യാം. Area value MKD/PKD പോലുള്ള valid ആണെങ്കിൽ, Date range കൂടി നൽകുക — അല്ലെങ്കിൽ ശരിയായ records ഉം കൂടെ വന്നേക്കാം.
       </p>
       <div class="form-grid">
         <div>
@@ -1583,8 +1583,18 @@
           </select>
         </div>
         <div>
-          <label>ഇപ്പോൾ (തെറ്റായി) ഉള്ള Area value</label>
-          <input type="text" id="fixAreaWrongValue" placeholder="ഉദാ: IGST-NBL">
+          <label>ഇപ്പോൾ (തെറ്റായി) ഉള്ള Area value (optional)</label>
+          <input type="text" id="fixAreaWrongValue" placeholder="ഉദാ: IGST-NBL അല്ലെങ്കിൽ MKD">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label>From Date (optional — precise ആയി narrow ചെയ്യാൻ)</label>
+          <input type="date" id="fixAreaFromDate">
+        </div>
+        <div>
+          <label>To Date (optional)</label>
+          <input type="date" id="fixAreaToDate">
         </div>
       </div>
       <button class="full-btn" style="background:#e65100;" onclick="scanWrongAreaRecords()">🔍 Records കണ്ടെത്തുക</button>
@@ -7351,35 +7361,50 @@
   window.scanWrongAreaRecords = async function () {
     const colName = document.getElementById('fixAreaDataType').value;
     const wrongValue = document.getElementById('fixAreaWrongValue').value.trim();
+    const fromDate = document.getElementById('fixAreaFromDate').value;
+    const toDate = document.getElementById('fixAreaToDate').value;
     const statusEl = document.getElementById('fixAreaScanStatus');
     const resultBox = document.getElementById('fixAreaResultBox');
 
-    if (!wrongValue) { statusEl.textContent = "തെറ്റായി ഉള്ള Area value നൽകുക."; statusEl.style.color = '#d32f2f'; return; }
+    if (!wrongValue && !fromDate && !toDate) {
+      statusEl.textContent = "Area value അല്ലെങ്കിൽ Date range, ഏതെങ്കിലും ഒന്ന് എങ്കിലും നൽകുക.";
+      statusEl.style.color = '#d32f2f';
+      return;
+    }
 
     statusEl.textContent = "Scanning...";
     statusEl.style.color = '#555';
     resultBox.style.display = 'none';
 
     try {
-      const q = query(collection(db, colName), where("area", "==", wrongValue));
+      const q = wrongValue
+        ? query(collection(db, colName), where("area", "==", wrongValue))
+        : collection(db, colName);
       const snap = await getDocs(q);
       wrongAreaMatchedDocs = [];
-      snap.forEach(docSnap => wrongAreaMatchedDocs.push({ id: docSnap.id, ...docSnap.data() }));
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (fromDate && (d.date || '') < fromDate) return;
+        if (toDate && (d.date || '') > toDate) return;
+        wrongAreaMatchedDocs.push({ id: docSnap.id, ...d });
+      });
 
       if (wrongAreaMatchedDocs.length === 0) {
-        statusEl.textContent = `Area = "${wrongValue}" ആയി ${colName}-ൽ records ഒന്നും കണ്ടെത്തിയില്ല.`;
+        statusEl.textContent = `ഈ filter-ന് matching records ${colName}-ൽ ഒന്നും കണ്ടെത്തിയില്ല.`;
         statusEl.style.color = '#e65100';
         return;
       }
+
+      wrongAreaMatchedDocs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
       statusEl.textContent = '';
       document.getElementById('fixAreaCount').textContent = wrongAreaMatchedDocs.length;
 
       const rows = wrongAreaMatchedDocs.map(d => {
         let details = '';
-        if (colName === 'purchases') details = `${d.product || '-'} · ${d.godown || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}`;
-        else if (colName === 'sales') details = `${d.customerName || '-'} · ${d.product || '-'} · Qty: ${d.qty || 0} · ₹${d.amount || 0}`;
-        else if (colName === 'collections') details = `${d.customerName || '-'} · ${d.mode || '-'} · ₹${d.amount || 0}`;
+        if (colName === 'purchases') details = `Area: ${d.area || '-'} · Godown: ${d.godown || '-'} · ${d.product || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}`;
+        else if (colName === 'sales') details = `Area: ${d.area || '-'} · ${d.customerName || '-'} · ${d.product || '-'} · Qty: ${d.qty || 0} · ₹${d.amount || 0}`;
+        else if (colName === 'collections') details = `Area: ${d.area || '-'} · ${d.customerName || '-'} · ${d.mode || '-'} · ₹${d.amount || 0}`;
         else details = `${d.name || '-'} · ${d.phone || '-'}`;
         return `<tr><td>${fmtDate(d.date) || '-'}</td><td>${details}</td></tr>`;
       }).join('');
