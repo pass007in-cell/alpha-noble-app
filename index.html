@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ml">
 <head>
 <meta charset="UTF-8">
@@ -674,8 +674,8 @@
       <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
-          <tbody id="repTopStockBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+          <thead><tr><th>Product</th><th>Total Purchase</th><th>Total Sale</th><th>Remaining</th></tr></thead>
+          <tbody id="repTopStockBody"><tr><td colspan="4">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -776,22 +776,12 @@
     <div class="add-user-form">
       <h3>📅 Stock Book — Date, Opening, Purchase, Sale, Closing (Item-wise)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        ആകെ Purchase/Sale മാത്രം നോക്കി കണക്കാക്കുന്നത് (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+        മുകളിലെ From/To Date ഇവിടെയും ബാധകം. ആകെ Purchase/Sale മാത്രം നോക്കി കണക്കാക്കുന്നത് (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
       </p>
       <label>Product</label>
       <select id="dsbProduct" style="margin-bottom:14px;">
         <option value="">-- Select Product --</option>
       </select>
-      <div class="form-grid">
-        <div>
-          <label>From Date</label>
-          <input type="date" id="dsbFrom">
-        </div>
-        <div>
-          <label>To Date</label>
-          <input type="date" id="dsbTo">
-        </div>
-      </div>
       <button class="full-btn" onclick="generateDailyStockBook()">Generate</button>
     </div>
     <div id="dsbContainer" style="margin-bottom:24px;"></div>
@@ -1963,8 +1953,8 @@
       <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details (All Areas)</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Area</th><th>Product</th><th>Godown</th><th>Remaining Qty</th></tr></thead>
-          <tbody id="adminHomeStockBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+          <thead><tr><th>Area</th><th>Product</th><th>Total Purchase</th><th>Total Sale</th><th>Remaining</th></tr></thead>
+          <tbody id="adminHomeStockBody"><tr><td colspan="5">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -2079,7 +2069,7 @@
       <div class="add-user-form">
         <h3>📅 Stock Book — Date, Opening, Purchase, Sale, Closing (Item-wise)</h3>
         <p style="font-size:12px; color:#777; margin-bottom:10px;">
-          ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
+          മുകളിലെ From/To Date ഇവിടെയും ബാധകം. ആകെ Purchase/Sale മാത്രം നോക്കി (Advance Sale link ചെയ്തോ ഇല്ലയോ എന്നത് ബാധകമല്ല).
         </p>
         <label>Area</label>
         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:14px;">
@@ -2093,16 +2083,6 @@
         <select id="adminDsbProduct" style="margin-bottom:14px;">
           <option value="">-- Select Product --</option>
         </select>
-        <div class="form-grid">
-          <div>
-            <label>From Date</label>
-            <input type="date" id="adminDsbFrom">
-          </div>
-          <div>
-            <label>To Date</label>
-            <input type="date" id="adminDsbTo">
-          </div>
-        </div>
         <button class="full-btn" onclick="generateAdminDailyStockBook()">Generate</button>
       </div>
       <div id="adminDsbContainer" style="margin-bottom:24px;"></div>
@@ -2380,16 +2360,14 @@
     else if (tab === 'settings') switchAdminSettingsSubTab('users');
     else if (tab === 'report') {
       const todayStr = new Date().toISOString().split('T')[0];
-      if (!document.getElementById('adminReportFrom').value) document.getElementById('adminReportFrom').value = todayStr;
+      if (!document.getElementById('adminReportFrom').value) {
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+        document.getElementById('adminReportFrom').value = weekAgo.toISOString().split('T')[0];
+      }
       if (!document.getElementById('adminReportTo').value) document.getElementById('adminReportTo').value = todayStr;
       generateAdminReport();
       generateTripSheet();
       populateAdminDsbProductDropdown();
-      if (!document.getElementById('adminDsbFrom').value) {
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
-        document.getElementById('adminDsbFrom').value = weekAgo.toISOString().split('T')[0];
-        document.getElementById('adminDsbTo').value = todayStr;
-      }
       switchAdminReportSubTab('sale');
     }
     else if (tab === 'reports') {
@@ -3005,16 +2983,14 @@
       generateHomeDayView();
     } else if (tab === 'report') {
       const todayStr = new Date().toISOString().split('T')[0];
-      if (!document.getElementById('reportFrom').value) document.getElementById('reportFrom').value = todayStr;
+      if (!document.getElementById('reportFrom').value) {
+        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
+        document.getElementById('reportFrom').value = weekAgo.toISOString().split('T')[0];
+      }
       if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
       generateReport();
       generateUserTripSheet();
       populateDsbProductDropdown();
-      if (!document.getElementById('dsbFrom').value) {
-        const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 6);
-        document.getElementById('dsbFrom').value = weekAgo.toISOString().split('T')[0];
-        document.getElementById('dsbTo').value = todayStr;
-      }
       switchReportSubTab('sale');
     }
   };
@@ -3553,7 +3529,7 @@
       if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
       const d = snap.data();
 
-      switchTab('sale');
+      switchTab('entry'); switchEntrySubTab('sale');
       await new Promise(r => setTimeout(r, 50)); // let dropdowns populate
 
       document.getElementById('saleCustomer').value = d.customerId;
@@ -5255,7 +5231,7 @@
       if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
       const d = snap.data();
 
-      switchTab('purchase');
+      switchTab('entry'); switchEntrySubTab('purchase');
       await new Promise(r => setTimeout(r, 50));
 
       document.getElementById('purchaseProduct').value = d.product || '';
@@ -5815,7 +5791,7 @@
       if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
       const d = snap.data();
 
-      switchTab('collection');
+      switchTab('entry'); switchEntrySubTab('collection');
       await new Promise(r => setTimeout(r, 50));
 
       document.getElementById('collCustomer').value = d.customerId;
@@ -5966,30 +5942,36 @@
       console.error(err);
     }
 
-    // Current Stock (Purchase Balance) — Product + Godown + Remaining Qty
-    // Strictly own-area — even IGST- shared godown stock only counts here if THIS area
-    // is the one it was actually entered/assigned under.
+    // Stock Details — simple item-wise Total Purchase − Total Sale (own area).
+    // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
+    // to a lot would otherwise be missing from the subtraction, overstating stock.
     try {
-      const q2 = query(collection(db, "purchases"), where("area", "==", currentUserData.area));
-      const snap2 = await getDocs(q2);
-      const stockMap = {};
-      snap2.forEach(docSnap => {
+      const [purchSnap, salesSnap] = await Promise.all([
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
+        getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area)))
+      ]);
+      const purchByProduct = {};
+      purchSnap.forEach(docSnap => {
         const d = docSnap.data();
-        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
-        if (remaining > 0) {
-          const key = (d.product || '-') + '|' + (d.godown || '-');
-          stockMap[key] = (stockMap[key] || 0) + remaining;
-        }
+        const key = d.product || '-';
+        purchByProduct[key] = (purchByProduct[key] || 0) + (d.qty || 0);
       });
-      const entries = Object.entries(stockMap).sort((a, b) => a[0].localeCompare(b[0]));
-      const rows2 = entries.map(([key, qty]) => {
-        const [product, godown] = key.split('|');
-        return `<tr><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+      const saleByProduct = {};
+      salesSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const key = d.product || '-';
+        saleByProduct[key] = (saleByProduct[key] || 0) + (d.qty || 0);
+      });
+      const allProducts = Array.from(new Set([...Object.keys(purchByProduct), ...Object.keys(saleByProduct)])).sort();
+      const rows2 = allProducts.map(product => {
+        const purchTotal = purchByProduct[product] || 0;
+        const saleTotal = saleByProduct[product] || 0;
+        return `<tr><td>${product}</td><td>${purchTotal}</td><td>${saleTotal}</td><td><strong>${purchTotal - saleTotal}</strong></td></tr>`;
       }).join('');
-      document.getElementById('repTopStockBody').innerHTML = rows2 || '<tr><td colspan="3">Stock ഒന്നും ഇല്ല.</td></tr>';
+      document.getElementById('repTopStockBody').innerHTML = rows2 || '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
-      document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="3">Error loading.</td></tr>';
+      document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
     }
   }
 
@@ -6349,12 +6331,12 @@
 
   window.generateDailyStockBook = async function () {
     const product = document.getElementById('dsbProduct').value;
-    const from = document.getElementById('dsbFrom').value;
-    const to = document.getElementById('dsbTo').value;
+    const from = document.getElementById('reportFrom').value;
+    const to = document.getElementById('reportTo').value;
     const container = document.getElementById('dsbContainer');
 
     if (!product) { alert("Product select ചെയ്യുക."); return; }
-    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+    if (!from || !to) { alert("മുകളിൽ From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
 
     container.innerHTML = 'Loading...';
 
@@ -6830,12 +6812,12 @@
   window.generateAdminDailyStockBook = async function () {
     const area = document.getElementById('adminDsbArea').value;
     const product = document.getElementById('adminDsbProduct').value;
-    const from = document.getElementById('adminDsbFrom').value;
-    const to = document.getElementById('adminDsbTo').value;
+    const from = document.getElementById('adminReportFrom').value;
+    const to = document.getElementById('adminReportTo').value;
     const container = document.getElementById('adminDsbContainer');
 
     if (!product) { alert("Product select ചെയ്യുക."); return; }
-    if (!from || !to) { alert("From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
+    if (!from || !to) { alert("മുകളിൽ From Date, To Date രണ്ടും select ചെയ്യുക."); return; }
 
     container.innerHTML = 'Loading...';
 
@@ -6983,24 +6965,35 @@
       });
       document.getElementById('adminHomeLotAreaCountBody').innerHTML = lotAreaCountRows || '<tr><td colspan="2">Stock ഒന്നും ഇല്ല.</td></tr>';
 
-      // Stock Details — Area+Product+Godown (combine godown+vehicle totals per product)
-      const stockMap = {};
-      entries.forEach(([key, qty]) => {
-        const [area, product, godown] = key.split('|');
-        const k = area + '|' + product + '|' + godown;
-        stockMap[k] = (stockMap[k] || 0) + qty;
+      // Stock Details — simple Area+Product-wise Total Purchase − Total Sale.
+      // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
+      // to a lot would otherwise be missing from the subtraction, overstating stock.
+      const purchTotalMap = {};
+      purchaseSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const k = (d.area || '-') + '|' + (d.product || '-');
+        purchTotalMap[k] = (purchTotalMap[k] || 0) + (d.qty || 0);
       });
-      const stockEntries = Object.entries(stockMap).sort((a, b) => a[0].localeCompare(b[0]));
-      const rows3 = stockEntries.map(([key, qty]) => {
-        const [area, product, godown] = key.split('|');
-        return `<tr><td>${area}</td><td>${product}</td><td>${godown}</td><td>${qty}</td></tr>`;
+      const saleTotalMap = {};
+      const allSalesSnap = await getDocs(collection(db, "sales"));
+      allSalesSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        const k = (d.area || '-') + '|' + (d.product || '-');
+        saleTotalMap[k] = (saleTotalMap[k] || 0) + (d.qty || 0);
+      });
+      const allKeys = Array.from(new Set([...Object.keys(purchTotalMap), ...Object.keys(saleTotalMap)])).sort();
+      const rows3 = allKeys.map(key => {
+        const [area, product] = key.split('|');
+        const purchTotal = purchTotalMap[key] || 0;
+        const saleTotal = saleTotalMap[key] || 0;
+        return `<tr><td>${area}</td><td>${product}</td><td>${purchTotal}</td><td>${saleTotal}</td><td><strong>${purchTotal - saleTotal}</strong></td></tr>`;
       }).join('');
-      document.getElementById('adminHomeStockBody').innerHTML = rows3 || '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+      document.getElementById('adminHomeStockBody').innerHTML = rows3 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
       document.getElementById('adminHomeLotBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
       document.getElementById('adminHomeLotAreaCountBody').innerHTML = '<tr><td colspan="2">Error loading.</td></tr>';
-      document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
+      document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
     }
   }
 
@@ -9325,6 +9318,34 @@
       document.activeElement.blur();
     }
   }, { passive: true });
+
+  // Mobile "double-back to exit": the app has no real page navigation (everything is
+  // shown/hidden via JS), so a single Back press would otherwise close the app straight
+  // away since there's no browser history to consume first. We push one dummy history
+  // entry so the first Back press is caught here (shown as a toast) instead of exiting;
+  // a second Back press within 2 seconds is allowed through to actually close the app.
+  let backPressedOnce = false;
+  let backToast = null;
+  function showBackToast() {
+    if (!backToast) {
+      backToast = document.createElement('div');
+      backToast.style.cssText = 'position:fixed; left:50%; bottom:30px; transform:translateX(-50%); background:rgba(30,60,114,0.95); color:#fff; padding:10px 20px; border-radius:20px; font-size:14px; z-index:9999; box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+      backToast.textContent = 'വീണ്ടും Back അമർത്തിയാൽ App close ആകും';
+      document.body.appendChild(backToast);
+    }
+    backToast.style.display = 'block';
+    setTimeout(() => { if (backToast) backToast.style.display = 'none'; }, 2000);
+  }
+  history.pushState(null, '', location.href);
+  window.addEventListener('popstate', function () {
+    if (backPressedOnce) {
+      return; // second Back within the window — let it proceed (app/tab closes)
+    }
+    backPressedOnce = true;
+    history.pushState(null, '', location.href); // re-catch the next Back press too
+    showBackToast();
+    setTimeout(() => { backPressedOnce = false; }, 2000);
+  });
 
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
