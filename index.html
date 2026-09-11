@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="ml">
 <head>
 <meta charset="UTF-8">
@@ -840,6 +840,7 @@
       <button style="flex:1; background:#2e7d32;" onclick="exportUserTripSheetExcel()">⬇️ Excel (.xlsx)</button>
       <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
     </div>
+    <button class="del-btn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
     <div id="userTripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
   </div>
 </div>
@@ -1629,6 +1630,70 @@
     </div>
 
     <div class="add-user-form" style="background:#fff3e0;">
+      <h3 style="color:#e65100;">🔁 Duplicate Purchases കണ്ടെത്തി Remove ചെയ്യുക</h3>
+      <p style="font-size:13px; color:#777; margin-bottom:14px;">
+        ഒരേ CSV file 2 തവണ upload ചെയ്തുപോയാൽ, Area+Date+Product+Godown+Vehicle+Qty എല്ലാം ഒരേപോലെ ഉള്ള records ഇവിടെ കണ്ടെത്താം. ഓരോ duplicate group-ലും <strong>ഒരെണ്ണം നിലനിർത്തി ബാക്കി മാത്രം</strong> delete ചെയ്യും.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>From Date</label>
+          <input type="date" id="dupFromDate">
+        </div>
+        <div>
+          <label>To Date</label>
+          <input type="date" id="dupToDate">
+        </div>
+      </div>
+      <label>Area (optional)</label>
+      <select id="dupArea" style="margin-bottom:14px;">
+        <option value="">-- All Areas --</option>
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+      <button class="full-btn" style="background:#e65100;" onclick="scanDuplicatePurchases()">🔍 Duplicates കണ്ടെത്തുക</button>
+      <div id="dupScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="dupResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:10px;">
+          <strong><span id="dupGroupCount">0</span></strong> duplicate groups കണ്ടെത്തി — ആകെ <strong><span id="dupExtraCount">0</span></strong> extra (delete ചെയ്യാവുന്ന) records.
+        </p>
+        <div class="table-wrap" style="margin-bottom:14px; max-height:350px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Date</th><th>Details</th><th>എത്ര തവണ</th></tr></thead>
+            <tbody id="dupListBody"></tbody>
+          </table>
+        </div>
+        <button class="full-btn" style="background:#c62828;" onclick="deleteDuplicatePurchases()">🗑️ Extra Duplicates മാത്രം Delete ചെയ്യുക (1 എണ്ണം വീതം നിലനിർത്തും)</button>
+      </div>
+    </div>
+
+    <div class="add-user-form" style="background:#fff3e0;">
+      <h3 style="color:#e65100;">📅 തെറ്റായ Date Format ഉള്ള Records കണ്ടെത്തുക</h3>
+      <p style="font-size:13px; color:#777; margin-bottom:14px;">
+        App-ൽ Date "YYYY-MM-DD" format-ൽ ആയിരിക്കണം. CSV-യിൽ വേറെ format-ൽ (ഉദാ: DD/MM/YYYY) date വന്നാൽ, ആ records ഒരു date range filter-ലും കാണില്ല. ഇവിടെ അവ കണ്ടെത്തി ശരിയാക്കാം.
+      </p>
+      <label>Data Type</label>
+      <select id="badDateDataType" style="margin-bottom:14px;">
+        <option value="purchases">Purchases</option>
+        <option value="sales">Sales</option>
+        <option value="collections">Collections</option>
+      </select>
+      <button class="full-btn" style="background:#e65100;" onclick="scanBadDateFormat()">🔍 തെറ്റായ Dates കണ്ടെത്തുക</button>
+      <div id="badDateScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="badDateResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:10px;">
+          <strong><span id="badDateCount">0</span></strong> records-ൽ തെറ്റായ Date format കണ്ടെത്തി. ഓരോന്നിന്റെയും ശരിയായ Date താഴെ നൽകി "ശരിയാക്കുക" ചെയ്യുക — auto-detect ചെയ്ത മൂല്യം ഇതിനകം നൽകിയിട്ടുണ്ട്, ശരിയാണോ എന്ന് ഒന്ന് നോക്കുക.
+        </p>
+        <div id="badDateListBody"></div>
+        <button class="full-btn" style="background:#2e7d32; margin-top:10px;" onclick="applyAllBadDateFixes()">✅ എല്ലാം ഒരുമിച്ച് ശരിയാക്കുക</button>
+        <button class="full-btn" style="background:#c62828; margin-top:10px;" onclick="deleteAllBadDateRecords()">🗑️ ഇവയെല്ലാം Delete ചെയ്യുക</button>
+      </div>
+    </div>
+
+    <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">⚠️ Bulk Delete (Test Data)</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         Test ചെയ്യാൻ ഉപയോഗിച്ച data ഒറ്റയടിക്ക് നീക്കാൻ. <strong>ഈ action permanent ആണ്, തിരിച്ചെടുക്കാൻ പറ്റില്ല.</strong>
@@ -1969,6 +2034,7 @@
         </table>
       </div>
       <h3 style="color:#1e3c72; margin-bottom:8px;">Sales (Area-wise, Expand/Collapse ചെയ്യാം)</h3>
+      <button class="del-btn" style="background:#ffebee; color:#c62828; margin-bottom:10px;" onclick="deleteSelectedReport('sales')">🗑️ Select ചെയ്തവ Delete ചെയ്യുക</button>
       <div id="adminRepSalesContainer" style="margin-bottom:20px;">—</div>
     </div>
 
@@ -1984,6 +2050,7 @@
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
       <h3 style="color:#1e3c72; margin-bottom:8px;">Collection (Area-wise, Expand/Collapse ചെയ്യാം)</h3>
+      <button class="del-btn" style="background:#ffebee; color:#c62828; margin-bottom:10px;" onclick="deleteSelectedReport('collections')">🗑️ Select ചെയ്തവ Delete ചെയ്യുക</button>
       <div id="adminRepCollContainer" style="margin-bottom:20px;">—</div>
     </div>
 
@@ -1999,6 +2066,7 @@
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
       <h3 style="color:#1e3c72; margin-bottom:8px;">Purchase (Area-wise, Expand/Collapse ചെയ്യാം)</h3>
+      <button class="del-btn" style="background:#ffebee; color:#c62828; margin-bottom:10px;" onclick="deleteSelectedReport('purchases')">🗑️ Select ചെയ്തവ Delete ചെയ്യുക</button>
       <div id="adminRepPurchaseContainer" style="margin-bottom:20px;">—</div>
     </div>
 
@@ -2086,6 +2154,7 @@
         <button style="flex:1; background:#2e7d32;" onclick="exportTripSheetExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
+      <button class="del-btn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
       <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
     </div>
   </div>
@@ -3580,6 +3649,23 @@
     filterTableRows('pendingLotsSearch', 'homeLotBody');
   };
 
+  window.deleteSelectedReport = async function (colName) {
+    const checked = document.querySelectorAll('.repCheck-' + colName + ':checked');
+    if (checked.length === 0) { alert("ഒരു record എങ്കിലും select ചെയ്യുക."); return; }
+    if (!confirm(`⚠️ ${checked.length} records permanent ആയി delete ചെയ്യണോ? ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
+
+    try {
+      for (const cb of checked) {
+        await deleteDoc(doc(db, colName, cb.value));
+      }
+      alert(`${checked.length} records delete ചെയ്തു.`);
+      generateAdminReport();
+    } catch (err) {
+      console.error(err);
+      alert("Delete ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
   async function loadAdvanceSales() {
     const tbody = document.getElementById('advanceSaleTableBody');
     tbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
@@ -3855,32 +3941,55 @@
   // Removes ONE specific lot-allocation from a sale (in case of a wrong link), restoring
   // that qty back to the purchase lot's remaining stock, and re-marking the sale as
   // Advance if it's no longer fully linked.
+  async function performUnlinkOneSale(saleId, purchaseId, qty) {
+    const saleSnap = await getDoc(doc(db, "sales", saleId));
+    if (!saleSnap.exists()) return;
+    const d = saleSnap.data();
+    const lots = d.lots || [];
+
+    const idx = lots.findIndex(l => l.purchaseId === purchaseId && l.qty === qty);
+    if (idx === -1) return;
+
+    const newLots = [...lots.slice(0, idx), ...lots.slice(idx + 1)];
+    const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
+
+    await updateDoc(doc(db, "purchases", purchaseId), { remainingQty: increment(qty) });
+    await updateDoc(doc(db, "sales", saleId), {
+      lots: newLots,
+      isAdvance: newLinkedTotal < (d.qty || 0)
+    });
+  }
+
+  function refreshAfterUnlink() {
+    if (document.getElementById('tripSheetContainer')) generateTripSheet();
+    if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
+    if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
+    if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+  }
+
   window.unlinkTripSheetSale = async function (saleId, purchaseId, qty) {
     if (!confirm(`ഈ link (Qty: ${qty}) നീക്കണോ? Stock ആ lot-ലേക്ക് തിരിച്ച് ചേർക്കും.`)) return;
 
     try {
-      const saleSnap = await getDoc(doc(db, "sales", saleId));
-      if (!saleSnap.exists()) { alert("Sale കണ്ടെത്തിയില്ല."); return; }
-      const d = saleSnap.data();
-      const lots = d.lots || [];
+      await performUnlinkOneSale(saleId, purchaseId, qty);
+      refreshAfterUnlink();
+    } catch (err) {
+      console.error(err);
+      alert("Unlink ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
 
-      const idx = lots.findIndex(l => l.purchaseId === purchaseId && l.qty === qty);
-      if (idx === -1) { alert("ഈ link കണ്ടെത്തിയില്ല — page refresh ചെയ്ത് വീണ്ടും ശ്രമിക്കുക."); return; }
+  window.unlinkSelectedTripSales = async function () {
+    const checked = document.querySelectorAll('.tripUnlinkCheck:checked');
+    if (checked.length === 0) { alert("ഒരു link എങ്കിലും select ചെയ്യുക."); return; }
+    if (!confirm(`⚠️ Select ചെയ്ത ${checked.length} links Unlink ചെയ്യണോ? Stock എല്ലാം അതത് lot-ലേക്ക് തിരിച്ച് ചേർക്കും.`)) return;
 
-      const newLots = [...lots.slice(0, idx), ...lots.slice(idx + 1)];
-      const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
-
-      await updateDoc(doc(db, "purchases", purchaseId), { remainingQty: increment(qty) });
-      await updateDoc(doc(db, "sales", saleId), {
-        lots: newLots,
-        isAdvance: newLinkedTotal < (d.qty || 0)
-      });
-
-      if (document.getElementById('tripSheetContainer')) generateTripSheet();
-      if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
-      if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
-      if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
-
+    try {
+      for (const cb of checked) {
+        await performUnlinkOneSale(cb.dataset.saleId, cb.dataset.lotId, parseFloat(cb.dataset.qty));
+      }
+      alert(`${checked.length} links Unlink ചെയ്തു.`);
+      refreshAfterUnlink();
     } catch (err) {
       console.error(err);
       alert("Unlink ചെയ്യാൻ പറ്റിയില്ല.");
@@ -6174,8 +6283,9 @@
 
       if (linkedSales.length > 0) {
         html += `<div class="table-wrap"><table>
-          <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
+          <thead><tr><th></th><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
           <tbody>${linkedSales.map(x => `<tr>
+            <td><input type="checkbox" class="tripUnlinkCheck" data-sale-id="${x.sale.id}" data-lot-id="${x.sourceLotId}" data-qty="${x.qty}" style="width:auto;"></td>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
             <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${x.sourceLotId}',${x.qty})">Unlink</button></td>
@@ -6643,8 +6753,9 @@
 
       if (linkedSales.length > 0) {
         html += `<div class="table-wrap"><table>
-          <thead><tr><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
+          <thead><tr><th></th><th>Sale Date</th><th>Customer</th><th>Qty (from this lot)</th><th>Sale Amount</th><th></th></tr></thead>
           <tbody>${linkedSales.map(x => `<tr>
+            <td><input type="checkbox" class="tripUnlinkCheck" data-sale-id="${x.sale.id}" data-lot-id="${x.sourceLotId}" data-qty="${x.qty}" style="width:auto;"></td>
             <td>${fmtDate(x.sale.date)}</td><td>${x.sale.customerName || '-'}</td><td>${x.qty}</td>
             <td>₹${(x.sale.amount || 0).toLocaleString('en-IN')}</td>
             <td><button class="del-btn" onclick="unlinkTripSheetSale('${x.sale.id}','${x.sourceLotId}',${x.qty})">Unlink</button></td>
@@ -7036,11 +7147,12 @@
 
       // Sales — area-wise grouped, with Unit Price, Discount, Freight
       renderAreaGrouped('adminRepSalesContainer', sales,
-        ['Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status', ''],
+        ['', 'Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           return `<tr>
+            <td><input type="checkbox" class="repCheck-sales" value="${d.id}" style="width:auto;"></td>
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
             <td>${d.qty || '-'}</td>
             <td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
@@ -7055,11 +7167,12 @@
 
       // Purchase — area-wise grouped
       renderAreaGrouped('adminRepPurchaseContainer', purchases,
-        ['Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Status', ''],
+        ['', 'Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           return `<tr>
+            <td><input type="checkbox" class="repCheck-purchases" value="${d.id}" style="width:auto;"></td>
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
             <td>${d.qty || '-'}</td>
             <td>${badge}</td>
@@ -7070,12 +7183,13 @@
 
       // Collection — area-wise grouped, Cash highlighted
       renderAreaGrouped('adminRepCollContainer', colls,
-        ['Date', 'Area', 'Customer', 'Mode', 'Account', 'Amount', 'Status', ''],
+        ['', 'Date', 'Area', 'Customer', 'Mode', 'Account', 'Amount', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
           const isCash = (d.mode || '').toLowerCase() === 'cash';
           return `<tr class="${isCash ? 'cash-row' : ''}">
+            <td><input type="checkbox" class="repCheck-collections" value="${d.id}" style="width:auto;"></td>
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
             <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
             <td>${badge}</td>
@@ -7494,6 +7608,245 @@
       document.getElementById('fixAreaResultBox').style.display = 'none';
       wrongAreaMatchedDocs = [];
       document.getElementById('fixAreaWrongValue').value = '';
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Delete ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // ---- ADMIN: FIND & REMOVE DUPLICATE PURCHASES (same CSV uploaded twice) ----
+  let dupExtraDocs = []; // the "extra" copies to delete — one kept per group
+
+  window.scanDuplicatePurchases = async function () {
+    const fromDate = document.getElementById('dupFromDate').value;
+    const toDate = document.getElementById('dupToDate').value;
+    const areaFilter = document.getElementById('dupArea').value;
+    const statusEl = document.getElementById('dupScanStatus');
+    const resultBox = document.getElementById('dupResultBox');
+
+    if (!fromDate || !toDate) { statusEl.textContent = "From Date, To Date രണ്ടും നൽകുക."; statusEl.style.color = '#d32f2f'; return; }
+
+    statusEl.textContent = "Scanning...";
+    statusEl.style.color = '#555';
+    resultBox.style.display = 'none';
+
+    try {
+      const snap = await getDocs(collection(db, "purchases"));
+      let items = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if ((d.date || '') < fromDate || (d.date || '') > toDate) return;
+        if (areaFilter && d.area !== areaFilter) return;
+        items.push({ id: docSnap.id, ...d });
+      });
+      // Keep the earliest-created doc in each group (by createdAt if present, else by id),
+      // so the surviving record is the "original" upload, not an arbitrary one.
+      items.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+
+      const groups = {};
+      items.forEach(d => {
+        const key = [d.area || '', d.date || '', d.product || '', d.godown || '', d.vehicle || '', d.qty || ''].join('|');
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(d);
+      });
+
+      dupExtraDocs = [];
+      const dupGroups = [];
+      Object.values(groups).forEach(g => {
+        if (g.length > 1) {
+          dupGroups.push(g);
+          g.slice(1).forEach(d => dupExtraDocs.push(d)); // keep g[0], mark rest as extra
+        }
+      });
+
+      if (dupGroups.length === 0) {
+        statusEl.textContent = "ഈ range-ൽ duplicate purchases ഒന്നും കണ്ടെത്തിയില്ല.";
+        statusEl.style.color = '#2e7d32';
+        return;
+      }
+
+      statusEl.textContent = '';
+      document.getElementById('dupGroupCount').textContent = dupGroups.length;
+      document.getElementById('dupExtraCount').textContent = dupExtraDocs.length;
+
+      const rows = dupGroups.map(g => {
+        const d = g[0];
+        return `<tr><td>${fmtDate(d.date)}</td><td>Area: ${d.area || '-'} · Godown: ${d.godown || '-'} · ${d.product || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}</td><td>${g.length} തവണ</td></tr>`;
+      }).join('');
+      document.getElementById('dupListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.deleteDuplicatePurchases = async function () {
+    if (dupExtraDocs.length === 0) return;
+    if (!confirm(`⚠️ ${dupExtraDocs.length} extra (duplicate) records delete ചെയ്യണോ? ഓരോ group-ലും ഒരെണ്ണം നിലനിൽക്കും. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
+
+    const statusEl = document.getElementById('dupScanStatus');
+    statusEl.textContent = "Deleting...";
+    statusEl.style.color = '#555';
+
+    try {
+      for (const d of dupExtraDocs) {
+        await deleteDoc(doc(db, "purchases", d.id));
+      }
+      statusEl.textContent = `✅ ${dupExtraDocs.length} extra duplicate records delete ചെയ്തു.`;
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('dupResultBox').style.display = 'none';
+      dupExtraDocs = [];
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Delete ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // ---- ADMIN: FIND & FIX RECORDS WITH WRONG DATE FORMAT ----
+  let badDateDocs = [];
+
+  // Tries to auto-detect and convert a non-ISO date string to YYYY-MM-DD.
+  // Handles DD/MM/YYYY, DD-MM-YYYY, MM/DD/YYYY (assumed if first part > 12), and
+  // Excel serial-number dates. Returns '' if it can't confidently convert.
+  function autoConvertDate(raw) {
+    if (!raw) return '';
+    const s = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already correct
+
+    // Excel serial number (days since 1899-12-30)
+    if (/^\d{4,6}$/.test(s)) {
+      const serial = parseInt(s, 10);
+      const base = new Date(1899, 11, 30);
+      const dt = new Date(base.getTime() + serial * 86400000);
+      if (!isNaN(dt.getTime())) return dt.toISOString().split('T')[0];
+    }
+
+    const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (m) {
+      let [, a, b, y] = m;
+      a = parseInt(a, 10); b = parseInt(b, 10);
+      // If first part > 12, it must be the day (DD/MM/YYYY); otherwise assume DD/MM/YYYY
+      // too, since that's the common local convention — but guard against an impossible day.
+      let day = a, month = b;
+      if (a > 12 && b <= 12) { day = a; month = b; }
+      else if (b > 12 && a <= 12) { day = b; month = a; }
+      if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+        return `${y}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      }
+    }
+    return '';
+  }
+
+  window.scanBadDateFormat = async function () {
+    const colName = document.getElementById('badDateDataType').value;
+    const statusEl = document.getElementById('badDateScanStatus');
+    const resultBox = document.getElementById('badDateResultBox');
+
+    statusEl.textContent = "Scanning...";
+    statusEl.style.color = '#555';
+    resultBox.style.display = 'none';
+
+    try {
+      const snap = await getDocs(collection(db, colName));
+      badDateDocs = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d.date || '')) {
+          badDateDocs.push({ id: docSnap.id, ...d, suggested: autoConvertDate(d.date) });
+        }
+      });
+
+      if (badDateDocs.length === 0) {
+        statusEl.textContent = `തെറ്റായ Date format ഉള്ള records ${colName}-ൽ ഒന്നും കണ്ടെത്തിയില്ല.`;
+        statusEl.style.color = '#2e7d32';
+        return;
+      }
+
+      statusEl.textContent = '';
+      document.getElementById('badDateCount').textContent = badDateDocs.length;
+
+      const rows = badDateDocs.map((d, i) => {
+        let details = '';
+        if (colName === 'purchases') details = `Area: ${d.area || '-'} · Godown: ${d.godown || '-'} · ${d.product || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}`;
+        else if (colName === 'sales') details = `Area: ${d.area || '-'} · ${d.customerName || '-'} · ${d.product || '-'} · Qty: ${d.qty || 0}`;
+        else details = `Area: ${d.area || '-'} · ${d.customerName || '-'} · ₹${d.amount || 0}`;
+        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px; border:1px solid #eee; border-radius:8px; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <div style="flex:1; min-width:250px;">
+            <div style="font-size:12px; color:#c62828;">നിലവിലെ (തെറ്റായ) Date: "${d.date || '(empty)'}"</div>
+            <div style="font-size:12px; color:#555;">${details}</div>
+          </div>
+          <input type="date" id="badDateFix_${i}" value="${d.suggested}" style="width:auto; margin:0;">
+          <button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="applyOneBadDateFix(${i})">ശരിയാക്കുക</button>
+        </div>`;
+      }).join('');
+      document.getElementById('badDateListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.applyOneBadDateFix = async function (i) {
+    const colName = document.getElementById('badDateDataType').value;
+    const d = badDateDocs[i];
+    const newDate = document.getElementById('badDateFix_' + i).value;
+    if (!newDate) { alert("ശരിയായ Date select ചെയ്യുക."); return; }
+    try {
+      await updateDoc(doc(db, colName, d.id), { date: newDate });
+      badDateDocs.splice(i, 1);
+      scanBadDateFormat(); // refresh list
+    } catch (err) {
+      console.error(err);
+      alert("Fix ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  window.applyAllBadDateFixes = async function () {
+    const colName = document.getElementById('badDateDataType').value;
+    const withSuggestion = badDateDocs.filter((d, i) => document.getElementById('badDateFix_' + i)?.value);
+    if (withSuggestion.length === 0) { alert("ഒരു record-നും ശരിയായ Date ലഭ്യമല്ല — manual ആയി ഓരോന്നും നൽകി ശരിയാക്കുക."); return; }
+    if (!confirm(`${withSuggestion.length} records-ന്റെ Date ശരിയാക്കണോ?`)) return;
+
+    const statusEl = document.getElementById('badDateScanStatus');
+    statusEl.textContent = "Fixing...";
+    try {
+      for (let i = 0; i < badDateDocs.length; i++) {
+        const val = document.getElementById('badDateFix_' + i)?.value;
+        if (val) await updateDoc(doc(db, colName, badDateDocs[i].id), { date: val });
+      }
+      statusEl.textContent = `✅ Fix ചെയ്തു.`;
+      statusEl.style.color = '#2e7d32';
+      scanBadDateFormat();
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Fix ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.deleteAllBadDateRecords = async function () {
+    const colName = document.getElementById('badDateDataType').value;
+    if (badDateDocs.length === 0) return;
+    if (!confirm(`⚠️ ${badDateDocs.length} records permanent ആയി delete ചെയ്യണോ? ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
+
+    const statusEl = document.getElementById('badDateScanStatus');
+    statusEl.textContent = "Deleting...";
+    try {
+      for (const d of badDateDocs) {
+        await deleteDoc(doc(db, colName, d.id));
+      }
+      statusEl.textContent = `✅ ${badDateDocs.length} records delete ചെയ്തു.`;
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('badDateResultBox').style.display = 'none';
+      badDateDocs = [];
     } catch (err) {
       console.error(err);
       statusEl.textContent = "Delete ചെയ്യാൻ പറ്റിയില്ല.";
