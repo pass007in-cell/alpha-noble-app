@@ -870,6 +870,17 @@
   </div>
 </div>
 
+<!-- RECORD DETAILS (WHO ENTERED / EDITED) MODAL -->
+<div id="recordDetailsOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+      <h3 style="color:#1e3c72; font-size:17px;">ℹ️ Record Details</h3>
+      <span style="cursor:pointer; font-size:22px; color:#999;" onclick="document.getElementById('recordDetailsOverlay').style.display='none';">&times;</span>
+    </div>
+    <div id="recordDetailsBody"></div>
+  </div>
+</div>
+
 <!-- HOME: PENDING LOT DETAIL MODAL -->
 <div id="homeLotDetailOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:460px; max-height:85vh; overflow-y:auto;">
@@ -3431,15 +3442,16 @@
           // Already approved — keep it approved, but flag for Admin's "Edited Approvals" review
           saleData.status = 'approved';
           saleData.editedAfterApproval = true;
-          saleData.lastEditedBy = currentUserData.username || 'unknown';
-          saleData.lastEditedAt = new Date().toISOString();
         } else {
           saleData.status = 'pending'; // still pending — normal re-submit flow
         }
+        saleData.lastEditedBy = currentUserData.username || 'unknown';
+        saleData.lastEditedAt = new Date().toISOString();
         saleData.updatedAt = new Date().toISOString();
         await updateDoc(doc(db, "sales", editingSaleId), saleData);
       } else {
         saleData.status = 'pending';
+        saleData.enteredVia = 'manual';
         saleData.createdAt = new Date().toISOString();
         await addDoc(collection(db, "sales"), saleData);
       }
@@ -4056,7 +4068,7 @@
         await addDoc(collection(db, "purchases"), {
           product: tripTransferProduct, godown: toGodown, vehicle: '', area: tripTransferArea,
           qty: qty, remainingQty: qty, rate: tripTransferRate, amount: 0, date: todayStr, status: 'approved',
-          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
       } else {
         const toVehicle = document.getElementById('tripTransferToVehicle').value;
@@ -4064,7 +4076,7 @@
         await addDoc(collection(db, "vehicleStock"), {
           product: tripTransferProduct, vehicle: toVehicle, area: tripTransferArea,
           qty: qty, remainingQty: qty, rate: tripTransferRate, date: todayStr,
-          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
       }
 
@@ -4424,6 +4436,7 @@
         await updateDoc(doc(db, "sales", adminEditingSaleId), saleData);
       } else {
         saleData.status = 'approved'; // Admin-entered sales go straight to approved
+        saleData.enteredVia = 'manual';
         saleData.createdAt = new Date().toISOString();
         await addDoc(collection(db, "sales"), saleData);
       }
@@ -4642,17 +4655,17 @@
         };
         if (adminEditingCollOldStatus === 'approved') {
           updateData.status = 'approved'; updateData.editedAfterApproval = true;
-          updateData.lastEditedBy = currentUserData.username || 'admin'; updateData.lastEditedAt = new Date().toISOString();
         } else {
           updateData.status = 'pending';
         }
+        updateData.lastEditedBy = currentUserData.username || 'admin'; updateData.lastEditedAt = new Date().toISOString();
         await updateDoc(doc(db, "collections", adminEditingCollId), updateData);
         okEl.textContent = `Collection updated: ${cust ? cust.name : ''} — ₹${amount}`;
       } else {
         await addDoc(collection(db, "collections"), {
           customerId: custId, customerName: cust ? cust.name : '-', area: area,
           amount: amount, mode: mode, account: account, notes: notes, date: date, status: 'approved',
-          enteredBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+          enteredBy: currentUserData.username || 'admin', enteredVia: 'manual', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Collection saved: ${cust ? cust.name : ''} — ₹${amount}`;
       }
@@ -4830,7 +4843,7 @@
       await addDoc(collection(db, "purchases"), {
         product: product, godown: godown, vehicle: vehicle, area: area,
         qty: qty, remainingQty: qty, rate: 0, amount: 0, date: date, status: 'approved',
-        enteredBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+        enteredBy: currentUserData.username || 'admin', enteredVia: 'manual', createdAt: new Date().toISOString()
       });
 
       okEl.textContent = `Purchase saved: ${product} → ${godown} (${area}, Qty: ${qty})`;
@@ -5155,11 +5168,11 @@
         if (editingPurchaseOldStatus === 'approved') {
           updateData.status = 'approved';
           updateData.editedAfterApproval = true;
-          updateData.lastEditedBy = currentUserData.username || 'unknown';
-          updateData.lastEditedAt = new Date().toISOString();
         } else {
           updateData.status = 'pending';
         }
+        updateData.lastEditedBy = currentUserData.username || 'unknown';
+        updateData.lastEditedAt = new Date().toISOString();
         await updateDoc(doc(db, "purchases", editingPurchaseId), updateData);
         okEl.textContent = `Purchase updated: ${product} — Qty: ${qty}`;
       } else {
@@ -5167,7 +5180,7 @@
           product: product, godown: godown, vehicle: vehicle,
           area: currentUserData.area, qty: qty, remainingQty: qty, date: date,
           status: 'pending',
-          enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          enteredBy: currentUserData.username || 'unknown', enteredVia: 'manual', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Purchase saved: ${product} — Qty: ${qty}`;
       }
@@ -5383,7 +5396,7 @@
         await addDoc(collection(db, "purchases"), {
           product: product, godown: toGodown, vehicle: '', area: currentUserData.area,
           qty: qty, remainingQty: qty, rate: lot.rate, amount: lot.rate * qty, date: todayStr,
-          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Stock transfer ചെയ്തു: ${product} → ${toGodown} (Qty: ${qty})`;
       } else {
@@ -5392,7 +5405,7 @@
         await addDoc(collection(db, "vehicleStock"), {
           product: product, vehicle: toVehicle, area: currentUserData.area,
           qty: qty, remainingQty: qty, rate: lot.rate, date: todayStr,
-          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Stock transfer ചെയ്തു: ${product} → Vehicle ${toVehicle} (Qty: ${qty})`;
       }
@@ -5525,7 +5538,7 @@
         await addDoc(collection(db, "purchases"), {
           product: product, godown: toGodown, vehicle: '', area: area,
           qty: qty, remainingQty: qty, rate: lot.rate, amount: 0, date: todayStr, status: 'approved',
-          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Stock transfer ചെയ്തു: ${product} → ${toGodown} (${area}, Qty: ${qty})`;
       } else {
@@ -5534,7 +5547,7 @@
         await addDoc(collection(db, "vehicleStock"), {
           product: product, vehicle: toVehicle, area: area,
           qty: qty, remainingQty: qty, rate: lot.rate, date: todayStr,
-          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Stock transfer ചെയ്തു: ${product} → Vehicle ${toVehicle} (${area}, Qty: ${qty})`;
       }
@@ -5710,18 +5723,18 @@
         if (editingCollOldStatus === 'approved') {
           updateData.status = 'approved';
           updateData.editedAfterApproval = true;
-          updateData.lastEditedBy = currentUserData.username || 'unknown';
-          updateData.lastEditedAt = new Date().toISOString();
         } else {
           updateData.status = 'pending';
         }
+        updateData.lastEditedBy = currentUserData.username || 'unknown';
+        updateData.lastEditedAt = new Date().toISOString();
         await updateDoc(doc(db, "collections", editingCollId), updateData);
         okEl.textContent = `Collection updated: ${cust ? cust.name : ''} — ₹${amount}`;
       } else {
         await addDoc(collection(db, "collections"), {
           customerId: custId, customerName: cust ? cust.name : '-', area: currentUserData.area,
           amount: amount, mode: mode, account: account, notes: notes, date: date, status: 'pending',
-          enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+          enteredBy: currentUserData.username || 'unknown', enteredVia: 'manual', createdAt: new Date().toISOString()
         });
         okEl.textContent = `Collection saved: ${cust ? cust.name : ''} — ₹${amount}`;
       }
@@ -7153,7 +7166,7 @@
             <td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
             <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
             <td>${badge}</td>
-            <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('sales','${d.id}')">Edit</button><button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button></td>
+            <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('sales','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('sales','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button></td>
           </tr>`;
         }
       );
@@ -7169,7 +7182,7 @@
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
             <td>${d.qty || '-'}</td>
             <td>${badge}</td>
-            <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${d.id}')">Edit</button><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td>
+            <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('purchases','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td>
           </tr>`;
         }
       );
@@ -7186,7 +7199,7 @@
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
             <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
             <td>${badge}</td>
-            <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${d.id}')">Edit</button><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td>
+            <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('collections','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td>
           </tr>`;
         }
       );
@@ -8089,7 +8102,7 @@
             customerId: custId, customerName: customerName, area: area, product: product,
             godown: godown, vehicle: vehicle, qty: qty, rate: rate, discRate: 0, discAmt: discAmt,
             freight: freight, amount: amount, date: date, status: status, isAdvance: isAdvance, lots: lotAllocations,
-            enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+            enteredBy: currentUserData.username || 'unknown', enteredVia: 'bulk-csv', createdAt: new Date().toISOString()
           });
           successCount++;
         } catch (e) {
@@ -8181,7 +8194,7 @@
           await addDoc(collection(db, "collections"), {
             customerId: custId, customerName: customerName, area: area,
             amount: amount, mode: mode, account: account, notes: '', date: date, status: status,
-            enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+            enteredBy: currentUserData.username || 'unknown', enteredVia: 'bulk-csv', createdAt: new Date().toISOString()
           });
           successCount++;
         } catch (e) {
@@ -8263,7 +8276,7 @@
           await addDoc(collection(db, "purchases"), {
             product: product, godown: godown, vehicle: vehicle,
             area: area, qty: qty, remainingQty: (status === 'approved' ? qty : 0), date: date, status: status,
-            enteredBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
+            enteredBy: currentUserData.username || 'unknown', enteredVia: 'bulk-csv', createdAt: new Date().toISOString()
           });
           successCount++;
         } catch (e) {
@@ -8445,6 +8458,7 @@
           <td>
             <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('sales','${d.id}')">Approve</button>
             <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('sales','${d.id}')">Edit</button>
+            <button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('sales','${d.id}')">ℹ️</button>
             <button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button>
           </td>
         </tr>`).join('');
@@ -8462,6 +8476,7 @@
           <td>
             <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('collections','${d.id}')">Approve</button>
             <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${d.id}')">Edit</button>
+            <button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('collections','${d.id}')">ℹ️</button>
             <button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button>
           </td>
         </tr>`).join('');
@@ -8479,6 +8494,7 @@
           <td>
             <button class="del-btn" style="background:#e8f5e9; color:#2e7d32; margin-right:4px;" onclick="approveRecord('purchases','${d.id}')">Approve</button>
             <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${d.id}')">Edit</button>
+            <button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('purchases','${d.id}')">ℹ️</button>
             <button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button>
           </td>
         </tr>`).join('');
@@ -8684,6 +8700,43 @@
       }
     }
     loadApprovals();
+  };
+
+  window.showRecordDetails = async function (colName, id) {
+    const body = document.getElementById('recordDetailsBody');
+    body.innerHTML = 'Loading...';
+    document.getElementById('recordDetailsOverlay').style.display = 'flex';
+    try {
+      const snap = await getDoc(doc(db, colName, id));
+      if (!snap.exists()) { body.innerHTML = '<p>Record കണ്ടെത്തിയില്ല.</p>'; return; }
+      const d = snap.data();
+
+      const viaLabel = { 'manual': 'നേരിട്ട് Entry ചെയ്തത് (Manual)', 'bulk-csv': '📤 Bulk CSV Upload', 'stock-transfer': '🚚 Stock Transfer-ൽ നിന്ന്' };
+      const viaText = viaLabel[d.enteredVia] || 'നേരിട്ട് Entry ചെയ്തത് (Manual)';
+
+      const row = (label, value) => `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;">
+        <span style="color:#777; font-size:13px;">${label}</span><span style="font-weight:600; font-size:13px; text-align:right;">${value}</span>
+      </div>`;
+
+      let html = '';
+      html += row('Status', (d.status || 'pending') === 'pending' ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>');
+      html += row('Entry രീതി', viaText);
+      html += row('Entry ചെയ്തത്', d.enteredBy || '-');
+      html += row('Entry ചെയ്ത സമയം', d.createdAt ? new Date(d.createdAt).toLocaleString('en-IN') : '-');
+      if (d.lastEditedBy) {
+        html += row('അവസാനം Edit ചെയ്തത്', d.lastEditedBy);
+        html += row('Edit ചെയ്ത സമയം', d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-');
+      } else {
+        html += row('Edit History', 'Edit ചെയ്തിട്ടില്ല');
+      }
+      if (d.editedAfterApproval) {
+        html += `<p style="margin-top:10px; font-size:12px; color:#e65100; background:#fff3e0; padding:8px 10px; border-radius:6px;">⚠️ Approve ചെയ്ത ശേഷം edit ചെയ്തിട്ടുണ്ട് — Admin review ചെയ്യേണ്ടതാണ്.</p>`;
+      }
+      body.innerHTML = html;
+    } catch (err) {
+      console.error(err);
+      body.innerHTML = '<p>Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
   };
 
   window.adminDeleteRecord = async function (colName, id) {
@@ -8893,7 +8946,8 @@
           rate: parseFloat(document.getElementById('qeRate').value) || 0,
           discAmt: parseFloat(document.getElementById('qeDiscAmt').value) || 0,
           freight: parseFloat(document.getElementById('qeFreight').value) || 0,
-          amount: parseFloat(document.getElementById('qeAmount').value) || 0
+          amount: parseFloat(document.getElementById('qeAmount').value) || 0,
+          lastEditedBy: currentUserData.username || 'admin', lastEditedAt: new Date().toISOString()
         });
       } else if (quickEditCol === 'purchases') {
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
@@ -8905,7 +8959,8 @@
           vehicle: document.getElementById('qeVehicle').value.trim(),
           date: document.getElementById('qeDate').value,
           status: document.getElementById('qeStatus').value,
-          qty: qty, remainingQty: remainingQty
+          qty: qty, remainingQty: remainingQty,
+          lastEditedBy: currentUserData.username || 'admin', lastEditedAt: new Date().toISOString()
         });
       } else {
         await updateDoc(doc(db, "collections", quickEditId), {
@@ -8913,7 +8968,8 @@
           date: document.getElementById('qeDate').value,
           mode: document.getElementById('qeMode').value,
           account: document.getElementById('qeAccount') ? document.getElementById('qeAccount').value : '',
-          notes: document.getElementById('qeNotes').value.trim()
+          notes: document.getElementById('qeNotes').value.trim(),
+          lastEditedBy: currentUserData.username || 'admin', lastEditedAt: new Date().toISOString()
         });
       }
 
