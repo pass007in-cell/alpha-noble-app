@@ -1611,6 +1611,34 @@
     </div>
     <div id="dupGroupsContainer"></div>
 
+    <div class="add-user-form" style="background:#e3f2fd;">
+      <h3 style="color:#1565c0;">📋 SAP Code Bulk Assign (Customer Name matching)</h3>
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        Company-യുടെ SAP list upload ചെയ്യുക — Customer Name വച്ച് നമ്മുടെ list-ലെ customer-നെ കണ്ടെത്തി SAP Code automatic ആയി സെറ്റ് ചെയ്യും. Exact match ആകാത്തവ (പേരിൽ വ്യത്യാസം ഉള്ളവ, നമ്മുടെ list-ൽ ഇല്ലാത്തവ) പ്രത്യേകം കാണിച്ച് നിങ്ങൾക്ക് manual ആയി തീരുമാനിക്കാം.
+      </p>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        CSV columns: <strong>Customer Name, SAP Code, Area</strong> (Area optional — MKD/PKD/MLT/NLB, ഒരേ പേരിൽ വേറെ Area-യിൽ customer ഉണ്ടെങ്കിൽ ഇത് സഹായിക്കും).
+      </p>
+      <input type="file" id="sapCodeCsvFile" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#1565c0;" onclick="handleSapCodeBulkUpload()">📋 SAP List Process ചെയ്യുക</button>
+      <div id="sapCodeScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="sapAutoMatchedBox" style="display:none; margin-top:16px; background:#e8f5e9; border-radius:10px; padding:12px;">
+        <p style="font-size:13px; color:#2e7d32; font-weight:600;">✅ <span id="sapAutoMatchedCount">0</span> customers-ന് SAP Code automatic ആയി set ചെയ്തു.</p>
+      </div>
+
+      <div id="sapAmbiguousBox" style="display:none; margin-top:16px;">
+        <h4 style="font-size:14px; color:#e65100; margin-bottom:8px;">⚠️ ഒന്നിലധികം matching customers (ഏതെന്ന് select ചെയ്യുക)</h4>
+        <div id="sapAmbiguousList"></div>
+      </div>
+
+      <div id="sapNotFoundBox" style="display:none; margin-top:16px;">
+        <h4 style="font-size:14px; color:#c62828; margin-bottom:8px;">❌ നമ്മുടെ list-ൽ കണ്ടെത്താനായില്ല</h4>
+        <p style="font-size:12px; color:#777; margin-bottom:8px;">ഈ പേരുകൾ SAP list-ൽ ഉണ്ട്, പക്ഷെ നമ്മുടെ Customer list-ൽ match ആയില്ല — പേരിൽ വലിയ വ്യത്യാസം ഉള്ളത് കൊണ്ടോ, ശരിക്കും പുതിയ customer ആയത് കൊണ്ടോ ആകാം. ഓരോന്നും "പുതിയ Customer ആയി ചേർക്കുക" അല്ലെങ്കിൽ ഒഴിവാക്കുക.</p>
+        <div id="sapNotFoundList"></div>
+      </div>
+    </div>
+
     <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">🔧 Fix/Delete Records with Wrong Area</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
@@ -7650,6 +7678,122 @@
   };
 
   // ---- ADMIN: MERGE DUPLICATE CUSTOMERS ----
+  // ---- ADMIN: SAP CODE BULK ASSIGN (Customer Name matching) ----
+  let sapAllCustomers = [];
+
+  window.handleSapCodeBulkUpload = async function () {
+    const fileInput = document.getElementById('sapCodeCsvFile');
+    const statusEl = document.getElementById('sapCodeScanStatus');
+    document.getElementById('sapAutoMatchedBox').style.display = 'none';
+    document.getElementById('sapAmbiguousBox').style.display = 'none';
+    document.getElementById('sapNotFoundBox').style.display = 'none';
+
+    if (!fileInput.files[0]) { statusEl.textContent = "CSV file select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
+
+    statusEl.textContent = "Processing...";
+    statusEl.style.color = '#555';
+
+    try {
+      const text = await fileInput.files[0].text();
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      lines.shift(); // drop header
+
+      const custSnap = await getDocs(collection(db, "customers"));
+      sapAllCustomers = [];
+      custSnap.forEach(docSnap => sapAllCustomers.push({ id: docSnap.id, ...docSnap.data() }));
+
+      let autoMatchedCount = 0;
+      let ambiguousRows = [];
+      let notFoundRows = [];
+
+      for (const line of lines) {
+        const cols = parseCsvLine(line);
+        const csvName = (cols[0] || '').trim();
+        const sapCode = (cols[1] || '').trim();
+        const csvArea = (cols[2] || '').trim().toUpperCase();
+        if (!csvName || !sapCode) continue;
+
+        const normTarget = normalizeName(csvName);
+        let candidates = sapAllCustomers.filter(c => normalizeName(c.name) === normTarget);
+        if (csvArea && candidates.length > 1) {
+          candidates = candidates.filter(c => (c.area || '').toUpperCase() === csvArea);
+        }
+
+        if (candidates.length === 1) {
+          await updateDoc(doc(db, "customers", candidates[0].id), { sapCode: sapCode });
+          candidates[0].sapCode = sapCode; // keep local copy in sync for any later ambiguous-list display
+          autoMatchedCount++;
+        } else if (candidates.length > 1) {
+          ambiguousRows.push({ csvName, sapCode, csvArea, candidates });
+        } else {
+          notFoundRows.push({ csvName, sapCode, csvArea });
+        }
+      }
+
+      statusEl.textContent = '';
+
+      if (autoMatchedCount > 0) {
+        document.getElementById('sapAutoMatchedCount').textContent = autoMatchedCount;
+        document.getElementById('sapAutoMatchedBox').style.display = 'block';
+      }
+
+      if (ambiguousRows.length > 0) {
+        const html = ambiguousRows.map((r, i) => {
+          const opts = r.candidates.map(c => `<button class="del-btn" style="background:#fff3e0; color:#e65100; margin:3px;" onclick="applySapToCustomer('${c.id}','${r.sapCode}', this)">${c.name} [${c.area || '-'}]</button>`).join('');
+          return `<div style="border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px;">
+            <p style="font-size:13px; font-weight:600;">SAP List-ൽ: "${r.csvName}" (Code: ${r.sapCode}${r.csvArea ? ', Area: ' + r.csvArea : ''})</p>
+            <p style="font-size:12px; color:#777; margin:6px 0;">ഇതിൽ ഏതാണ് ശരിയായ customer എന്ന് select ചെയ്യുക:</p>
+            ${opts}
+          </div>`;
+        }).join('');
+        document.getElementById('sapAmbiguousList').innerHTML = html;
+        document.getElementById('sapAmbiguousBox').style.display = 'block';
+      }
+
+      if (notFoundRows.length > 0) {
+        const html = notFoundRows.map((r, i) => `<div style="display:flex; justify-content:space-between; align-items:center; border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <div style="font-size:13px;"><strong>${r.csvName}</strong> · Code: ${r.sapCode}${r.csvArea ? ' · Area: ' + r.csvArea : ''}</div>
+          <button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="createCustomerFromSap('${r.csvName.replace(/'/g, "\\'")}', '${r.sapCode}', '${r.csvArea}', this)">+ പുതിയ Customer ആയി ചേർക്കുക</button>
+        </div>`).join('');
+        document.getElementById('sapNotFoundList').innerHTML = html;
+        document.getElementById('sapNotFoundBox').style.display = 'block';
+      }
+
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Process ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.applySapToCustomer = async function (custId, sapCode, btnEl) {
+    try {
+      await updateDoc(doc(db, "customers", custId), { sapCode: sapCode });
+      const wrap = btnEl.closest('div[style*="border:1px solid #eee"]');
+      if (wrap) wrap.innerHTML = `<p style="font-size:13px; color:#2e7d32;">✅ SAP Code "${sapCode}" set ചെയ്തു.</p>`;
+    } catch (err) {
+      console.error(err);
+      alert("Set ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  window.createCustomerFromSap = async function (name, sapCode, area, btnEl) {
+    if (!area) { alert("Area അറിയില്ല — ദയവായി CSV-ൽ Area column കൂടി നൽകി വീണ്ടും ശ്രമിക്കുക, അല്ലെങ്കിൽ Entry → Customers-ൽ നിന്ന് manual ആയി ചേർക്കുക."); return; }
+    try {
+      await addDoc(collection(db, "customers"), {
+        name: name, phone: '', area: area, openingBalance: 0, notes: '', isPrivate: false, sapCode: sapCode,
+        createdBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+      });
+      const wrap = btnEl.closest('div[style*="justify-content:space-between"]');
+      if (wrap) wrap.outerHTML = `<p style="font-size:13px; color:#2e7d32; padding:10px;">✅ "${name}" പുതിയ customer ആയി ചേർത്തു.</p>`;
+    } catch (err) {
+      console.error(err);
+      alert("ചേർക്കാൻ പറ്റിയില്ല.");
+    }
+  };
+
   window.scanDuplicateCustomers = async function () {
     const statusEl = document.getElementById('dupScanStatus');
     const container = document.getElementById('dupGroupsContainer');
