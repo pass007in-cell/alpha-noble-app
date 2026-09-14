@@ -713,6 +713,7 @@
     <button id="repSubTabPurchaseBtn" onclick="switchReportSubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
     <button id="repSubTabStockbookBtn" onclick="switchReportSubTab('stockbook')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Stock Book</button>
     <button id="repSubTabTripsheetBtn" onclick="switchReportSubTab('tripsheet')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Trip Sheet</button>
+    <button id="repSubTabTargetsBtn" onclick="switchReportSubTab('targets')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🎯 Targets</button>
   </div>
 
   <div id="repSubSale">
@@ -833,6 +834,44 @@
     <button class="del-btn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
     <div id="userTripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
   </div>
+
+  <div id="repSubTargets" style="display:none;">
+    <div class="add-user-form">
+      <h3>🎯 Monthly Sales Target</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Month, SAP Code, Retailer, DO, Monthly Target, Sales, Difference — നിങ്ങളുടെ own area-യുടെ details മാത്രം. SAP Code Admin ആണ് set ചെയ്യുന്നത്.
+      </p>
+      <label>Month</label>
+      <input type="month" id="userTargetsMonth" onchange="generateTargetsReport('user')" style="margin-bottom:14px;">
+    </div>
+
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportTargetsExcel()">⬇️ Excel (.xlsx)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+      <div style="background:#e3f2fd; border-radius:10px; padding:12px; text-align:center;">
+        <p style="font-size:11px; color:#1565c0; font-weight:600;">TOTAL TARGET (TON)</p>
+        <p style="font-size:17px; font-weight:700; color:#1565c0;" id="userTargetsTotalTarget">0</p>
+      </div>
+      <div style="background:#e8f5e9; border-radius:10px; padding:12px; text-align:center;">
+        <p style="font-size:11px; color:#2e7d32; font-weight:600;">TOTAL SALES (TON)</p>
+        <p style="font-size:17px; font-weight:700; color:#2e7d32;" id="userTargetsTotalSales">0</p>
+      </div>
+      <div style="background:#fff3e0; border-radius:10px; padding:12px; text-align:center;">
+        <p style="font-size:11px; color:#e65100; font-weight:600;">TOTAL DIFFERENCE (TON)</p>
+        <p style="font-size:17px; font-weight:700; color:#e65100;" id="userTargetsTotalDiff">0</p>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Month</th><th>SAP Code</th><th>Retailer</th><th>DO</th><th>Monthly Target (TON)</th><th>Sales (TON)</th><th>Difference (TON)</th></tr></thead>
+        <tbody id="userTargetsTableBody"><tr><td colspan="7">Month select ചെയ്യുക.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- ADMIN CUSTOMER EDIT MODAL -->
@@ -857,6 +896,9 @@
 
     <label>Opening Balance (₹)</label>
     <input type="number" id="custEditOpening" style="margin-bottom:14px;">
+
+    <label>SAP Code <span style="color:#999; font-weight:400;">(ACC Company നൽകുന്ന AR Code)</span></label>
+    <input type="text" id="custEditSapCode" placeholder="ഉദാ: SAP12345" style="margin-bottom:14px;">
 
     <label style="display:flex; align-items:center; gap:8px; margin-bottom:16px; font-weight:400; font-size:14px;">
       <input type="checkbox" id="custEditIsPrivate" style="width:auto; margin:0;">
@@ -1984,7 +2026,7 @@
     <div class="add-user-form">
       <h3>📈 Report</h3>
       <label>Area</label>
-      <select id="adminRepArea" onchange="generateAdminReport(); generateTripSheet(); loadTripSheetUnlinkedSales();" style="margin-bottom:14px;">
+      <select id="adminRepArea" onchange="generateAdminReport(); generateTripSheet(); loadTripSheetUnlinkedSales(); if (document.getElementById('targetsMonth').value) generateTargetsReport('admin');" style="margin-bottom:14px;">
         <option value="">-- All Areas --</option>
         <option value="MKD">MKD - Mannarkkad</option>
         <option value="PKD">PKD - Palakkad</option>
@@ -2010,6 +2052,7 @@
       <button id="adminRepSubTabPurchaseBtn" onclick="switchAdminReportSubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="adminRepSubTabStockbookBtn" onclick="switchAdminReportSubTab('stockbook')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Stock Book</button>
       <button id="adminRepSubTabTripsheetBtn" onclick="switchAdminReportSubTab('tripsheet')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Trip Sheet</button>
+      <button id="adminRepSubTabTargetsBtn" onclick="switchAdminReportSubTab('targets')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🎯 Targets</button>
     </div>
 
     <div id="adminRepSubSale">
@@ -2148,7 +2191,57 @@
       <button class="del-btn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
       <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
     </div>
+
+    <div id="adminRepSubTargets" style="display:none;">
+      <div class="add-user-form">
+        <h3>🎯 Monthly Sales Target — Customer-wise</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:10px;">
+          Month, SAP Code, Retailer, DO, Monthly Target, Sales, Difference — Customer-ന്റെ SAP Code വച്ചാണ് match ചെയ്യുന്നത് (പേരിൽ ചെറിയ വ്യത്യാസം വന്നാലും പ്രശ്നമില്ല).
+        </p>
+        <label>Month</label>
+        <input type="month" id="targetsMonth" onchange="generateTargetsReport('admin')" style="margin-bottom:14px;">
+        <p style="font-size:12px; color:#777; margin-top:6px;">Area filter മുകളിലെ (Report tab-ന്റെ) Area selector-ൽ നിന്ന് തന്നെ എടുക്കും.</p>
+      </div>
+
+      <div class="add-user-form" style="background:#fff3e0;">
+        <h3 style="color:#e65100;">📤 Monthly Target Bulk Upload</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:10px;">
+          CSV columns: <strong>SAP Code, DO, Target Qty (TON)</strong> (ഈ ക്രമത്തിൽ തന്നെ, header row സഹിതം). Company തരുന്ന Target **TON**-ൽ തന്നെ ഇവിടെ നൽകുക — നമ്മുടെ Sale (Bag) automatic ആയി TON ആയി convert ചെയ്ത് (1 TON = 20 Bags) compare ചെയ്യും. തിരഞ്ഞെടുത്ത Month-ലേക്ക് ആണ് upload ആകുന്നത് — ഒരേ SAP Code വീണ്ടും upload ചെയ്താൽ പഴയ target overwrite ആകും.
+        </p>
+        <input type="file" id="targetCsvFile" accept=".csv" style="margin-bottom:12px;">
+        <button class="full-btn" style="background:#e65100;" onclick="handleTargetCsvUpload()">Upload Targets</button>
+        <div id="targetCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-bottom:14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportTargetsExcel()">⬇️ Excel (.xlsx)</button>
+        <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
+        <div style="background:#e3f2fd; border-radius:10px; padding:12px; text-align:center;">
+          <p style="font-size:11px; color:#1565c0; font-weight:600;">TOTAL TARGET (TON)</p>
+          <p style="font-size:17px; font-weight:700; color:#1565c0;" id="targetsTotalTarget">0</p>
+        </div>
+        <div style="background:#e8f5e9; border-radius:10px; padding:12px; text-align:center;">
+          <p style="font-size:11px; color:#2e7d32; font-weight:600;">TOTAL SALES (TON)</p>
+          <p style="font-size:17px; font-weight:700; color:#2e7d32;" id="targetsTotalSales">0</p>
+        </div>
+        <div style="background:#fff3e0; border-radius:10px; padding:12px; text-align:center;">
+          <p style="font-size:11px; color:#e65100; font-weight:600;">TOTAL DIFFERENCE (TON)</p>
+          <p style="font-size:17px; font-weight:700; color:#e65100;" id="targetsTotalDiff">0</p>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Month</th><th>SAP Code</th><th>Retailer</th><th>Area</th><th>DO</th><th>Monthly Target (TON)</th><th>Sales (TON)</th><th>Difference (TON)</th></tr></thead>
+          <tbody id="targetsTableBody"><tr><td colspan="8">Month select ചെയ്യുക.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
+
 </div>
 
 <script type="module">
@@ -2391,7 +2484,7 @@
   };
 
   window.switchAdminReportSubTab = function (sub) {
-    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet'];
+    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet', 'targets'];
     subs.forEach(s => {
       const panel = document.getElementById('adminRepSub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('adminRepSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -2404,6 +2497,12 @@
       }
     });
     if (sub === 'tripsheet') loadTripSheetUnlinkedSales();
+    if (sub === 'targets') {
+      if (!document.getElementById('targetsMonth').value) {
+        document.getElementById('targetsMonth').value = new Date().toISOString().slice(0, 7);
+      }
+      generateTargetsReport('admin');
+    }
   };
 
   window.switchAdminEntrySubTab = function (sub) {
@@ -3074,7 +3173,7 @@
   };
 
   window.switchReportSubTab = function (sub) {
-    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet'];
+    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet', 'targets'];
     subs.forEach(s => {
       const panel = document.getElementById('repSub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('repSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -3086,6 +3185,12 @@
         btn.style.background = '#eee'; btn.style.color = '#333';
       }
     });
+    if (sub === 'targets') {
+      if (!document.getElementById('userTargetsMonth').value) {
+        document.getElementById('userTargetsMonth').value = new Date().toISOString().slice(0, 7);
+      }
+      generateTargetsReport('user');
+    }
   };
 
   window.calcSaleAmount = function () {
@@ -6765,6 +6870,167 @@
     container.innerHTML = html;
   }
 
+  // ---- MONTHLY SALES TARGET (SAP Code based) ----
+  let lastTargetsData = [];
+
+  // Company measures Target in TON; our own Sale entries are in Bag units.
+  const BAGS_PER_TON = 20;
+
+  window.generateTargetsReport = async function (mode) {
+    const isAdmin = mode === 'admin';
+    const month = document.getElementById(isAdmin ? 'targetsMonth' : 'userTargetsMonth').value;
+    const tbody = document.getElementById(isAdmin ? 'targetsTableBody' : 'userTargetsTableBody');
+    const colCount = isAdmin ? 8 : 7;
+    if (!month) { tbody.innerHTML = `<tr><td colspan="${colCount}">Month select ചെയ്യുക.</td></tr>`; return; }
+
+    // Admin: filter by the Report tab's own Area selector ("" = All Areas). User: always own area.
+    const areaFilter = isAdmin ? document.getElementById('adminRepArea').value : currentUserData.area;
+
+    tbody.innerHTML = `<tr><td colspan="${colCount}">Loading...</td></tr>`;
+
+    try {
+      const [targetsSnap, custSnap, salesSnap] = await Promise.all([
+        getDocs(query(collection(db, "monthlyTargets"), where("month", "==", month))),
+        getDocs(collection(db, "customers")),
+        getDocs(collection(db, "sales"))
+      ]);
+
+      const custBySapCode = {};
+      custSnap.forEach(docSnap => {
+        const c = docSnap.data();
+        if (c.sapCode) custBySapCode[c.sapCode] = { id: docSnap.id, ...c };
+      });
+
+      // Total sales qty per customer for this month — ALL sales regardless of status,
+      // matching the app's other "simple total" stock/target calculations.
+      const salesByCustomer = {};
+      salesSnap.forEach(docSnap => {
+        const s = docSnap.data();
+        if (!(s.date || '').startsWith(month)) return;
+        if (!s.customerId) return;
+        salesByCustomer[s.customerId] = (salesByCustomer[s.customerId] || 0) + (s.qty || 0);
+      });
+
+      let rows = [];
+      targetsSnap.forEach(docSnap => {
+        const t = docSnap.data();
+        const cust = custBySapCode[t.sapCode];
+        const custArea = cust ? (cust.area || '-') : null;
+        // Skip rows we can't confidently place in the selected area (own-area for User,
+        // or a specific area picked by Admin) — but Admin's "All Areas" view still shows
+        // unmatched SAP Codes so mismatches are visible and fixable.
+        if (areaFilter) {
+          if (custArea !== areaFilter) return;
+        }
+        const salesBags = cust ? (salesByCustomer[cust.id] || 0) : 0;
+        rows.push({
+          month: t.month, sapCode: t.sapCode,
+          retailer: cust ? cust.name : '(SAP Code match ആയില്ല)',
+          area: custArea || 'Unknown',
+          doName: t.doName || '-',
+          target: t.targetQty || 0,
+          sales: Math.round((salesBags / BAGS_PER_TON) * 100) / 100 // Bags → TON, 2 decimals
+        });
+      });
+      rows.forEach(r => { r.diff = Math.round((r.target - r.sales) * 100) / 100; });
+      rows.sort((a, b) => (a.retailer || '').localeCompare(b.retailer || ''));
+
+      lastTargetsData = rows;
+
+      const totalTarget = Math.round(rows.reduce((s, r) => s + r.target, 0) * 100) / 100;
+      const totalSales = Math.round(rows.reduce((s, r) => s + r.sales, 0) * 100) / 100;
+      const totalDiff = Math.round((totalTarget - totalSales) * 100) / 100;
+
+      if (isAdmin) {
+        document.getElementById('targetsTotalTarget').textContent = totalTarget.toLocaleString('en-IN');
+        document.getElementById('targetsTotalSales').textContent = totalSales.toLocaleString('en-IN');
+        document.getElementById('targetsTotalDiff').textContent = totalDiff.toLocaleString('en-IN');
+      } else {
+        document.getElementById('userTargetsTotalTarget').textContent = totalTarget.toLocaleString('en-IN');
+        document.getElementById('userTargetsTotalSales').textContent = totalSales.toLocaleString('en-IN');
+        document.getElementById('userTargetsTotalDiff').textContent = totalDiff.toLocaleString('en-IN');
+      }
+
+      const rowsHtml = rows.map(r => {
+        const diffColor = r.diff > 0 ? '#c62828' : '#2e7d32'; // red = short of target, green = met/exceeded
+        return isAdmin
+          ? `<tr><td>${r.month}</td><td>${r.sapCode}</td><td>${r.retailer}</td><td>${r.area}</td><td>${r.doName}</td><td>${r.target}</td><td>${r.sales}</td><td style="color:${diffColor}; font-weight:600;">${r.diff}</td></tr>`
+          : `<tr><td>${r.month}</td><td>${r.sapCode}</td><td>${r.retailer}</td><td>${r.doName}</td><td>${r.target}</td><td>${r.sales}</td><td style="color:${diffColor}; font-weight:600;">${r.diff}</td></tr>`;
+      }).join('');
+      tbody.innerHTML = rowsHtml || `<tr><td colspan="${colCount}">ഈ Month-ന് Target ഒന്നും ഇല്ല.</td></tr>`;
+
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = `<tr><td colspan="${colCount}">Error loading.</td></tr>`;
+    }
+  };
+
+  window.handleTargetCsvUpload = async function () {
+    const month = document.getElementById('targetsMonth').value;
+    const fileInput = document.getElementById('targetCsvFile');
+    const statusEl = document.getElementById('targetCsvStatus');
+
+    if (!month) { statusEl.textContent = "ആദ്യം Month select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
+    if (!fileInput.files[0]) { statusEl.textContent = "CSV file select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
+
+    statusEl.textContent = "Reading file...";
+    statusEl.style.color = '#555';
+
+    try {
+      const text = await fileInput.files[0].text();
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      lines.shift(); // drop header row
+
+      let successCount = 0, failCount = 0;
+      for (let i = 0; i < lines.length; i++) {
+        const cols = parseCsvLine(lines[i]);
+        const sapCode = (cols[0] || '').trim();
+        const doName = (cols[1] || '').trim();
+        const targetQty = parseNum(cols[2]);
+
+        if (!sapCode) { failCount++; continue; }
+
+        try {
+          // Composite doc id (month_sapCode) makes re-uploading a corrected sheet safe —
+          // it overwrites the same target instead of creating a duplicate.
+          await setDoc(doc(db, "monthlyTargets", `${month}_${sapCode}`), {
+            month: month, sapCode: sapCode, doName: doName, targetQty: targetQty,
+            uploadedBy: currentUserData.username || 'admin', updatedAt: new Date().toISOString()
+          });
+          successCount++;
+        } catch (e) {
+          failCount++;
+        }
+        statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
+      }
+
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `Done! ${successCount} targets saved.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      fileInput.value = '';
+      generateTargetsReport('admin');
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.exportTargetsExcel = async function () {
+    if (lastTargetsData.length === 0) { alert("ആദ്യം Month select ചെയ്ത് data load ആകട്ടെ."); return; }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const data = [['Month', 'SAP Code', 'Retailer', 'Area', 'DO', 'Monthly Target (TON)', 'Sales (TON)', 'Difference (TON)']];
+      lastTargetsData.forEach(r => data.push([r.month, r.sapCode, r.retailer, r.area, r.doName, r.target, r.sales, r.diff]));
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Targets');
+      XLSX.writeFile(wb, `monthly-targets-${lastTargetsData[0].month}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
+    }
+  };
+
   window.exportTripSheetExcel = async function () {
     if (!lastTripSheetData) { alert("ആദ്യം 'Generate Trip Sheet' ക്ലിക്ക് ചെയ്യുക."); return; }
     try {
@@ -9301,6 +9567,7 @@
       document.getElementById('custEditPhone').value = c.phone || '';
       document.getElementById('custEditArea').value = c.area || 'MKD';
       document.getElementById('custEditOpening').value = c.openingBalance || 0;
+      document.getElementById('custEditSapCode').value = c.sapCode || '';
       document.getElementById('custEditIsPrivate').checked = !!c.isPrivate;
       document.getElementById('custEditErrorMsg').style.display = 'none';
       document.getElementById('custEditOverlay').dataset.custId = custId;
@@ -9321,6 +9588,7 @@
     const phone = document.getElementById('custEditPhone').value.trim();
     const area = document.getElementById('custEditArea').value;
     const opening = parseFloat(document.getElementById('custEditOpening').value) || 0;
+    const sapCode = document.getElementById('custEditSapCode').value.trim();
     const isPrivate = document.getElementById('custEditIsPrivate').checked;
     const errEl = document.getElementById('custEditErrorMsg');
 
@@ -9329,7 +9597,7 @@
 
     try {
       await updateDoc(doc(db, "customers", custId), {
-        name: name, phone: phone, area: area, openingBalance: opening, isPrivate: isPrivate
+        name: name, phone: phone, area: area, openingBalance: opening, sapCode: sapCode, isPrivate: isPrivate
       });
       closeCustomerEdit();
       generateAdminCustomerReport();
