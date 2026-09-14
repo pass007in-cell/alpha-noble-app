@@ -912,6 +912,22 @@
   </div>
 </div>
 
+<!-- MONTHLY TARGET EDIT MODAL -->
+<div id="targetEditOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
+  <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:400px;">
+    <h3 style="color:#1e3c72; margin-bottom:6px;">🎯 Target Edit ചെയ്യുക</h3>
+    <p style="font-size:13px; color:#777; margin-bottom:14px;" id="targetEditInfo"></p>
+    <label>DO (Company Representative)</label>
+    <input type="text" id="targetEditDO" style="margin-bottom:14px;">
+    <label>Monthly Target (TON)</label>
+    <input type="number" id="targetEditQty" style="margin-bottom:16px;">
+    <div style="display:flex; gap:10px;">
+      <button style="flex:1;" onclick="saveTargetEdit()">Save</button>
+      <button style="flex:1; background:#999;" onclick="document.getElementById('targetEditOverlay').style.display='none';">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <!-- RECORD DETAILS (WHO ENTERED / EDITED) MODAL -->
 <div id="recordDetailsOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:60; align-items:center; justify-content:center; padding:16px;">
   <div style="background:#fff; border-radius:14px; padding:22px; width:100%; max-width:420px;">
@@ -1637,6 +1653,33 @@
         <p style="font-size:12px; color:#777; margin-bottom:8px;">ഈ പേരുകൾ SAP list-ൽ ഉണ്ട്, പക്ഷെ നമ്മുടെ Customer list-ൽ match ആയില്ല — പേരിൽ വലിയ വ്യത്യാസം ഉള്ളത് കൊണ്ടോ, ശരിക്കും പുതിയ customer ആയത് കൊണ്ടോ ആകാം. ഓരോന്നും "പുതിയ Customer ആയി ചേർക്കുക" അല്ലെങ്കിൽ ഒഴിവാക്കുക.</p>
         <div id="sapNotFoundList"></div>
       </div>
+
+      <div style="border-top:1px solid #ccc; margin:20px 0; padding-top:16px;">
+        <h4 style="font-size:15px; color:#1565c0; margin-bottom:10px;">✍️ Manual ആയി SAP Code ചേർക്കുക</h4>
+        <label>Customer</label>
+        <div class="cust-search-box">
+          <input type="text" id="sapManualCustSearch" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+            oninput="renderSapManualCustOptions()" onfocus="renderSapManualCustOptions()">
+          <input type="hidden" id="sapManualCustId">
+          <div id="sapManualCustOptionsBox" class="cust-options-box"></div>
+        </div>
+        <label>SAP Code</label>
+        <input type="text" id="sapManualCode" placeholder="ഉദാ: SAP12345" style="margin-bottom:14px;">
+        <button class="full-btn" style="background:#1565c0;" onclick="handleSapManualSave()">SAP Code Save ചെയ്യുക</button>
+        <div id="sapManualStatus" style="font-size:13px; margin-top:8px; text-align:center;"></div>
+      </div>
+
+      <div style="border-top:1px solid #ccc; margin:20px 0; padding-top:16px;">
+        <h4 style="font-size:15px; color:#1565c0; margin-bottom:10px;">📋 SAP Code ഉള്ള Customers (SAP Code order-ൽ sort ചെയ്തത്)</h4>
+        <button class="full-btn" style="background:#555;" onclick="loadSapCodeList()">🔄 List Load/Refresh ചെയ്യുക</button>
+        <input type="text" id="sapListSearch" placeholder="🔍 SAP Code / Customer Name search ചെയ്യുക..." oninput="filterSapCodeList()" style="margin-top:10px; margin-bottom:10px;">
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>SAP Code</th><th>Customer Name</th><th>Area</th><th></th></tr></thead>
+            <tbody id="sapCodeListBody"><tr><td colspan="4">"Load/Refresh" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <div class="add-user-form" style="background:#fff3e0;">
@@ -2241,6 +2284,25 @@
         <div id="targetCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
       </div>
 
+      <div class="add-user-form">
+        <h3>✍️ Manual ആയി ഒരു Target ചേർക്കുക</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:10px;">മുകളിലെ Month-ലേക്ക് ആണ് ഇത് save ആകുന്നത്.</p>
+        <label>Customer</label>
+        <div class="cust-search-box">
+          <input type="text" id="targetManualCustSearch" placeholder="🔍 Customer search ചെയ്യുക (SAP Code ഉള്ളവർ മാത്രം)..." autocomplete="off"
+            oninput="renderTargetManualCustOptions()" onfocus="renderTargetManualCustOptions()">
+          <div id="targetManualCustOptionsBox" class="cust-options-box"></div>
+        </div>
+        <p id="targetManualSapDisplay" style="font-size:12px; color:#555; margin:6px 0 14px;"></p>
+        <input type="hidden" id="targetManualSapCode">
+        <label>DO (Company Representative)</label>
+        <input type="text" id="targetManualDO" placeholder="DO പേര്" style="margin-bottom:14px;">
+        <label>Monthly Target (TON)</label>
+        <input type="number" id="targetManualQty" placeholder="0" style="margin-bottom:14px;">
+        <button class="full-btn" style="background:#1565c0;" onclick="handleTargetManualSave()">Target Save ചെയ്യുക</button>
+        <div id="targetManualStatus" style="font-size:13px; margin-top:8px; text-align:center;"></div>
+      </div>
+
       <div style="display:flex; gap:10px; margin-bottom:14px;">
         <button style="flex:1; background:#2e7d32;" onclick="exportTargetsExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
@@ -2263,8 +2325,8 @@
 
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Month</th><th>SAP Code</th><th>Retailer</th><th>Area</th><th>DO</th><th>Monthly Target (TON)</th><th>Sales (TON)</th><th>Difference (TON)</th></tr></thead>
-          <tbody id="targetsTableBody"><tr><td colspan="8">Month select ചെയ്യുക.</td></tr></tbody>
+          <thead><tr><th>Month</th><th>SAP Code</th><th>Retailer</th><th>Area</th><th>DO</th><th>Monthly Target (TON)</th><th>Sales (TON)</th><th>Difference (TON)</th><th></th></tr></thead>
+          <tbody id="targetsTableBody"><tr><td colspan="9">Month select ചെയ്യുക.</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -6908,7 +6970,7 @@
     const isAdmin = mode === 'admin';
     const month = document.getElementById(isAdmin ? 'targetsMonth' : 'userTargetsMonth').value;
     const tbody = document.getElementById(isAdmin ? 'targetsTableBody' : 'userTargetsTableBody');
-    const colCount = isAdmin ? 8 : 7;
+    const colCount = isAdmin ? 9 : 7;
     if (!month) { tbody.innerHTML = `<tr><td colspan="${colCount}">Month select ചെയ്യുക.</td></tr>`; return; }
 
     // Admin: filter by the Report tab's own Area selector ("" = All Areas). User: always own area.
@@ -6923,10 +6985,16 @@
         getDocs(collection(db, "sales"))
       ]);
 
+      // A single SAP Code can be shared by more than one of our own Customer records
+      // (same company account, tracked separately by us) — so keep an ARRAY per code and
+      // sum their sales together, rather than only counting one of them.
       const custBySapCode = {};
       custSnap.forEach(docSnap => {
         const c = docSnap.data();
-        if (c.sapCode) custBySapCode[c.sapCode] = { id: docSnap.id, ...c };
+        if (c.sapCode) {
+          if (!custBySapCode[c.sapCode]) custBySapCode[c.sapCode] = [];
+          custBySapCode[c.sapCode].push({ id: docSnap.id, ...c });
+        }
       });
 
       // Total sales qty per customer for this month — ALL sales regardless of status,
@@ -6942,18 +7010,18 @@
       let rows = [];
       targetsSnap.forEach(docSnap => {
         const t = docSnap.data();
-        const cust = custBySapCode[t.sapCode];
-        const custArea = cust ? (cust.area || '-') : null;
+        const custs = custBySapCode[t.sapCode] || [];
+        const custArea = custs.length > 0 ? (custs[0].area || '-') : null;
         // Skip rows we can't confidently place in the selected area (own-area for User,
         // or a specific area picked by Admin) — but Admin's "All Areas" view still shows
         // unmatched SAP Codes so mismatches are visible and fixable.
         if (areaFilter) {
           if (custArea !== areaFilter) return;
         }
-        const salesBags = cust ? (salesByCustomer[cust.id] || 0) : 0;
+        const salesBags = custs.reduce((sum, c) => sum + (salesByCustomer[c.id] || 0), 0);
         rows.push({
-          month: t.month, sapCode: t.sapCode,
-          retailer: cust ? cust.name : '(SAP Code match ആയില്ല)',
+          month: t.month, sapCode: t.sapCode, docId: docSnap.id,
+          retailer: custs.length > 0 ? custs.map(c => c.name).join(' + ') : '(SAP Code match ആയില്ല)',
           area: custArea || 'Unknown',
           doName: t.doName || '-',
           target: t.targetQty || 0,
@@ -6982,7 +7050,7 @@
       const rowsHtml = rows.map(r => {
         const diffColor = r.diff > 0 ? '#c62828' : '#2e7d32'; // red = short of target, green = met/exceeded
         return isAdmin
-          ? `<tr><td>${r.month}</td><td>${r.sapCode}</td><td>${r.retailer}</td><td>${r.area}</td><td>${r.doName}</td><td>${r.target}</td><td>${r.sales}</td><td style="color:${diffColor}; font-weight:600;">${r.diff}</td></tr>`
+          ? `<tr><td>${r.month}</td><td>${r.sapCode}</td><td>${r.retailer}</td><td>${r.area}</td><td>${r.doName}</td><td>${r.target}</td><td>${r.sales}</td><td style="color:${diffColor}; font-weight:600;">${r.diff}</td><td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTargetEdit('${r.docId}','${r.sapCode}','${r.retailer.replace(/'/g, "\\'")}','${(r.doName || '').replace(/'/g, "\\'")}',${r.target})">Edit</button></td></tr>`
           : `<tr><td>${r.month}</td><td>${r.sapCode}</td><td>${r.retailer}</td><td>${r.doName}</td><td>${r.target}</td><td>${r.sales}</td><td style="color:${diffColor}; font-weight:600;">${r.diff}</td></tr>`;
       }).join('');
       tbody.innerHTML = rowsHtml || `<tr><td colspan="${colCount}">ഈ Month-ന് Target ഒന്നും ഇല്ല.</td></tr>`;
@@ -7041,6 +7109,96 @@
       console.error(err);
       statusEl.textContent = "CSV upload പരാജയപ്പെട്ടു.";
       statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // ---- Manual single-Target entry (SAP Code / Customer Name based) ----
+  let targetManualAllCustomers = [];
+
+  window.renderTargetManualCustOptions = async function () {
+    const box = document.getElementById('targetManualCustOptionsBox');
+    const term = document.getElementById('targetManualCustSearch').value.trim().toLowerCase();
+    if (targetManualAllCustomers.length === 0) {
+      const snap = await getDocs(collection(db, "customers"));
+      snap.forEach(docSnap => { const c = docSnap.data(); if (c.sapCode) targetManualAllCustomers.push({ id: docSnap.id, ...c }); });
+    }
+    const matches = targetManualAllCustomers.filter(c => !term || (c.name || '').toLowerCase().includes(term));
+    let html = matches.slice(0, 50).map(c =>
+      `<div class="cust-opt cust-opt-own" onmousedown="selectTargetManualCust('${c.name.replace(/'/g, "\\'")}','${c.sapCode}')">${c.name} [${c.area || '-'}] · SAP: ${c.sapCode}</div>`
+    ).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">SAP Code ഉള്ള matching customer ഇല്ല. (ആദ്യം Customer-ന് SAP Code set ചെയ്യുക.)</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectTargetManualCust = function (name, sapCode) {
+    document.getElementById('targetManualCustSearch').value = name;
+    document.getElementById('targetManualSapCode').value = sapCode;
+    document.getElementById('targetManualSapDisplay').textContent = `SAP Code: ${sapCode}`;
+    document.getElementById('targetManualCustOptionsBox').style.display = 'none';
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#targetManualCustSearch') && !e.target.closest('#targetManualCustOptionsBox')) {
+      const b = document.getElementById('targetManualCustOptionsBox'); if (b) b.style.display = 'none';
+    }
+  });
+
+  window.handleTargetManualSave = async function () {
+    const month = document.getElementById('targetsMonth').value;
+    const sapCode = document.getElementById('targetManualSapCode').value;
+    const doName = document.getElementById('targetManualDO').value.trim();
+    const targetQty = parseFloat(document.getElementById('targetManualQty').value) || 0;
+    const statusEl = document.getElementById('targetManualStatus');
+    statusEl.style.display = 'block';
+
+    if (!month) { statusEl.textContent = "ആദ്യം മുകളിൽ Month select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
+    if (!sapCode) { statusEl.textContent = "Customer select ചെയ്യുക (SAP Code ഉള്ളവർ മാത്രം list-ൽ വരും)."; statusEl.style.color = '#d32f2f'; return; }
+    if (targetQty <= 0) { statusEl.textContent = "Target Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം."; statusEl.style.color = '#d32f2f'; return; }
+
+    try {
+      await setDoc(doc(db, "monthlyTargets", `${month}_${sapCode}`), {
+        month: month, sapCode: sapCode, doName: doName, targetQty: targetQty,
+        uploadedBy: currentUserData.username || 'admin', updatedAt: new Date().toISOString()
+      });
+      statusEl.textContent = "✅ Target save ചെയ്തു.";
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('targetManualCustSearch').value = '';
+      document.getElementById('targetManualSapCode').value = '';
+      document.getElementById('targetManualSapDisplay').textContent = '';
+      document.getElementById('targetManualDO').value = '';
+      document.getElementById('targetManualQty').value = '';
+      generateTargetsReport('admin');
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // ---- Edit an existing Target ----
+  window.openTargetEdit = function (docId, sapCode, retailer, doName, targetQty) {
+    document.getElementById('targetEditOverlay').dataset.docId = docId;
+    document.getElementById('targetEditInfo').textContent = `${retailer} · SAP Code: ${sapCode}`;
+    document.getElementById('targetEditDO').value = doName || '';
+    document.getElementById('targetEditQty').value = targetQty || 0;
+    document.getElementById('targetEditOverlay').style.display = 'flex';
+  };
+
+  window.saveTargetEdit = async function () {
+    const docId = document.getElementById('targetEditOverlay').dataset.docId;
+    const doName = document.getElementById('targetEditDO').value.trim();
+    const targetQty = parseFloat(document.getElementById('targetEditQty').value) || 0;
+    try {
+      await updateDoc(doc(db, "monthlyTargets", docId), {
+        doName: doName, targetQty: targetQty,
+        lastEditedBy: currentUserData.username || 'admin', lastEditedAt: new Date().toISOString()
+      });
+      document.getElementById('targetEditOverlay').style.display = 'none';
+      generateTargetsReport('admin');
+    } catch (err) {
+      console.error(err);
+      alert("Update ചെയ്യാൻ പറ്റിയില്ല.");
     }
   };
 
@@ -7730,6 +7888,9 @@
         }
       }
 
+      ambiguousRows.sort((a, b) => (a.sapCode || '').localeCompare(b.sapCode || ''));
+      notFoundRows.sort((a, b) => (a.sapCode || '').localeCompare(b.sapCode || ''));
+
       statusEl.textContent = '';
 
       if (autoMatchedCount > 0) {
@@ -7760,6 +7921,7 @@
       }
 
       fileInput.value = '';
+      loadSapCodeList();
 
     } catch (err) {
       console.error(err);
@@ -7773,6 +7935,7 @@
       await updateDoc(doc(db, "customers", custId), { sapCode: sapCode });
       const wrap = btnEl.closest('div[style*="border:1px solid #eee"]');
       if (wrap) wrap.innerHTML = `<p style="font-size:13px; color:#2e7d32;">✅ SAP Code "${sapCode}" set ചെയ്തു.</p>`;
+      loadSapCodeList();
     } catch (err) {
       console.error(err);
       alert("Set ചെയ്യാൻ പറ്റിയില്ല.");
@@ -7788,10 +7951,98 @@
       });
       const wrap = btnEl.closest('div[style*="justify-content:space-between"]');
       if (wrap) wrap.outerHTML = `<p style="font-size:13px; color:#2e7d32; padding:10px;">✅ "${name}" പുതിയ customer ആയി ചേർത്തു.</p>`;
+      loadSapCodeList();
     } catch (err) {
       console.error(err);
       alert("ചേർക്കാൻ പറ്റിയില്ല.");
     }
+  };
+
+  // ---- Manual SAP Code entry (single customer at a time) ----
+  let sapManualAllCustomers = [];
+
+  window.renderSapManualCustOptions = async function () {
+    const box = document.getElementById('sapManualCustOptionsBox');
+    const term = document.getElementById('sapManualCustSearch').value.trim().toLowerCase();
+    if (sapManualAllCustomers.length === 0) {
+      const snap = await getDocs(collection(db, "customers"));
+      snap.forEach(docSnap => sapManualAllCustomers.push({ id: docSnap.id, ...docSnap.data() }));
+    }
+    const matches = sapManualAllCustomers.filter(c => !term || (c.name || '').toLowerCase().includes(term));
+    let html = matches.slice(0, 50).map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectSapManualCust('${c.id}','${escapeHtml(c.name)}')">${c.name} [${c.area || '-'}]${c.sapCode ? ' · SAP: ' + c.sapCode : ''}</div>`).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectSapManualCust = function (id, name) {
+    document.getElementById('sapManualCustId').value = id;
+    document.getElementById('sapManualCustSearch').value = name;
+    document.getElementById('sapManualCustOptionsBox').style.display = 'none';
+  };
+
+  document.addEventListener('click', function (e) {
+    if (!e.target.closest('#sapManualCustSearch') && !e.target.closest('#sapManualCustOptionsBox')) {
+      const b = document.getElementById('sapManualCustOptionsBox'); if (b) b.style.display = 'none';
+    }
+  });
+
+  window.handleSapManualSave = async function () {
+    const custId = document.getElementById('sapManualCustId').value;
+    const sapCode = document.getElementById('sapManualCode').value.trim();
+    const statusEl = document.getElementById('sapManualStatus');
+    statusEl.style.display = 'block';
+
+    if (!custId) { statusEl.textContent = "Customer select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
+    if (!sapCode) { statusEl.textContent = "SAP Code നൽകുക."; statusEl.style.color = '#d32f2f'; return; }
+
+    try {
+      await updateDoc(doc(db, "customers", custId), { sapCode: sapCode });
+      statusEl.textContent = "✅ SAP Code save ചെയ്തു.";
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('sapManualCustId').value = '';
+      document.getElementById('sapManualCustSearch').value = '';
+      document.getElementById('sapManualCode').value = '';
+      sapManualAllCustomers = []; // refresh cache next time
+      loadSapCodeList();
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // ---- SAP Code list (sorted by SAP Code), with Edit via existing Customer Edit modal ----
+  window.loadSapCodeList = async function () {
+    const tbody = document.getElementById('sapCodeListBody');
+    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    try {
+      const snap = await getDocs(collection(db, "customers"));
+      let rows = [];
+      snap.forEach(docSnap => {
+        const c = docSnap.data();
+        if (c.sapCode) rows.push({ id: docSnap.id, sapCode: c.sapCode, name: c.name, area: c.area || '-' });
+      });
+      rows.sort((a, b) => (a.sapCode || '').localeCompare(b.sapCode || '', undefined, { numeric: true }));
+
+      const html = rows.map(r => `<tr>
+        <td>${r.sapCode}</td><td>${r.name}</td><td>${r.area}</td>
+        <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openCustomerEdit('${r.id}')">Edit</button></td>
+      </tr>`).join('');
+      tbody.innerHTML = html || '<tr><td colspan="4">ഒരു customer-നും SAP Code ഇല്ല.</td></tr>';
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
+    }
+  };
+
+  window.filterSapCodeList = function () {
+    const term = document.getElementById('sapListSearch').value.trim().toLowerCase();
+    const rows = document.querySelectorAll('#sapCodeListBody tr');
+    rows.forEach(row => {
+      const text = row.textContent.toLowerCase();
+      row.style.display = (!term || text.includes(term)) ? '' : 'none';
+    });
   };
 
   window.scanDuplicateCustomers = async function () {
