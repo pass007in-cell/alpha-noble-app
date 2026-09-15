@@ -164,6 +164,7 @@
         <option value="PKD">PKD - Palakkad</option>
         <option value="MLT">MLT - Melattur</option>
         <option value="NLB">NLB - Nilambur</option>
+        <option value="ALL">🌐 Multi-Area User</option>
         <option value="ADMIN">Admin</option>
       </select>
 
@@ -190,6 +191,16 @@
       <p style="color:#888; font-size:13px;" id="userAreaLabel"></p>
     </div>
     <button class="logout-btn" style="width:auto; margin-top:0;" onclick="handleLogout()">Logout</button>
+  </div>
+
+  <div id="workingAreaBar" style="display:none; align-items:center; gap:10px; background:#fff3e0; border-radius:10px; padding:10px 14px; margin-bottom:16px;">
+    <span style="font-size:13px; color:#e65100; font-weight:600;">🌐 ഇപ്പോൾ പ്രവർത്തിക്കുന്ന Area:</span>
+    <select id="workingAreaSelect" onchange="switchWorkingArea()" style="width:auto; margin:0; flex:1; max-width:220px;">
+      <option value="MKD">MKD - Mannarkkad</option>
+      <option value="PKD">PKD - Palakkad</option>
+      <option value="MLT">MLT - Melattur</option>
+      <option value="NLB">NLB - Nilambur</option>
+    </select>
   </div>
 
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
@@ -1383,6 +1394,7 @@
           <option value="PKD">PKD - Palakkad</option>
           <option value="MLT">MLT - Melattur</option>
           <option value="NLB">NLB - Nilambur</option>
+          <option value="ALL">🌐 എല്ലാ Areas ഉം (Multi-Area User)</option>
           <option value="ADMIN">Admin</option>
         </select>
       </div>
@@ -2541,6 +2553,10 @@
   };
 
   let currentUserData = null;
+  // For a multi-area user (userData.area === 'ALL'), this tracks which single area they
+  // are currently working in — switchable via the Area selector shown in their panel.
+  // All User-panel logic reads this instead of the user's own home area directly.
+  let currentWorkingArea = null;
   // Users only see Advance Sales from this date onward (app go-live date).
   // Old pending advance sales (up to this date) are handled by Admin only.
   const ADVANCE_SALE_USER_CUTOFF = '2026-08-31';
@@ -2556,12 +2572,39 @@
   let editingPurchaseOldDate = '';
   let editingPurchaseOldQty = 0;
 
+  window.switchWorkingArea = function () {
+    currentWorkingArea = document.getElementById('workingAreaSelect').value;
+    // Re-run whichever User tab is currently visible so it reflects the new working area.
+    if (document.getElementById('tabReports').style.display !== 'none') {
+      loadTopReportSummary();
+      loadAdvanceSales();
+      loadHomePendingLots();
+      generateHomeDayView();
+    } else if (document.getElementById('tabEntry').style.display !== 'none') {
+      refreshAvailableLots();
+      loadTodaysSales();
+      loadTodaysPurchases();
+      loadTodaysCollections();
+    } else if (document.getElementById('tabLinking').style.display !== 'none') {
+      loadAdvanceSales();
+      loadHomePendingLots();
+    } else if (document.getElementById('tabReport').style.display !== 'none') {
+      generateReport();
+      generateUserTripSheet();
+    }
+  };
+
   async function showDashboard(userData) {
     currentUserData = userData;
+    currentWorkingArea = (userData.area === 'ALL') ? 'MKD' : userData.area;
     document.getElementById('centerWrap').style.display = 'none';
     document.getElementById('userBox').style.display = 'block';
     document.getElementById('userAreaLabel').textContent =
-      (userData.username || '-') + " — Area: " + (userData.area || '-');
+      (userData.username || '-') + " — Area: " + (userData.area === 'ALL' ? '🌐 Multi-Area' : (userData.area || '-'));
+    document.getElementById('workingAreaBar').style.display = (userData.area === 'ALL') ? 'flex' : 'none';
+    if (userData.area === 'ALL') {
+      document.getElementById('workingAreaSelect').value = currentWorkingArea;
+    }
     await loadCustomersList(); // preload customers (used by Sale/Collection dropdowns too)
     switchTab('reports');
   }
@@ -2876,7 +2919,7 @@
       await addDoc(collection(db, "customers"), {
         name: name,
         phone: phone,
-        area: currentUserData.area,
+        area: currentWorkingArea,
         openingBalance: openingBalance,
         notes: notes,
         isPrivate: isPrivate,
@@ -2923,7 +2966,7 @@
 
       // Own area first, then others; alphabetical within each group
       // (order used by the Sale Entry dropdown)
-      const myArea = currentUserData.area;
+      const myArea = currentWorkingArea;
       allCustomers.sort((a, b) => {
         const aOwn = a.area === myArea ? 0 : 1;
         const bOwn = b.area === myArea ? 0 : 1;
@@ -2997,7 +3040,7 @@
 
   window.filterCustomers = function () {
     const term = document.getElementById('custSearch').value.trim().toLowerCase();
-    const ownAreaCustomers = allCustomers.filter(c => c.area === currentUserData.area);
+    const ownAreaCustomers = allCustomers.filter(c => c.area === currentWorkingArea);
     if (!term) {
       renderCustomers(ownAreaCustomers);
       return;
@@ -3198,7 +3241,7 @@
       }
       if (knownVehicleNumbers.has(normalizeName(num))) return;
       await addDoc(collection(db, "vehicles"), {
-        number: num, driver: '', area: currentUserData.area,
+        number: num, driver: '', area: currentWorkingArea,
         createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
       });
       knownVehicleNumbers.add(normalizeName(num));
@@ -3423,7 +3466,7 @@
     const sel = document.getElementById('saleGodown');
     sel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "godowns"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -3439,7 +3482,7 @@
 
   async function populateSaleVehicleDropdown() {
     try {
-      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "vehicles"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       allVehiclesForSale = [];
       snap.forEach(docSnap => allVehiclesForSale.push(docSnap.data()));
@@ -3478,8 +3521,8 @@
     const term = document.getElementById('saleCustSearchInput').value.trim().toLowerCase();
     const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
 
-    const own = allCustomers.filter(c => c.area === currentUserData.area && matches(c));
-    const other = allCustomers.filter(c => c.area !== currentUserData.area && matches(c));
+    const own = allCustomers.filter(c => c.area === currentWorkingArea && matches(c));
+    const other = allCustomers.filter(c => c.area !== currentWorkingArea && matches(c));
 
     let html = `<div class="cust-opt cust-opt-new" onmousedown="selectSaleCustomer('__new__','')">+ Add New Customer</div>`;
     own.forEach(c => {
@@ -3542,7 +3585,7 @@
     const quickBox = document.getElementById('quickAddCustBox');
     const willShow = (quickBox.style.display === 'none' || !quickBox.style.display);
     quickBox.style.display = willShow ? 'block' : 'none';
-    if (willShow) document.getElementById('quickCustArea').value = currentUserData.area;
+    if (willShow) document.getElementById('quickCustArea').value = currentWorkingArea;
   };
 
   window.handleQuickAddCustomer = async function () {
@@ -3686,7 +3729,7 @@
       const saleData = {
         customerId: custId,
         customerName: cust ? cust.name : '-',
-        area: currentUserData.area,
+        area: currentWorkingArea,
         product: product,
         godown: document.getElementById('saleGodown').value,
         vehicle: saleVehicleNum,
@@ -3772,7 +3815,7 @@
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(
         collection(db, "sales"),
-        where("area", "==", currentUserData.area),
+        where("area", "==", currentWorkingArea),
         where("date", "==", todayStr)
       );
       const snap = await getDocs(q);
@@ -3937,7 +3980,7 @@
     try {
       const q = query(
         collection(db, "sales"),
-        where("area", "==", currentUserData.area),
+        where("area", "==", currentWorkingArea),
         where("isAdvance", "==", true)
       );
       const snap = await getDocs(q);
@@ -5308,7 +5351,7 @@
     btn.disabled = true; btn.textContent = "Adding...";
     try {
       await addDoc(collection(db, "vehicles"), {
-        number: number, driver: driver, area: currentUserData.area,
+        number: number, driver: driver, area: currentWorkingArea,
         createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
       });
       okEl.textContent = `"${number}" ചേർത്തു.`; okEl.style.display = 'block';
@@ -5327,7 +5370,7 @@
     const tbody = document.getElementById('vehicleTableBody');
     tbody.innerHTML = '<tr><td colspan="3">Loading...</td></tr>';
     try {
-      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "vehicles"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       if (snap.empty) { tbody.innerHTML = '<tr><td colspan="3">Vehicles ഒന്നും ഇല്ല.</td></tr>'; return; }
       let rows = '';
@@ -5369,7 +5412,7 @@
     const sel = document.getElementById('purchaseGodown');
     sel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "godowns"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -5385,7 +5428,7 @@
 
   async function populatePurchaseVehicleDropdown() {
     try {
-      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "vehicles"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       allVehiclesForPurchase = [];
       snap.forEach(docSnap => allVehiclesForPurchase.push(docSnap.data()));
@@ -5455,7 +5498,7 @@
       } else {
         await addDoc(collection(db, "purchases"), {
           product: product, godown: godown, vehicle: vehicle,
-          area: currentUserData.area, qty: qty, remainingQty: qty, date: date,
+          area: currentWorkingArea, qty: qty, remainingQty: qty, date: date,
           status: 'pending',
           enteredBy: currentUserData.username || 'unknown', enteredVia: 'manual', createdAt: new Date().toISOString()
         });
@@ -5489,7 +5532,7 @@
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(
         collection(db, "purchases"),
-        where("area", "==", currentUserData.area),
+        where("area", "==", currentWorkingArea),
         where("date", "==", todayStr)
       );
       const snap = await getDocs(q);
@@ -5579,7 +5622,7 @@
     fromGodownSel.innerHTML = '<option value="">-- Select Godown --</option>';
     toGodownSel.innerHTML = '<option value="">-- Select Godown --</option>';
     try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "godowns"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -5596,7 +5639,7 @@
     const toVehicleSel = document.getElementById('transferToVehicle');
     toVehicleSel.innerHTML = '<option value="">-- Select Vehicle --</option>';
     try {
-      const q = query(collection(db, "vehicles"), where("area", "==", currentUserData.area));
+      const q = query(collection(db, "vehicles"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -5623,7 +5666,7 @@
     if (!product || !godown) return;
 
     try {
-      const q = query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
+      const q = query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -5671,7 +5714,7 @@
         const toGodown = document.getElementById('transferToGodown').value;
         if (!toGodown) { errEl.textContent = "To Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
         await addDoc(collection(db, "purchases"), {
-          product: product, godown: toGodown, vehicle: '', area: currentUserData.area,
+          product: product, godown: toGodown, vehicle: '', area: currentWorkingArea,
           qty: qty, remainingQty: qty, rate: lot.rate, amount: lot.rate * qty, date: todayStr,
           transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
@@ -5680,7 +5723,7 @@
         const toVehicle = document.getElementById('transferToVehicle').value;
         if (!toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
         await addDoc(collection(db, "vehicleStock"), {
-          product: product, vehicle: toVehicle, area: currentUserData.area,
+          product: product, vehicle: toVehicle, area: currentWorkingArea,
           qty: qty, remainingQty: qty, rate: lot.rate, date: todayStr,
           transferredFrom: lotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
@@ -5852,8 +5895,8 @@
     const term = document.getElementById('collCustSearchInput').value.trim().toLowerCase();
     const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
 
-    const own = allCustomers.filter(c => c.area === currentUserData.area && matches(c));
-    const other = allCustomers.filter(c => c.area !== currentUserData.area && matches(c));
+    const own = allCustomers.filter(c => c.area === currentWorkingArea && matches(c));
+    const other = allCustomers.filter(c => c.area !== currentWorkingArea && matches(c));
 
     let html = `<div class="cust-opt cust-opt-new" onmousedown="selectCollCustomer('__new__','')">+ Add New Customer</div>`;
     own.forEach(c => {
@@ -5910,7 +5953,7 @@
     const box = document.getElementById('quickAddCustBoxColl');
     const willShow = (box.style.display === 'none' || !box.style.display);
     box.style.display = willShow ? 'block' : 'none';
-    if (willShow) document.getElementById('quickCustAreaColl').value = currentUserData.area;
+    if (willShow) document.getElementById('quickCustAreaColl').value = currentWorkingArea;
   };
 
   window.handleQuickAddCustomerColl = async function () {
@@ -6009,7 +6052,7 @@
         okEl.textContent = `Collection updated: ${cust ? cust.name : ''} — ₹${amount}`;
       } else {
         await addDoc(collection(db, "collections"), {
-          customerId: custId, customerName: cust ? cust.name : '-', area: currentUserData.area,
+          customerId: custId, customerName: cust ? cust.name : '-', area: currentWorkingArea,
           amount: amount, mode: mode, account: account, notes: notes, date: date, status: 'pending',
           enteredBy: currentUserData.username || 'unknown', enteredVia: 'manual', createdAt: new Date().toISOString()
         });
@@ -6048,7 +6091,7 @@
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(
         collection(db, "collections"),
-        where("area", "==", currentUserData.area),
+        where("area", "==", currentWorkingArea),
         where("date", "==", todayStr)
       );
       const snap = await getDocs(q);
@@ -6133,7 +6176,7 @@
     if (!product || !godown) return;
 
     try {
-      const q = query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("product", "==", product), where("godown", "==", godown));
+      const q = query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("product", "==", product), where("godown", "==", godown));
       const snap = await getDocs(q);
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -6213,7 +6256,7 @@
     try {
       const q = query(
         collection(db, "sales"),
-        where("area", "==", currentUserData.area),
+        where("area", "==", currentWorkingArea),
         where("isAdvance", "==", true)
       );
       const snap = await getDocs(q);
@@ -6237,8 +6280,8 @@
     // to a lot would otherwise be missing from the subtraction, overstating stock.
     try {
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area)))
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea))),
+        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea)))
       ]);
       const purchByProduct = {};
       purchSnap.forEach(docSnap => {
@@ -6274,8 +6317,8 @@
     homeLotDetailCache = {};
     try {
       const [purchaseSnap, vsSnap] = await Promise.all([
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area)))
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea))),
+        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentWorkingArea)))
       ]);
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
@@ -6303,7 +6346,7 @@
       const entries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
       const rows = entries.map(([key, qty]) => {
         const [product, godown, vehicle] = key.split('|');
-        return `<tr style="cursor:pointer;" onclick="openHomeLotDetail('${key.replace(/'/g, "\\'")}','${currentUserData.area}')">
+        return `<tr style="cursor:pointer;" onclick="openHomeLotDetail('${key.replace(/'/g, "\\'")}','${currentWorkingArea}')">
           <td>${product}</td><td>${godown}</td><td>${vehicle}</td><td>${qty} <span style="color:#1565c0; font-size:11px;">▸ Link</span></td>
         </tr>`;
       }).join('');
@@ -6342,9 +6385,9 @@
     container.innerHTML = 'Loading...';
     try {
       const [salesSnap, collSnap, purchSnap] = await Promise.all([
-        getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area), where("date", "==", date))),
-        getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area), where("date", "==", date))),
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area), where("date", "==", date)))
+        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea), where("date", "==", date))),
+        getDocs(query(collection(db, "collections"), where("area", "==", currentWorkingArea), where("date", "==", date))),
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("date", "==", date)))
       ]);
 
       let sales = [], colls = [], purchases = [];
@@ -6464,7 +6507,7 @@
         // Trip Sheet respects the Area exactly as entered on the purchase — even for
         // IGST- shared godowns, the entering area "owns" that load for tracking purposes.
         // (Lot Balance / Current Stock elsewhere still pool shared-godown stock for selling.)
-        if (d.area !== currentUserData.area) return;
+        if (d.area !== currentWorkingArea) return;
         lots.push({ id: docSnap.id, ...d });
       });
       lots = mergeTripSheetLots(lots);
@@ -6549,8 +6592,8 @@
           <div>Purchased: <strong>${lot.qty || 0}</strong> · Sold: <strong>${soldQty}</strong> · Remaining: <strong>${remaining}</strong></div>
         </div>
         ${remaining > 0 ? `<div style="padding:8px 14px; background:#f5f7fa; display:flex; gap:8px; flex-wrap:wrap;">
-          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
-          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentUserData.area}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
+          <button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openTripLinkModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentWorkingArea}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining})">🔗 Link an Advance Sale to this Lot</button>
+          <button class="del-btn" style="background:#fff3e0; color:#e65100;" onclick="openTripTransferModal('${actingId}','${(lot.product || '').replace(/'/g, "\\'")}','${lot.area || currentWorkingArea}','${(lot.godown || '').replace(/'/g, "\\'")}',${remaining},${lot.rate || 0})">🚚 Transfer remaining stock</button>
         </div>` : ''}`;
 
       if (linkedSales.length > 0) {
@@ -6594,7 +6637,7 @@
 
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(data), 'Trip Sheet');
-      XLSX.writeFile(wb, `trip-sheet-${currentUserData.area}-${lastUserTripSheetData.from}-to-${lastUserTripSheetData.to}.xlsx`);
+      XLSX.writeFile(wb, `trip-sheet-${currentWorkingArea}-${lastUserTripSheetData.from}-to-${lastUserTripSheetData.to}.xlsx`);
     } catch (err) {
       console.error(err);
       alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
@@ -6640,7 +6683,7 @@
       const purchByDate = {};
       purchSnap.forEach(docSnap => {
         const d = docSnap.data();
-        if (d.area !== currentUserData.area) return;
+        if (d.area !== currentWorkingArea) return;
         purchByDate[d.date] = (purchByDate[d.date] || 0) + (d.qty || 0);
       });
 
@@ -6648,7 +6691,7 @@
       const saleByDate = {};
       salesSnap.forEach(docSnap => {
         const d = docSnap.data();
-        if (d.area !== currentUserData.area) return;
+        if (d.area !== currentWorkingArea) return;
         saleByDate[d.date] = (saleByDate[d.date] || 0) + (d.qty || 0);
       });
 
@@ -6706,10 +6749,10 @@
 
     try {
       const [salesSnap, purchaseSnap, collSnap, vsSnap, allPurchaseSnap] = await Promise.all([
-        getDocs(query(collection(db, "sales"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "collections"), where("area", "==", currentUserData.area))),
-        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentUserData.area))),
+        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea))),
+        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea))),
+        getDocs(query(collection(db, "collections"), where("area", "==", currentWorkingArea))),
+        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentWorkingArea))),
         getDocs(collection(db, "purchases"))
       ]);
 
@@ -6775,7 +6818,7 @@
       const lotMap = {};
       allPurchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
-        if (d.area !== currentUserData.area) return;
+        if (d.area !== currentWorkingArea) return;
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|' + (d.godown || '-') + '|' + (d.vehicle || '-');
@@ -7056,7 +7099,7 @@
     if (!month) { tbody.innerHTML = `<tr><td colspan="${colCount}">Month select ചെയ്യുക.</td></tr>`; return; }
 
     // Admin: filter by the Report tab's own Area selector ("" = All Areas). User: always own area.
-    const areaFilter = isAdmin ? document.getElementById('adminRepArea').value : currentUserData.area;
+    const areaFilter = isAdmin ? document.getElementById('adminRepArea').value : currentWorkingArea;
 
     tbody.innerHTML = `<tr><td colspan="${colCount}">Loading...</td></tr>`;
 
@@ -9552,6 +9595,28 @@
     loadApprovals();
   };
 
+  // Routes to Admin's own Sale/Collection Entry form (Entry tab) with the customer
+  // already selected — used from the Customer Ledger's "+ Sale/Collection ചേർക്കുക"
+  // buttons to quickly add a missed entry without re-searching for the customer.
+  window.openAdminAddMissing = async function (type, custId, custName) {
+    switchAdminTab('purchase');
+    if (type === 'sales') {
+      switchAdminEntrySubTab('sale');
+      selectAdminSaleCustomer(custId, custName);
+    } else {
+      switchAdminEntrySubTab('collection');
+      try {
+        const custDoc = await getDoc(doc(db, "customers", custId));
+        const opening = custDoc.exists() ? (custDoc.data().openingBalance || 0) : 0;
+        selectAdminCollCustomer(custId, custName, opening);
+      } catch (err) {
+        console.error(err);
+        selectAdminCollCustomer(custId, custName, 0);
+      }
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   window.showRecordDetails = async function (colName, id) {
     const body = document.getElementById('recordDetailsBody');
     body.innerHTML = 'Loading...';
@@ -9838,8 +9903,8 @@
     const box = document.getElementById('stmtCustOptionsBox');
     const term = document.getElementById('stmtCustSearchInput').value.trim().toLowerCase();
     const matches = (c) => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term);
-    const own = allCustomers.filter(c => c.area === currentUserData.area && matches(c));
-    const other = allCustomers.filter(c => c.area !== currentUserData.area && matches(c));
+    const own = allCustomers.filter(c => c.area === currentWorkingArea && matches(c));
+    const other = allCustomers.filter(c => c.area !== currentWorkingArea && matches(c));
 
     let html = own.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectStmtCustomer('${c.id}','${escapeHtml(c.name)}')">${c.name}${c.phone ? ' (' + c.phone + ')' : ''}</div>`).join('');
     if (other.length > 0) {
@@ -9983,12 +10048,12 @@
       salesSnap.forEach(docSnap => {
         const s = docSnap.data();
         if (!salesByCust[s.customerId]) salesByCust[s.customerId] = [];
-        salesByCust[s.customerId].push(s);
+        salesByCust[s.customerId].push({ id: docSnap.id, ...s });
       });
       collSnap.forEach(docSnap => {
         const c = docSnap.data();
         if (!collByCust[c.customerId]) collByCust[c.customerId] = [];
-        collByCust[c.customerId].push(c);
+        collByCust[c.customerId].push({ id: docSnap.id, ...c });
       });
 
       let customers = [];
@@ -10057,18 +10122,24 @@
               Collection: ₹${c.coll.toLocaleString('en-IN')} ·
               <strong style="color:${balColor};">Closing: ₹${c.closing.toLocaleString('en-IN')}</strong>
             </div>
+          </div>
+          <div style="padding:8px 12px; display:flex; gap:8px; flex-wrap:wrap; background:#fafafa;">
+            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="openAdminAddMissing('sales','${c.id}','${c.name.replace(/'/g, "\\'")}')">+ Sale ചേർക്കുക</button>
+            <button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="openAdminAddMissing('collections','${c.id}','${c.name.replace(/'/g, "\\'")}')">+ Collection ചേർക്കുക</button>
           </div>`;
 
         if (c.txns.length > 0) {
           html += `<table>
-            <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
+            <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th><th></th></tr></thead>
             <tbody>${c.txns.map(t => {
               if (t._type === 'Sale') {
                 return `<tr><td>${fmtDate(t.date)}</td><td>Sale</td><td>${t.product || '-'} (Qty: ${t.qty || '-'})</td>
-                  <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${t._balance.toLocaleString('en-IN')}</td></tr>`;
+                  <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${t._balance.toLocaleString('en-IN')}</td>
+                  <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openQuickEdit('sales','${t.id}')">Edit</button></td></tr>`;
               } else {
                 return `<tr><td>${fmtDate(t.date)}</td><td>Collection</td><td>${t.mode || '-'}</td>
-                  <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${t._balance.toLocaleString('en-IN')}</td></tr>`;
+                  <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${t._balance.toLocaleString('en-IN')}</td>
+                  <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openQuickEdit('collections','${t.id}')">Edit</button></td></tr>`;
               }
             }).join('')}</tbody>
           </table>`;
