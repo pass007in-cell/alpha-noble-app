@@ -1784,6 +1784,38 @@
     </div>
 
     <div class="add-user-form" style="background:#fff3e0;">
+      <h3 style="color:#e65100;">🔍 Remaining Qty Mismatch കണ്ടെത്തി ശരിയാക്കുക</h3>
+      <p style="font-size:13px; color:#777; margin-bottom:14px;">
+        ഒരു Lot-ന്റെ Remaining Qty, ആ lot-ൽ നിന്ന് യഥാർത്ഥത്തിൽ link ചെയ്ത Sales-ന്റെ ആകെ Qty-മായി match ആകാതെ വന്നാൽ (ഉദാ: Purchased 260, Sold 260, പക്ഷെ Remaining ഇപ്പോഴും 260 കാണിക്കുന്നു) — ഇത് സാധാരണ Purchase Edit-ൽ Remaining Qty manual ആയി മാറ്റിയത് കൊണ്ടോ, മറ്റ് ചെറിയ പ്രശ്നങ്ങൾ കൊണ്ടോ സംഭവിക്കാം. ഇവിടെ കണ്ടെത്തി, യഥാർത്ഥ link ചെയ്ത Sales-ന്റെ അടിസ്ഥാനത്തിൽ ശരിയാക്കാം.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>From Date (optional)</label>
+          <input type="date" id="mismatchFromDate">
+        </div>
+        <div>
+          <label>To Date (optional)</label>
+          <input type="date" id="mismatchToDate">
+        </div>
+      </div>
+      <button class="full-btn" style="background:#e65100;" onclick="scanRemainingMismatch()">🔍 Mismatches കണ്ടെത്തുക</button>
+      <div id="mismatchScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="mismatchResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:10px;">
+          <strong><span id="mismatchCount">0</span></strong> lots-ൽ mismatch കണ്ടെത്തി.
+        </p>
+        <div class="table-wrap" style="margin-bottom:14px; max-height:350px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Date</th><th>Details</th><th>Purchased</th><th>Linked Sales</th><th>ഇപ്പോൾ ഉള്ള Remaining</th><th>ശരിയായ Remaining</th></tr></thead>
+            <tbody id="mismatchListBody"></tbody>
+          </table>
+        </div>
+        <button class="full-btn" style="background:#2e7d32;" onclick="fixAllRemainingMismatch()">✅ എല്ലാം ശരിയായ Remaining ആക്കുക</button>
+      </div>
+    </div>
+
+    <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">📅 തെറ്റായ Date Format ഉള്ള Records കണ്ടെത്തുക</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         App-ൽ Date "YYYY-MM-DD" format-ൽ ആയിരിക്കണം. CSV-യിൽ വേറെ format-ൽ (ഉദാ: DD/MM/YYYY) date വന്നാൽ, ആ records ഒരു date range filter-ലും കാണില്ല. ഇവിടെ അവ കണ്ടെത്തി ശരിയാക്കാം.
@@ -1810,7 +1842,7 @@
     <div class="add-user-form" style="background:#fff3e0;">
       <h3 style="color:#e65100;">⚠️ Bulk Delete (Test Data)</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
-        Test ചെയ്യാൻ ഉപയോഗിച്ച data ഒറ്റയടിക്ക് നീക്കാൻ. <strong>ഈ action permanent ആണ്, തിരിച്ചെടുക്കാൻ പറ്റില്ല.</strong>
+        Test ചെയ്യാൻ ഉപയോഗിച്ച data, അല്ലെങ്കിൽ ഒരു മാസത്തെ തെറ്റായ bulk upload ഒറ്റയടിക്ക് നീക്കി വീണ്ടും upload ചെയ്യാൻ. <strong>ഈ action permanent ആണ്, തിരിച്ചെടുക്കാൻ പറ്റില്ല.</strong>
       </p>
       <div class="form-grid">
         <div>
@@ -1831,6 +1863,17 @@
             <option value="MLT">MLT - Melattur</option>
             <option value="NLB">NLB - Nilambur</option>
           </select>
+        </div>
+      </div>
+      <label>ഒരു നിശ്ചിത Month/Date range മാത്രം (optional — ബാക്കി data ബാധിക്കില്ല)</label>
+      <div class="form-grid">
+        <div>
+          <label style="font-size:12px;">From Date</label>
+          <input type="date" id="deleteDataFrom">
+        </div>
+        <div>
+          <label style="font-size:12px;">To Date</label>
+          <input type="date" id="deleteDataTo">
         </div>
       </div>
       <button class="full-btn" style="background:#c62828;" onclick="handleBulkDelete()">🗑️ Delete Selected Data</button>
@@ -2740,7 +2783,11 @@
           <td>${d.username || '-'}</td>
           <td>${d.area || '-'}</td>
           <td><span class="role-badge ${roleClass}">${d.role || 'user'}</span></td>
-          <td><button class="del-btn" onclick="handleDeleteUser('${docSnap.id}')">Remove</button></td>
+          <td>
+            <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="toggleUserRole('${docSnap.id}','${d.role || 'user'}')">Role മാറ്റുക</button>
+            <button class="del-btn" style="background:#fff3e0; color:#e65100; margin-right:4px;" onclick="startPinReset('${d.username || ''}','${d.area || ''}','${d.role || 'user'}','${docSnap.id}')">🔑 PIN Reset</button>
+            <button class="del-btn" onclick="handleDeleteUser('${docSnap.id}')">Remove</button>
+          </td>
         </tr>`;
       });
       tbody.innerHTML = rows;
@@ -2749,6 +2796,41 @@
       tbody.innerHTML = '<tr><td colspan="4">Error loading users.</td></tr>';
     }
   }
+
+  window.toggleUserRole = async function (uid, currentRole) {
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    if (!confirm(`ഇവരുടെ role "${newRole}" ആയി മാറ്റണോ?`)) return;
+    try {
+      await updateDoc(doc(db, "users", uid), { role: newRole });
+      loadUsersList();
+    } catch (err) {
+      console.error(err);
+      alert("Role മാറ്റാൻ പറ്റിയില്ല.");
+    }
+  };
+
+  // Firebase-ന്റെ client-side SDK-ൽ, Admin-ന് നേരിട്ട് വേറൊരു user-ന്റെ password/PIN
+  // reset ചെയ്യാൻ പറ്റില്ല (അതിന് backend/Admin SDK വേണം) — അതുകൊണ്ട് ഇത് "Auth account
+  // delete ചെയ്ത് പുതിയ PIN-ൽ വീണ്ടും ചേർക്കുക" എന്ന രീതിയിൽ ആണ് ചെയ്യേണ്ടത്.
+  window.startPinReset = function (username, area, role, uid) {
+    const email = toEmail(username, area);
+    alert(
+      `"${username}" (${area})-ന്റെ PIN Reset ചെയ്യാൻ 2 steps:\n\n` +
+      `1. Firebase Console → Authentication → Users-ൽ പോയി, ഈ email കണ്ടെത്തി Delete ചെയ്യുക:\n   ${email}\n\n` +
+      `2. ഇവിടെ തിരിച്ചു വന്ന്, മുകളിലെ "Add User" form-ൽ (Username, Area, Role ഇപ്പോൾ pre-fill ചെയ്തിട്ടുണ്ട്) പുതിയ PIN നൽകി "Add User" ക്ലിക്ക് ചെയ്യുക.\n\n` +
+      `⚠️ Firebase Console-ൽ Auth account delete ചെയ്യാതെ "Add User" ചെയ്താൽ "already in use" എന്ന error വരും.`
+    );
+
+    document.getElementById('newUsername').value = username;
+    document.getElementById('newArea').value = area;
+    document.getElementById('newRole').value = role;
+    document.getElementById('newPin').value = '';
+    document.getElementById('newPin').focus();
+
+    if (confirm("Firebase Console-ൽ Auth delete ചെയ്ത് കഴിഞ്ഞോ? എങ്കിൽ, ഈ user-ന്റെ പഴയ App profile ഇപ്പോൾ നീക്കാം (തുടർന്ന് മുകളിൽ 'Add User' ചെയ്യുക).")) {
+      deleteDoc(doc(db, "users", uid)).then(() => loadUsersList()).catch(err => { console.error(err); alert("Profile നീക്കാൻ പറ്റിയില്ല."); });
+    }
+  };
 
   window.handleDeleteUser = async function (uid) {
     if (!confirm("ഈ user-ന്റെ profile ഒഴിവാക്കണോ? (Login access പൂർണ്ണമായി ഒഴിവാക്കാൻ Firebase Console-ൽ Authentication-ലും delete ചെയ്യണം)")) return;
@@ -8374,6 +8456,103 @@
     }
   };
 
+  // ---- ADMIN: FIND & FIX REMAINING QTY MISMATCHES ----
+  // Recomputes each lot's "correct" remaining as Purchased Qty − (sum of qty actually
+  // linked to it via sale.lots), independent of whatever remainingQty currently says —
+  // this catches cases where remainingQty was manually reset/edited out of sync with
+  // the real linked sales (e.g. via Purchase Quick Edit).
+  let mismatchDocs = [];
+
+  window.scanRemainingMismatch = async function () {
+    const fromDate = document.getElementById('mismatchFromDate').value;
+    const toDate = document.getElementById('mismatchToDate').value;
+    const statusEl = document.getElementById('mismatchScanStatus');
+    const resultBox = document.getElementById('mismatchResultBox');
+
+    statusEl.textContent = "Scanning...";
+    statusEl.style.color = '#555';
+    resultBox.style.display = 'none';
+
+    try {
+      const [purchSnap, salesSnap] = await Promise.all([
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "sales"))
+      ]);
+
+      // Sum of qty actually linked to each purchase lot, from the sales' own lots[] arrays
+      // (the source of truth for "how much has really been sold from this lot").
+      const linkedByLot = {};
+      salesSnap.forEach(docSnap => {
+        const s = docSnap.data();
+        (s.lots || []).forEach(alloc => {
+          if (alloc.source === 'vehicle') return; // this tool only checks Godown-sourced purchase lots
+          linkedByLot[alloc.purchaseId] = (linkedByLot[alloc.purchaseId] || 0) + (alloc.qty || 0);
+        });
+      });
+
+      mismatchDocs = [];
+      purchSnap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (fromDate && (d.date || '') < fromDate) return;
+        if (toDate && (d.date || '') > toDate) return;
+
+        const linkedQty = linkedByLot[docSnap.id] || 0;
+        const correctRemaining = (d.qty || 0) - linkedQty;
+        const currentRemaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+
+        if (currentRemaining !== correctRemaining) {
+          mismatchDocs.push({ id: docSnap.id, ...d, linkedQty, correctRemaining, currentRemaining });
+        }
+      });
+
+      if (mismatchDocs.length === 0) {
+        statusEl.textContent = "Mismatch ഒന്നും കണ്ടെത്തിയില്ല — എല്ലാം ശരിയാണ്.";
+        statusEl.style.color = '#2e7d32';
+        return;
+      }
+
+      statusEl.textContent = '';
+      document.getElementById('mismatchCount').textContent = mismatchDocs.length;
+
+      const rows = mismatchDocs.map(d => `<tr>
+        <td>${fmtDate(d.date)}</td><td>Area: ${d.area || '-'} · ${d.product || '-'} · Godown: ${d.godown || '-'} · Veh: ${d.vehicle || '-'}</td>
+        <td>${d.qty || 0}</td><td>${d.linkedQty}</td>
+        <td style="color:#c62828;">${d.currentRemaining}</td>
+        <td style="color:#2e7d32; font-weight:600;">${d.correctRemaining}</td>
+      </tr>`).join('');
+      document.getElementById('mismatchListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.fixAllRemainingMismatch = async function () {
+    if (mismatchDocs.length === 0) return;
+    if (!confirm(`${mismatchDocs.length} lots-ന്റെ Remaining Qty, യഥാർത്ഥ linked sales-ന്റെ അടിസ്ഥാനത്തിൽ ശരിയാക്കണോ?`)) return;
+
+    const statusEl = document.getElementById('mismatchScanStatus');
+    statusEl.textContent = "Fixing...";
+    statusEl.style.color = '#555';
+
+    try {
+      for (const d of mismatchDocs) {
+        await updateDoc(doc(db, "purchases", d.id), { remainingQty: d.correctRemaining });
+      }
+      statusEl.textContent = `✅ ${mismatchDocs.length} lots-ന്റെ Remaining Qty ശരിയാക്കി.`;
+      statusEl.style.color = '#2e7d32';
+      document.getElementById('mismatchResultBox').style.display = 'none';
+      mismatchDocs = [];
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Fix ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
   // ---- ADMIN: FIND & FIX RECORDS WITH WRONG DATE FORMAT ----
   let badDateDocs = [];
 
@@ -8524,11 +8703,12 @@
   window.handleBulkDelete = async function () {
     const dataType = document.getElementById('deleteDataType').value;
     const area = document.getElementById('deleteDataArea').value;
+    const fromDate = document.getElementById('deleteDataFrom').value;
+    const toDate = document.getElementById('deleteDataTo').value;
     const statusEl = document.getElementById('bulkDeleteStatus');
 
     const areaLabel = area === 'ALL' ? 'എല്ലാ Areas' : area;
-    if (!confirm(`"${dataType}" (${areaLabel}) ഉള്ള എല്ലാ data-ഉം permanent ആയി delete ചെയ്യണോ?`)) return;
-    if (!confirm(`ഉറപ്പാണോ? ഈ action തിരിച്ചെടുക്കാൻ പറ്റില്ല!`)) return;
+    const dateLabel = (fromDate || toDate) ? ` (${fromDate || '...'} മുതൽ ${toDate || '...'} വരെ)` : ' (എല്ലാ dates ഉം)';
 
     statusEl.style.color = '#555';
     statusEl.textContent = "Finding documents...";
@@ -8542,13 +8722,22 @@
       }
 
       const docs = [];
-      snap.forEach(d => docs.push(d.id));
+      snap.forEach(d => {
+        const data = d.data();
+        if (fromDate && (data.date || '') < fromDate) return;
+        if (toDate && (data.date || '') > toDate) return;
+        docs.push(d.id);
+      });
 
       if (docs.length === 0) {
         statusEl.style.color = '#555';
         statusEl.textContent = "Delete ചെയ്യാൻ documents ഒന്നും കണ്ടെത്തിയില്ല.";
         return;
       }
+
+      statusEl.textContent = '';
+      if (!confirm(`"${dataType}" (${areaLabel})${dateLabel}-ൽ ${docs.length} records കണ്ടെത്തി. ഇവ എല്ലാം permanent ആയി delete ചെയ്യണോ?`)) { statusEl.textContent = ''; return; }
+      if (!confirm(`ഉറപ്പാണോ? ഈ action തിരിച്ചെടുക്കാൻ പറ്റില്ല!`)) { statusEl.textContent = ''; return; }
 
       for (let i = 0; i < docs.length; i++) {
         await deleteDoc(doc(db, dataType, docs[i]));
