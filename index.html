@@ -2596,13 +2596,17 @@
 
   async function showDashboard(userData) {
     currentUserData = userData;
-    currentWorkingArea = (userData.area === 'ALL') ? 'MKD' : userData.area;
+    // Treat 'ADMIN' the same as 'ALL' here — a Role=user account can end up with
+    // Area='ADMIN' if that option was picked instead of the dedicated multi-area one;
+    // 'ADMIN' is never a real working area, so without this it silently matches no data.
+    const isMultiArea = (userData.area === 'ALL' || userData.area === 'ADMIN');
+    currentWorkingArea = isMultiArea ? 'MKD' : userData.area;
     document.getElementById('centerWrap').style.display = 'none';
     document.getElementById('userBox').style.display = 'block';
     document.getElementById('userAreaLabel').textContent =
-      (userData.username || '-') + " — Area: " + (userData.area === 'ALL' ? '🌐 Multi-Area' : (userData.area || '-'));
-    document.getElementById('workingAreaBar').style.display = (userData.area === 'ALL') ? 'flex' : 'none';
-    if (userData.area === 'ALL') {
+      (userData.username || '-') + " — Area: " + (isMultiArea ? '🌐 Multi-Area' : (userData.area || '-'));
+    document.getElementById('workingAreaBar').style.display = isMultiArea ? 'flex' : 'none';
+    if (isMultiArea) {
       document.getElementById('workingAreaSelect').value = currentWorkingArea;
     }
     await loadCustomersList(); // preload customers (used by Sale/Collection dropdowns too)
@@ -4935,13 +4939,21 @@
     box.style.display = 'block';
   };
 
-  window.selectAdminCollCustomer = function (id, name, opening) {
+  window.selectAdminCollCustomer = async function (id, name, opening) {
     document.getElementById('adminCollCustomer').value = id;
     document.getElementById('adminCollCustSearchInput').value = name;
     document.getElementById('adminCollCustOptionsBox').style.display = 'none';
     const balEl = document.getElementById('adminCollCustBalance');
-    balEl.textContent = `Opening Balance: ₹${(opening || 0).toLocaleString('en-IN')}`;
+    balEl.textContent = `Balance: Loading...`;
     balEl.style.display = 'block';
+
+    try {
+      const totalBalance = await computeCustomerCurrentBalance(id, opening || 0);
+      balEl.textContent = `ഇപ്പോഴത്തെ Balance: ₹${totalBalance.toLocaleString('en-IN')}`;
+    } catch (err) {
+      console.error(err);
+      balEl.textContent = `Opening Balance: ₹${(opening || 0).toLocaleString('en-IN')} (ഇപ്പോഴത്തെ balance load ചെയ്യാൻ പറ്റിയില്ല)`;
+    }
   };
 
   window.toggleAdminCollAccountField = function () {
@@ -10130,14 +10142,14 @@
 
         if (c.txns.length > 0) {
           html += `<table>
-            <thead><tr><th>Date</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th><th></th></tr></thead>
+            <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th><th></th></tr></thead>
             <tbody>${c.txns.map(t => {
               if (t._type === 'Sale') {
-                return `<tr><td>${fmtDate(t.date)}</td><td>Sale</td><td>${t.product || '-'} (Qty: ${t.qty || '-'})</td>
+                return `<tr><td>${fmtDate(t.date)}</td><td>${t.area || '-'}</td><td>Sale</td><td>${t.product || '-'} (Qty: ${t.qty || '-'})</td>
                   <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${t._balance.toLocaleString('en-IN')}</td>
                   <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openQuickEdit('sales','${t.id}')">Edit</button></td></tr>`;
               } else {
-                return `<tr><td>${fmtDate(t.date)}</td><td>Collection</td><td>${t.mode || '-'}</td>
+                return `<tr><td>${fmtDate(t.date)}</td><td>${t.area || '-'}</td><td>Collection</td><td>${t.mode || '-'}</td>
                   <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${t._balance.toLocaleString('en-IN')}</td>
                   <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openQuickEdit('collections','${t.id}')">Edit</button></td></tr>`;
               }
