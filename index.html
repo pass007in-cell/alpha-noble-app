@@ -501,14 +501,14 @@
       </div>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales <span style="font-size:12px; color:#777; font-weight:400;">(+ ബാക്കി Pending ഉള്ളവ)</span></h3>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
         <thead>
-          <tr><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr>
+          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr>
         </thead>
         <tbody id="saleTableBody">
-          <tr><td colspan="4">Loading...</td></tr>
+          <tr><td colspan="7">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -583,11 +583,11 @@
       <button class="full-btn" id="addCollBtn" onclick="handleAddCollection()">Save Collection</button>
     </div>
 
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Collections</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Collections <span style="font-size:12px; color:#777; font-weight:400;">(+ ബാക്കി Pending ഉള്ളവ)</span></h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-        <tbody id="collTableBody"><tr><td colspan="3">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+        <tbody id="collTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -630,11 +630,11 @@
       </div>
       <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
     </div>
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases</h3>
+    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases <span style="font-size:12px; color:#777; font-weight:400;">(+ ബാക്കി Pending ഉള്ളവ)</span></h3>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Product</th><th>Qty</th><th>Status</th><th></th></tr></thead>
-        <tbody id="purchaseTableBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Status</th><th></th></tr></thead>
+        <tbody id="purchaseTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2025,8 +2025,12 @@
 
     <h3 style="color:#1565c0; margin-bottom:8px;">📝 Edited Approvals</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      Approve ചെയ്ത ശേഷം users പിന്നീട് edit ചെയ്ത records — status "Approved" ആയി തന്നെ നിൽക്കും, പക്ഷെ എന്താണ് മാറ്റം വന്നത് എന്ന് ഇവിടെ track ചെയ്യാം. "Acknowledge" ചെയ്താൽ ഈ list-ൽ നിന്ന് നീങ്ങും.
+      Approve ചെയ്ത ശേഷം users പിന്നീട് edit ചെയ്ത records — status "Approved" ആയി തന്നെ നിൽക്കും, പക്ഷെ എന്താണ് മാറ്റം വന്നത് എന്ന് ഇവിടെ track ചെയ്യാം. "വീണ്ടും Approve ചെയ്യുക" ക്ലിക്ക് ചെയ്താൽ ഈ list-ൽ നിന്ന് നീങ്ങും.
     </p>
+    <div style="display:flex; gap:10px; margin-bottom:16px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportEditedApprovalsExcel()">⬇️ Excel (.xlsx)</button>
+      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
+    </div>
     <h4 style="color:#1e3c72; margin-bottom:6px; font-size:14px;">Sales</h4>
     <div class="table-wrap" style="margin-bottom:16px;">
       <table>
@@ -3813,34 +3817,44 @@
   // ---- SALE: Today's list ----
   async function loadTodaysSales() {
     const tbody = document.getElementById('saleTableBody');
-    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
 
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const q = query(
-        collection(db, "sales"),
-        where("area", "==", currentWorkingArea),
-        where("date", "==", todayStr)
-      );
+      const q = query(collection(db, "sales"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
 
-      if (snap.empty) {
-        tbody.innerHTML = '<tr><td colspan="6">ഇന്ന് sales ഒന്നും ഇല്ല.</td></tr>';
+      // Show today's entries AND any still-pending entries from earlier days — otherwise
+      // a pending sale from yesterday (not yet approved) would be invisible here and the
+      // user would have no obvious way to find and edit it.
+      let docs = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (d.date === todayStr || (d.status || 'pending') === 'pending') docs.push({ id: docSnap.id, ...d });
+      });
+      docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      if (docs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ sales ഒന്നും ഇല്ല.</td></tr>';
         return;
       }
 
       let rows = '';
       let total = 0;
-      snap.forEach((docSnap) => {
-        const d = docSnap.data();
-        const id = docSnap.id;
+      docs.forEach((d) => {
+        const id = d.id;
         total += (d.amount || 0);
         const isPending = (d.status || 'pending') === 'pending';
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
         const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
+        const actions = canEdit
+          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editSaleRow('${id}')">Edit</button>
+             ${isPending ? `<button class="del-btn" onclick="deleteSaleRow('${id}')">Delete</button>` : ''}`
+          : '';
         rows += `<tr>
+          <td>${fmtDate(d.date)}</td>
           <td>${d.customerName || '-'}</td>
           <td>${d.product || '-'}</td>
           <td>${d.qty || '-'}</td>
@@ -3850,7 +3864,7 @@
         </tr>`;
       });
       rows += `<tr style="font-weight:700; background:#f5f7fa;">
-        <td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td>
+        <td colspan="4">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td>
       </tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
@@ -5539,34 +5553,41 @@
 
   async function loadTodaysPurchases() {
     const tbody = document.getElementById('purchaseTableBody');
-    tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const q = query(
-        collection(db, "purchases"),
-        where("area", "==", currentWorkingArea),
-        where("date", "==", todayStr)
-      );
+      const q = query(collection(db, "purchases"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
-      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="4">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
-      let rows = '';
-      let totalQty = 0;
+
+      let docs = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const id = docSnap.id;
+        if (d.date === todayStr || (d.status || 'pending') === 'pending') docs.push({ id: docSnap.id, ...d });
+      });
+      docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="5">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      let totalQty = 0;
+      docs.forEach(d => {
+        const id = d.id;
         totalQty += (d.qty || 0);
         const isPending = (d.status || 'pending') === 'pending';
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
         const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
-        rows += `<tr><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
+        const actions = canEdit
+          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editPurchaseRow('${id}')">Edit</button>
+             ${isPending ? `<button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>` : ''}`
+          : '';
+        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
-      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td>${totalQty}</td><td colspan="2"></td></tr>`;
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td></td><td>${totalQty}</td><td colspan="2"></td></tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="4">Error loading purchases.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="5">Error loading purchases.</td></tr>';
     }
   }
 
@@ -6098,35 +6119,42 @@
 
   async function loadTodaysCollections() {
     const tbody = document.getElementById('collTableBody');
-    tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const q = query(
-        collection(db, "collections"),
-        where("area", "==", currentWorkingArea),
-        where("date", "==", todayStr)
-      );
+      const q = query(collection(db, "collections"), where("area", "==", currentWorkingArea));
       const snap = await getDocs(q);
-      if (snap.empty) { tbody.innerHTML = '<tr><td colspan="5">ഇന്ന് collections ഒന്നും ഇല്ല.</td></tr>'; return; }
-      let rows = '';
-      let total = 0;
+
+      let docs = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        const id = docSnap.id;
+        if (d.date === todayStr || (d.status || 'pending') === 'pending') docs.push({ id: docSnap.id, ...d });
+      });
+      docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="6">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ collections ഒന്നും ഇല്ല.</td></tr>'; return; }
+      let rows = '';
+      let total = 0;
+      docs.forEach(d => {
+        const id = d.id;
         total += (d.amount || 0);
         const isPending = (d.status || 'pending') === 'pending';
         const statusBadge = isPending
           ? '<span class="role-badge role-admin">Pending</span>'
           : '<span class="role-badge role-user">Approved</span>';
         const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
-        rows += `<tr><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
+        const actions = canEdit
+          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editCollRow('${id}')">Edit</button>
+             ${isPending ? `<button class="del-btn" onclick="deleteCollRow('${id}')">Delete</button>` : ''}`
+          : '';
+        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
-      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="2">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td></tr>`;
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td></tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="5">Error loading collections.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">Error loading collections.</td></tr>';
     }
   }
 
@@ -9413,6 +9441,34 @@
     }
   }
 
+  let lastEditedApprovalsData = null;
+
+  window.exportEditedApprovalsExcel = async function () {
+    if (!lastEditedApprovalsData) { alert("ആദ്യം page load ആകട്ടെ."); return; }
+    try {
+      const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
+      const { sales, colls, purchases } = lastEditedApprovalsData;
+      const wb = XLSX.utils.book_new();
+
+      const salesData = [['Date', 'Area', 'Customer', 'Product', 'Qty', 'Amount', 'Edited By', 'Edited At']];
+      sales.forEach(d => salesData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.product || '', d.qty || 0, d.amount || 0, d.lastEditedBy || '', d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '']));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(salesData), 'Edited Sales');
+
+      const collData = [['Date', 'Area', 'Customer', 'Mode', 'Amount', 'Edited By', 'Edited At']];
+      colls.forEach(d => collData.push([fmtDate(d.date), d.area || '', d.customerName || '', d.mode || '', d.amount || 0, d.lastEditedBy || '', d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '']));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(collData), 'Edited Collections');
+
+      const purchData = [['Date', 'Area', 'Product', 'Godown', 'Qty', 'Edited By', 'Edited At']];
+      purchases.forEach(d => purchData.push([fmtDate(d.date), d.area || '', d.product || '', d.godown || '', d.qty || 0, d.lastEditedBy || '', d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '']));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(purchData), 'Edited Purchases');
+
+      XLSX.writeFile(wb, `edited-approvals-${new Date().toISOString().split('T')[0]}.xlsx`);
+    } catch (err) {
+      console.error(err);
+      alert("Excel file ഉണ്ടാക്കാൻ പറ്റിയില്ല. Internet connection check ചെയ്യുക.");
+    }
+  };
+
   async function loadEditedApprovals() {
     const salesBody = document.getElementById('editedApprSalesBody');
     const collBody = document.getElementById('editedApprCollBody');
@@ -9434,24 +9490,25 @@
       let colls = []; collSnap.forEach(d => colls.push({ id: d.id, ...d.data() })); colls.sort(byDate);
       let purchases = []; purchSnap.forEach(d => purchases.push({ id: d.id, ...d.data() })); purchases.sort(byDate);
 
+      lastEditedApprovalsData = { sales, colls, purchases };
       salesBody.innerHTML = sales.map(d => `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
         <td>${d.qty || '-'}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
         <td>${d.lastEditedBy || '-'}</td><td>${d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-'}</td>
-        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('sales','${d.id}')">Acknowledge</button></td>
+        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('sales','${d.id}')">✅ വീണ്ടും Approve ചെയ്യുക</button></td>
       </tr>`).join('') || '<tr><td colspan="9">Edited approvals ഒന്നും ഇല്ല.</td></tr>';
 
       collBody.innerHTML = colls.map(d => `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
         <td>${d.lastEditedBy || '-'}</td><td>${d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-'}</td>
-        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('collections','${d.id}')">Acknowledge</button></td>
+        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('collections','${d.id}')">✅ വീണ്ടും Approve ചെയ്യുക</button></td>
       </tr>`).join('') || '<tr><td colspan="8">Edited approvals ഒന്നും ഇല്ല.</td></tr>';
 
       purchBody.innerHTML = purchases.map(d => `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.qty || '-'}</td>
         <td>${d.lastEditedBy || '-'}</td><td>${d.lastEditedAt ? new Date(d.lastEditedAt).toLocaleString('en-IN') : '-'}</td>
-        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('purchases','${d.id}')">Acknowledge</button></td>
+        <td><button class="del-btn" style="background:#e8f5e9; color:#2e7d32;" onclick="acknowledgeEdit('purchases','${d.id}')">✅ വീണ്ടും Approve ചെയ്യുക</button></td>
       </tr>`).join('') || '<tr><td colspan="8">Edited approvals ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
