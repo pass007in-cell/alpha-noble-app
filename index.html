@@ -1796,6 +1796,38 @@
     </div>
 
     <div class="add-user-form" style="background:#fff3e0;">
+    <div class="add-user-form" style="background:#e3f2fd;">
+      <h3 style="color:#1565c0;">🔬 Lot Inspector (Diagnostic)</h3>
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        ഒരു Product+Godown+Vehicle-ന്റെ <strong>എല്ലാ individual purchase documents ഉം</strong> (Area, cutoff filter, merge ഒന്നും ബാധകമല്ലാതെ) neritt raw ആയി കാണിക്കും — Pending Lots-ലെ ഒരു total-ന്റെ ഉറവിടം കണ്ടെത്താൻ ഉപയോഗിക്കുക.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>Product</label>
+          <input type="text" id="inspProduct" placeholder="ഉദാ: ACC-ADS">
+        </div>
+        <div>
+          <label>Godown</label>
+          <input type="text" id="inspGodown" placeholder="ഉദാ: IGST-ALP">
+        </div>
+      </div>
+      <label>Vehicle</label>
+      <input type="text" id="inspVehicle" placeholder="ഉദാ: KL12D9197" style="margin-bottom:14px;">
+      <button class="full-btn" style="background:#1565c0;" onclick="runLotInspector()">🔬 Inspect ചെയ്യുക</button>
+      <div id="inspStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      <div id="inspResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:10px;">
+          <strong><span id="inspCount">0</span></strong> matching purchase documents കണ്ടെത്തി — ആകെ Qty: <strong><span id="inspTotalQty">0</span></strong>, ആകെ Remaining: <strong><span id="inspTotalRemaining">0</span></strong>
+        </p>
+        <div class="table-wrap" style="max-height:400px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Doc ID</th><th>Date</th><th>Area</th><th>Qty</th><th>Remaining</th><th>Status</th><th>Entered Via</th></tr></thead>
+            <tbody id="inspListBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
       <h3 style="color:#e65100;">🔍 Remaining Qty Mismatch കണ്ടെത്തി ശരിയാക്കുക</h3>
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         ഒരു Lot-ന്റെ Remaining Qty, ആ lot-ൽ നിന്ന് യഥാർത്ഥത്തിൽ link ചെയ്ത Sales-ന്റെ ആകെ Qty-മായി match ആകാതെ വന്നാൽ (ഉദാ: Purchased 260, Sold 260, പക്ഷെ Remaining ഇപ്പോഴും 260 കാണിക്കുന്നു) — ഇത് സാധാരണ Purchase Edit-ൽ Remaining Qty manual ആയി മാറ്റിയത് കൊണ്ടോ, മറ്റ് ചെറിയ പ്രശ്നങ്ങൾ കൊണ്ടോ സംഭവിക്കാം. ഇവിടെ കണ്ടെത്തി, യഥാർത്ഥ link ചെയ്ത Sales-ന്റെ അടിസ്ഥാനത്തിൽ ശരിയാക്കാം.
@@ -2085,6 +2117,35 @@
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
         <tbody id="adminOldAdvanceBody"><tr><td colspan="8">Loading...</td></tr></tbody>
       </table>
+    </div>
+
+    <div style="background:#fff8e1; border:2px solid #f9a825; border-radius:10px; padding:14px; margin-top:24px;">
+      <h3 style="color:#e65100; margin-bottom:6px;">🤖 Bulk Auto-Link (Old Sales ↔ Purchases)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ഇത് ഒരു <b>Scan (Preview) മാത്രം</b> ആണ് — സ്വയമേവ ഒന്നും database ലേക്ക് save ആവില്ല. താഴെ കാണിക്കുന്ന proposed links-ൽ വേണ്ടാത്തത് uncheck ചെയ്ത് ഒഴിവാക്കാം. "Apply Selected Links" click ചെയ്യുമ്പോൾ മാത്രമേ check ചെയ്തവ actual ആയി link ആവുകയുള്ളൂ. Confusion ഉള്ളവ "Unmatched" list-ൽ കാണിക്കും — അവ auto ആയി link ചെയ്യില്ല, മുകളിലെ table-ൽ നിന്ന് manually link ചെയ്യുക.
+      </p>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div>
+          <label style="font-size:12px;">Area (നിർബന്ധം — ഒരു Area മാത്രം)</label>
+          <select id="bulkLinkArea">
+            <option value="">-- Area select ചെയ്യുക --</option>
+            <option value="MKD">MKD - Mannarkkad</option>
+            <option value="PKD">PKD - Palakkad</option>
+            <option value="MLT">MLT - Melattur</option>
+            <option value="NLB">NLB - Nilambur</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;">From Date (optional)</label>
+          <input type="date" id="bulkLinkFrom">
+        </div>
+        <div>
+          <label style="font-size:12px;">To Date (optional)</label>
+          <input type="date" id="bulkLinkTo" max="2026-08-31">
+        </div>
+      </div>
+      <button class="full-btn" style="background:#f9a825;" onclick="scanBulkOldLinks()">🔍 Scan (Preview മാത്രം — ഒന്നും save ആകില്ല)</button>
+      <div id="bulkLinkResults" style="margin-top:16px;"></div>
     </div>
   </div>
 
@@ -8546,6 +8607,64 @@
   // the real linked sales (e.g. via Purchase Quick Edit).
   let mismatchDocs = [];
 
+  // ---- ADMIN: LOT INSPECTOR (raw diagnostic — no cutoff filter, no area scoping, no merging) ----
+  window.runLotInspector = async function () {
+    const product = document.getElementById('inspProduct').value.trim();
+    const godown = document.getElementById('inspGodown').value.trim();
+    const vehicle = document.getElementById('inspVehicle').value.trim();
+    const statusEl = document.getElementById('inspStatus');
+    const resultBox = document.getElementById('inspResultBox');
+
+    if (!product && !godown && !vehicle) {
+      statusEl.textContent = "Product, Godown, Vehicle എന്നിവയിൽ ഒന്നെങ്കിലും നൽകുക.";
+      statusEl.style.color = '#d32f2f';
+      return;
+    }
+
+    statusEl.textContent = "Scanning ALL purchases (no filters applied)...";
+    statusEl.style.color = '#555';
+    resultBox.style.display = 'none';
+
+    try {
+      const snap = await getDocs(collection(db, "purchases"));
+      let docs = [];
+      snap.forEach(docSnap => {
+        const d = docSnap.data();
+        if (product && (d.product || '').toLowerCase() !== product.toLowerCase()) return;
+        if (godown && (d.godown || '').toLowerCase() !== godown.toLowerCase()) return;
+        if (vehicle && (d.vehicle || '').toLowerCase() !== vehicle.toLowerCase()) return;
+        docs.push({ id: docSnap.id, ...d });
+      });
+      docs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+      if (docs.length === 0) {
+        statusEl.textContent = "Matching purchase documents ഒന്നും കണ്ടെത്തിയില്ല.";
+        statusEl.style.color = '#e65100';
+        return;
+      }
+
+      statusEl.textContent = '';
+      let totalQty = 0, totalRemaining = 0;
+      const rows = docs.map(d => {
+        const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        totalQty += (d.qty || 0);
+        totalRemaining += (remaining || 0);
+        return `<tr><td style="font-size:11px; color:#999;">${d.id}</td><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.qty || 0}</td><td>${remaining}</td><td>${d.status || 'pending'}</td><td>${d.enteredVia || '-'}</td></tr>`;
+      }).join('');
+
+      document.getElementById('inspCount').textContent = docs.length;
+      document.getElementById('inspTotalQty').textContent = totalQty;
+      document.getElementById('inspTotalRemaining').textContent = totalRemaining;
+      document.getElementById('inspListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Inspect ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
   window.scanRemainingMismatch = async function () {
     const fromDate = document.getElementById('mismatchFromDate').value;
     const toDate = document.getElementById('mismatchToDate').value;
@@ -9629,6 +9748,278 @@
       </tr>`;
     });
     tbody.innerHTML = rows || '<tr><td colspan="8">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
+  };
+
+  // ============ BULK AUTO-LINK (Old Sales <-> Purchases) ============
+  // Everything here is a pure client-side PREVIEW/MATCH computation. No Firestore
+  // write happens until the admin reviews the proposed list and explicitly clicks
+  // "Apply Selected Links" — see applyBulkOldLinks() below, the only writer.
+  let bulkLinkProposed = [];
+  let bulkLinkUnmatchedSales = [];
+  let bulkLinkUnmatchedPurchases = [];
+
+  function addDaysStr(dateStr, n) {
+    const dt = new Date(dateStr + 'T00:00:00');
+    dt.setDate(dt.getDate() + n);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  window.scanBulkOldLinks = async function () {
+    const area = document.getElementById('bulkLinkArea').value;
+    const fromF = document.getElementById('bulkLinkFrom').value;
+    const toF = document.getElementById('bulkLinkTo').value;
+    const resultsBox = document.getElementById('bulkLinkResults');
+
+    if (!area) { alert("ദയവായി ഒരു Area select ചെയ്യുക. Bulk linking Area-wise മാത്രമേ ചെയ്യാവൂ."); return; }
+
+    resultsBox.innerHTML = '<p style="color:#888;">Scanning...</p>';
+
+    try {
+      const toDate = toF || ADVANCE_SALE_USER_CUTOFF;
+
+      // ---- Fetch old purchases for this area ----
+      const purchSnap = await getDocs(query(collection(db, "purchases"), where("area", "==", area)));
+      let purchases = [];
+      purchSnap.forEach(docSnap => {
+        const pd = docSnap.data();
+        if ((pd.date || '') > toDate) return;
+        if (fromF && (pd.date || '') < fromF) return;
+        const avail = (pd.remainingQty !== undefined) ? pd.remainingQty : pd.qty;
+        if (!avail || avail <= 0) return;
+        purchases.push({ id: docSnap.id, date: pd.date, product: pd.product, godown: pd.godown, vehicle: pd.vehicle || '', avail: avail });
+      });
+
+      // ---- Fetch old sales for this area (only ones with unlinked qty remaining) ----
+      const saleSnap = await getDocs(query(collection(db, "sales"), where("area", "==", area)));
+      let sales = [];
+      saleSnap.forEach(docSnap => {
+        const sd = docSnap.data();
+        if ((sd.date || '') > toDate) return;
+        if (fromF && (sd.date || '') < fromF) return;
+        const linkedQty = (sd.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
+        const need = (sd.qty || 0) - linkedQty;
+        if (!need || need <= 0) return;
+        sales.push({ id: docSnap.id, date: sd.date, product: sd.product, godown: sd.godown, vehicle: sd.vehicle || '', customerName: sd.customerName || '', need: need });
+      });
+
+      bulkLinkProposed = [];
+      bulkLinkUnmatchedSales = [];
+      bulkLinkUnmatchedPurchases = [];
+
+      // ---- Group by Product (exact match — same rule the app already uses for linking) ----
+      const products = new Set([...purchases.map(p => p.product), ...sales.map(s => s.product)]);
+
+      products.forEach(product => {
+        if (!product) return;
+        let pLots = purchases.filter(p => p.product === product).map(p => ({ ...p }));
+        let sItems = sales.filter(s => s.product === product).map(s => ({ ...s }));
+        pLots.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        sItems.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+        function proposeLink(tier, note, sale, purch, qty) {
+          bulkLinkProposed.push({
+            key: `${sale.id}__${purch.id}__${bulkLinkProposed.length}`,
+            tier, note, product,
+            saleId: sale.id, saleDate: sale.date, saleCustomer: sale.customerName, saleVehicle: sale.vehicle, saleGodown: sale.godown,
+            purchaseId: purch.id, purchaseDate: purch.date, purchaseVehicle: purch.vehicle, purchaseGodown: purch.godown,
+            qty, selected: tier <= 2
+          });
+        }
+
+        // ---- RULE 2 (TIER 1): exact same-day, exact qty match; vehicle used as tiebreaker ----
+        const dateSet = new Set([...pLots.map(p => p.date), ...sItems.map(s => s.date)]);
+        Array.from(dateSet).sort().forEach(dt => {
+          const purOnDate = () => pLots.filter(p => p.date === dt && p.avail > 0);
+          const salesOnDate = sItems.filter(s => s.date === dt && s.need > 0);
+          salesOnDate.sort((a, b) => (b.vehicle ? 1 : 0) - (a.vehicle ? 1 : 0)); // vehicle-tagged sales resolved first
+          salesOnDate.forEach(sale => {
+            if (sale.need <= 0) return;
+            let cands = purOnDate().filter(p => Math.abs(p.avail - sale.need) < 0.0001);
+            if (sale.vehicle && cands.length > 1) {
+              const vMatch = cands.filter(p => p.vehicle && p.vehicle.trim().toUpperCase() === sale.vehicle.trim().toUpperCase());
+              if (vMatch.length === 1) cands = vMatch;
+            }
+            if (cands.length === 1) {
+              const p = cands[0];
+              const vNote = (sale.vehicle && p.vehicle && sale.vehicle.trim().toUpperCase() === p.vehicle.trim().toUpperCase())
+                ? 'Same day, same qty, same vehicle' : 'Same day, same qty';
+              proposeLink(1, vNote, sale, p, sale.need);
+              p.avail = 0; sale.need = 0;
+            }
+            // multiple/zero candidates → ambiguous, left for later tiers / manual review (RULE 5)
+          });
+        });
+
+        // ---- RULE 4 (TIER 2): leftover purchase qty on day D -> next day's (D+1) sale, exact qty ----
+        pLots.filter(p => p.avail > 0).forEach(p => {
+          if (p.avail <= 0) return;
+          const nextDay = addDaysStr(p.date, 1);
+          let cands = sItems.filter(s => s.date === nextDay && s.need > 0 && Math.abs(s.need - p.avail) < 0.0001);
+          if (p.vehicle && cands.length > 1) {
+            const vMatch = cands.filter(s => s.vehicle && s.vehicle.trim().toUpperCase() === p.vehicle.trim().toUpperCase());
+            if (vMatch.length === 1) cands = vMatch;
+          }
+          if (cands.length === 1) {
+            const s = cands[0];
+            proposeLink(2, 'Next-day carry-forward (excess purchase → next day sale)', s, p, p.avail);
+            p.avail = 0; s.need = 0;
+          }
+        });
+
+        // ---- RULE 3 (TIER 3): remaining leftover advance sale <-> any remaining leftover purchase (same product+area), exact qty ----
+        sItems.filter(s => s.need > 0).forEach(s => {
+          let cands = pLots.filter(p => p.avail > 0 && Math.abs(p.avail - s.need) < 0.0001);
+          if (s.vehicle && cands.length > 1) {
+            const vMatch = cands.filter(p => p.vehicle && p.vehicle.trim().toUpperCase() === s.vehicle.trim().toUpperCase());
+            if (vMatch.length === 1) cands = vMatch;
+          }
+          if (cands.length === 1) {
+            const p = cands[0];
+            proposeLink(3, 'Cross-date match — review carefully before applying', s, p, s.need);
+            p.avail = 0; s.need = 0;
+          }
+        });
+
+        // ---- RULE 5: whatever is left is genuinely ambiguous/unmatched — leave for manual review ----
+        pLots.filter(p => p.avail > 0).forEach(p => {
+          bulkLinkUnmatchedPurchases.push({ ...p, product, possibleIgst: /igst/i.test(p.godown || '') });
+        });
+        sItems.filter(s => s.need > 0).forEach(s => {
+          bulkLinkUnmatchedSales.push({ ...s, product });
+        });
+      });
+
+      renderBulkLinkResults();
+
+    } catch (err) {
+      console.error(err);
+      resultsBox.innerHTML = '<p style="color:#c62828;">Scan ചെയ്യാൻ പറ്റിയില്ല.</p>';
+    }
+  };
+
+  function tierLabel(tier) {
+    if (tier === 1) return '<span style="background:#c8e6c9; color:#2e7d32; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 1: Same day+qty</span>';
+    if (tier === 2) return '<span style="background:#fff9c4; color:#f57f17; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 2: Next-day carry</span>';
+    return '<span style="background:#ffccbc; color:#bf360c; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 3: Cross-date — verify</span>';
+  }
+
+  window.renderBulkLinkResults = function () {
+    const box = document.getElementById('bulkLinkResults');
+    let html = '';
+
+    html += `<div style="display:flex; gap:14px; flex-wrap:wrap; margin-bottom:10px; font-size:13px;">
+      <span>✅ Proposed: <b>${bulkLinkProposed.length}</b></span>
+      <span>⚠️ Unmatched Sales: <b>${bulkLinkUnmatchedSales.length}</b></span>
+      <span>📦 Unmatched Purchases: <b>${bulkLinkUnmatchedPurchases.length}</b></span>
+    </div>`;
+
+    if (bulkLinkProposed.length > 0) {
+      html += `<h4 style="color:#2e7d32; margin:10px 0 6px;">✅ Proposed Links — Review ചെയ്യുക, വേണ്ടാത്തത് uncheck ചെയ്യുക</h4>
+      <div class="table-wrap" style="margin-bottom:10px;">
+        <table>
+          <thead><tr>
+            <th><input type="checkbox" checked onchange="toggleBulkLinkAll(this.checked)"></th>
+            <th>Match</th><th>Product</th>
+            <th>Sale Date</th><th>Customer</th><th>Sale Veh</th>
+            <th>Purchase Date</th><th>Purchase Godown</th><th>Purchase Veh</th>
+            <th>Qty</th>
+          </tr></thead>
+          <tbody>`;
+      bulkLinkProposed.forEach((l, i) => {
+        html += `<tr>
+          <td><input type="checkbox" ${l.selected ? 'checked' : ''} onchange="bulkLinkProposed[${i}].selected = this.checked"></td>
+          <td>${tierLabel(l.tier)}<br><span style="font-size:11px; color:#888;">${l.note}</span></td>
+          <td>${l.product}</td>
+          <td>${fmtDate(l.saleDate)}</td><td>${l.saleCustomer}</td><td>${l.saleVehicle || '-'}</td>
+          <td>${fmtDate(l.purchaseDate)}</td><td>${l.purchaseGodown || '-'}</td><td>${l.purchaseVehicle || '-'}</td>
+          <td>${l.qty}</td>
+        </tr>`;
+      });
+      html += `</tbody></table></div>
+      <button class="full-btn" style="background:#2e7d32; margin-bottom:20px;" onclick="applyBulkOldLinks()">✅ Apply Selected Links</button>`;
+    }
+
+    if (bulkLinkUnmatchedSales.length > 0) {
+      html += `<h4 style="color:#e65100; margin:16px 0 6px;">⚠️ Unmatched Sales (advance ആയി തുടരും — manually link ചെയ്യേണ്ടത്)</h4>
+      <div class="table-wrap" style="margin-bottom:10px;">
+        <table>
+          <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
+          <tbody>`;
+      bulkLinkUnmatchedSales.forEach(s => {
+        html += `<tr><td>${fmtDate(s.date)}</td><td>${s.customerName}</td><td>${s.product}</td><td>${s.vehicle || '-'}</td><td>${s.need}</td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${s.id}')">Link</button></td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    if (bulkLinkUnmatchedPurchases.length > 0) {
+      html += `<h4 style="color:#5d4037; margin:16px 0 6px;">📦 Unmatched Purchases (excess stock — sell ചെയ്യാൻ ബാക്കി ഉള്ളത്)</h4>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th>Note</th></tr></thead>
+          <tbody>`;
+      bulkLinkUnmatchedPurchases.forEach(p => {
+        html += `<tr><td>${fmtDate(p.date)}</td><td>${p.product}</td><td>${p.godown || '-'}</td><td>${p.vehicle || '-'}</td><td>${p.avail}</td>
+          <td>${p.possibleIgst ? '<span style="color:#c62828;">IGST godown ആണെന്ന് തോന്നുന്നു — അടുത്ത load വരുന്നതിന് മുന്നേ sell ചെയ്യാൻ കഴിഞ്ഞില്ലെങ്കിൽ own godown ലേക്ക് Stock Transfer ചെയ്യുക.</span>' : '-'}</td></tr>`;
+      });
+      html += `</tbody></table></div>`;
+    }
+
+    if (bulkLinkProposed.length === 0 && bulkLinkUnmatchedSales.length === 0 && bulkLinkUnmatchedPurchases.length === 0) {
+      html += '<p style="color:#888;">ഈ Area/Date range-ൽ unlinked sales/purchases ഒന്നും കണ്ടെത്തിയില്ല.</p>';
+    }
+
+    box.innerHTML = html;
+  };
+
+  window.toggleBulkLinkAll = function (checked) {
+    bulkLinkProposed.forEach(l => l.selected = checked);
+    renderBulkLinkResults();
+  };
+
+  window.applyBulkOldLinks = async function () {
+    const toApply = bulkLinkProposed.filter(l => l.selected);
+    if (toApply.length === 0) { alert("ഒന്നും select ചെയ്തിട്ടില്ല."); return; }
+    if (!confirm(`${toApply.length} links apply ചെയ്യാൻ പോകുന്നു. ഇത് database-ൽ save ആകും. തുടരണോ?`)) return;
+
+    let okCount = 0, failCount = 0;
+    for (const l of toApply) {
+      try {
+        const saleSnap = await getDoc(doc(db, "sales", l.saleId));
+        if (!saleSnap.exists()) { failCount++; continue; }
+        const sd = saleSnap.data();
+        const linkedSoFar = (sd.lots || []).reduce((s, x) => s + (x.qty || 0), 0);
+        const remaining = (sd.qty || 0) - linkedSoFar;
+        if (remaining <= 0) { failCount++; continue; } // already fully linked by something else meanwhile
+
+        const purchSnap = await getDoc(doc(db, "purchases", l.purchaseId));
+        if (!purchSnap.exists()) { failCount++; continue; }
+        const pd = purchSnap.data();
+        const availNow = (pd.remainingQty !== undefined) ? pd.remainingQty : pd.qty;
+
+        const qty = Math.min(l.qty, remaining, availNow);
+        if (qty <= 0) { failCount++; continue; }
+
+        await updateDoc(doc(db, "purchases", l.purchaseId), { remainingQty: increment(-qty) });
+        const newLots = [...(sd.lots || []), { purchaseId: l.purchaseId, qty: qty, source: 'godown' }];
+        const newLinkedTotal = newLots.reduce((s, x) => s + (x.qty || 0), 0);
+        const stillAdvance = newLinkedTotal < (sd.qty || 0);
+        await updateDoc(doc(db, "sales", l.saleId), {
+          lots: newLots,
+          isAdvance: stillAdvance,
+          godown: pd.godown || sd.godown
+        });
+        okCount++;
+      } catch (err) {
+        console.error(err);
+        failCount++;
+      }
+    }
+
+    alert(`${okCount} links apply ചെയ്തു.${failCount > 0 ? ' ' + failCount + ' എണ്ണം skip ആയി (already linked/changed ആയിരിക്കാം).' : ''}`);
+    if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+    if (document.getElementById('adminHomeAlertBox')) loadAdminHomeSummary();
+    scanBulkOldLinks(); // re-scan to reflect new state
   };
 
   window.approveRecord = async function (colName, id) {
