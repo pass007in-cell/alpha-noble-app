@@ -89,6 +89,15 @@
     margin-bottom: 24px;
   }
   .add-user-form h3 { color: #1e3c72; margin-bottom: 14px; font-size: 16px; }
+  details.add-user-form { padding: 0; }
+  details.add-user-form > summary {
+    cursor: pointer; font-size: 16px; font-weight: 700; color: #1e3c72;
+    padding: 18px; margin: 0; list-style: none; display: flex; align-items: center; justify-content: space-between;
+  }
+  details.add-user-form > summary::-webkit-details-marker { display: none; }
+  details.add-user-form > summary::after { content: '▼'; font-size: 11px; color: #888; margin-left: 10px; transition: transform 0.15s; flex-shrink: 0; }
+  details.add-user-form[open] > summary::after { transform: rotate(180deg); }
+  details.add-user-form > .details-body { padding: 0 18px 18px; }
   .form-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px;
   }
@@ -386,6 +395,7 @@
         <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="stmtClosing">₹0</p>
       </div>
     </div>
+    <div id="stmtCheckedOkBox"></div>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
@@ -505,10 +515,10 @@
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
         <thead>
-          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr>
+          <tr><th>Date</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th>✅ Checked</th><th></th></tr>
         </thead>
         <tbody id="saleTableBody">
-          <tr><td colspan="7">Loading...</td></tr>
+          <tr><td colspan="8">Loading...</td></tr>
         </tbody>
       </table>
     </div>
@@ -586,8 +596,8 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Collections <span style="font-size:12px; color:#777; font-weight:400;">(+ ബാക്കി Pending ഉള്ളവ)</span></h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-        <tbody id="collTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th>✅ Checked</th><th></th></tr></thead>
+        <tbody id="collTableBody"><tr><td colspan="7">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -738,6 +748,7 @@
       <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('user')">⬇️ Excel (CSV)</button>
       <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
     </div>
+    <div id="repSalesCheckedOkBox"></div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th></tr></thead>
@@ -757,6 +768,7 @@
       <button style="flex:1; background:#2e7d32;" onclick="exportReportCSV('user')">⬇️ Excel (CSV)</button>
       <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
     </div>
+    <div id="repCollCheckedOkBox"></div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th></tr></thead>
@@ -1233,8 +1245,8 @@
       <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Sales (all areas)</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-          <tbody id="adminSaleTableBody"><tr><td colspan="8">Loading...</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Qty</th><th>Amount</th><th>Status</th><th>✅ Checked</th><th></th></tr></thead>
+          <tbody id="adminSaleTableBody"><tr><td colspan="9">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1360,8 +1372,8 @@
       <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Collections (all areas)</h3>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th></th></tr></thead>
-          <tbody id="adminCollTableBody"><tr><td colspan="7">Loading...</td></tr></tbody>
+          <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Amount</th><th>Status</th><th>✅ Checked</th><th></th></tr></thead>
+          <tbody id="adminCollTableBody"><tr><td colspan="8">Loading...</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -1610,37 +1622,44 @@
 
   <div id="tabAdminData" style="display:none;">
 
-    <div class="add-user-form" style="background:#e8f5e9;">
-      <h3 style="color:#2e7d32;">💾 Data Backup</h3>
+    <details class="add-user-form" style="background:#e8f5e9;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#2e7d32;">💾 Data Backup</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#555; margin-bottom:14px;">
         എല്ലാ data-ഉം (users, customers, sales, purchases, collections, godowns, products, vehicles) ഒരു JSON file ആയി download ചെയ്യാം — safety backup ആയി സൂക്ഷിക്കാം.
       </p>
       <button class="full-btn" style="background:#2e7d32;" onclick="handleDataBackup()">⬇️ Download Full Backup (JSON)</button>
       <div id="backupStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#fff3e0;">
-      <h3 style="color:#e65100;">♻️ Restore from Backup</h3>
+    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#e65100;">♻️ Restore from Backup</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         മുമ്പ് download ചെയ്ത backup JSON file ഉപയോഗിച്ച് data തിരിച്ച് കൊണ്ടുവരാം. <strong>Backup file-ൽ ഉള്ള records, database-ൽ ഇപ്പോൾ ഉള്ള (അതേ ID ഉള്ള) records overwrite ചെയ്യും.</strong> ശ്രദ്ധയോടെ ഉപയോഗിക്കുക.
       </p>
       <input type="file" id="restoreFileInput" accept=".json" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#e65100;" onclick="handleDataRestore()">♻️ Restore from Backup File</button>
       <div id="restoreStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#e3f2fd;">
-      <h3 style="color:#1565c0;">🔀 Merge Duplicate Customers</h3>
+    <details class="add-user-form" style="background:#e3f2fd;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#1565c0;">🔀 Merge Duplicate Customers</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#555; margin-bottom:14px;">
         (ഉദാ: extra space വന്ന് CSV upload-ൽ ഒരേ customer രണ്ട് തവണ create ആയത്) കണ്ടെത്തി, ഒന്നാക്കി merge ചെയ്യാം — എല്ലാ Sales/Collections ഉം select ചെയ്യുന്ന customer-ലേക്ക് മാറ്റും, ബാക്കിയുള്ളവ delete ചെയ്യും.
       </p>
       <button class="full-btn" style="background:#1565c0;" onclick="scanDuplicateCustomers()">🔍 Scan for Duplicates</button>
       <div id="dupScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-    </div>
-    <div id="dupGroupsContainer"></div>
+      <div id="dupGroupsContainer"></div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#e3f2fd;">
-      <h3 style="color:#1565c0;">📋 SAP Code Bulk Assign (Customer Name matching)</h3>
+    <details class="add-user-form" style="background:#e3f2fd;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#1565c0;">📋 SAP Code Bulk Assign (Customer Name matching)</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#555; margin-bottom:14px;">
         Company-യുടെ SAP list upload ചെയ്യുക — Customer Name വച്ച് നമ്മുടെ list-ലെ customer-നെ കണ്ടെത്തി SAP Code automatic ആയി സെറ്റ് ചെയ്യും. Exact match ആകാത്തവ (പേരിൽ വ്യത്യാസം ഉള്ളവ, നമ്മുടെ list-ൽ ഇല്ലാത്തവ) പ്രത്യേകം കാണിച്ച് നിങ്ങൾക്ക് manual ആയി തീരുമാനിക്കാം.
       </p>
@@ -1692,10 +1711,12 @@
           </table>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#fff3e0;">
-      <h3 style="color:#e65100;">🔧 Fix/Delete Records with Wrong Area</h3>
+    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#e65100;">🔧 Fix/Delete Records with Wrong Area</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         ഉദാ: Bulk upload-ൽ Area/Godown മാറിപ്പോയാൽ, ആ records ഇവിടെ കണ്ടെത്തി ശരിയാക്കാം അല്ലെങ്കിൽ delete ചെയ്യാം. Area value MKD/PKD പോലുള്ള valid ആണെങ്കിൽ, Date range കൂടി നൽകുക — അല്ലെങ്കിൽ ശരിയായ records ഉം കൂടെ വന്നേക്കാം.
       </p>
@@ -1753,10 +1774,12 @@
           <button class="full-btn" style="background:#c62828; flex:1;" onclick="deleteWrongAreaRecords()">🗑️ ഇവ Delete ചെയ്യുക</button>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#fff3e0;">
-      <h3 style="color:#e65100;">🔁 Duplicate Purchases കണ്ടെത്തി Remove ചെയ്യുക</h3>
+    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#e65100;">🔁 Duplicate Purchases കണ്ടെത്തി Remove ചെയ്യുക</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         ഒരേ CSV file 2 തവണ upload ചെയ്തുപോയാൽ, Area+Date+Product+Godown+Vehicle+Qty എല്ലാം ഒരേപോലെ ഉള്ള records ഇവിടെ കണ്ടെത്താം. ഓരോ duplicate group-ലും <strong>ഒരെണ്ണം നിലനിർത്തി ബാക്കി മാത്രം</strong> delete ചെയ്യും.
       </p>
@@ -1793,11 +1816,12 @@
         </div>
         <button class="full-btn" style="background:#c62828;" onclick="deleteDuplicatePurchases()">🗑️ Extra Duplicates മാത്രം Delete ചെയ്യുക (1 എണ്ണം വീതം നിലനിർത്തും)</button>
       </div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#fff3e0;">
-    <div class="add-user-form" style="background:#e3f2fd;">
-      <h3 style="color:#1565c0;">🔬 Lot Inspector (Diagnostic)</h3>
+    <details class="add-user-form" style="background:#e3f2fd;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#1565c0;">🔬 Lot Inspector (Diagnostic)</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#555; margin-bottom:14px;">
         ഒരു Product+Godown+Vehicle-ന്റെ <strong>എല്ലാ individual purchase documents ഉം</strong> (Area, cutoff filter, merge ഒന്നും ബാധകമല്ലാതെ) neritt raw ആയി കാണിക്കും — Pending Lots-ലെ ഒരു total-ന്റെ ഉറവിടം കണ്ടെത്താൻ ഉപയോഗിക്കുക.
       </p>
@@ -1826,9 +1850,12 @@
           </table>
         </div>
       </div>
-    </div>
+      </div>
+    </details>
 
-      <h3 style="color:#e65100;">🔍 Remaining Qty Mismatch കണ്ടെത്തി ശരിയാക്കുക</h3>
+    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#e65100;">🔍 Remaining Qty Mismatch കണ്ടെത്തി ശരിയാക്കുക</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         ഒരു Lot-ന്റെ Remaining Qty, ആ lot-ൽ നിന്ന് യഥാർത്ഥത്തിൽ link ചെയ്ത Sales-ന്റെ ആകെ Qty-മായി match ആകാതെ വന്നാൽ (ഉദാ: Purchased 260, Sold 260, പക്ഷെ Remaining ഇപ്പോഴും 260 കാണിക്കുന്നു) — ഇത് സാധാരണ Purchase Edit-ൽ Remaining Qty manual ആയി മാറ്റിയത് കൊണ്ടോ, മറ്റ് ചെറിയ പ്രശ്നങ്ങൾ കൊണ്ടോ സംഭവിക്കാം. ഇവിടെ കണ്ടെത്തി, യഥാർത്ഥ link ചെയ്ത Sales-ന്റെ അടിസ്ഥാനത്തിൽ ശരിയാക്കാം.
       </p>
@@ -1857,10 +1884,12 @@
         </div>
         <button class="full-btn" style="background:#2e7d32;" onclick="fixAllRemainingMismatch()">✅ എല്ലാം ശരിയായ Remaining ആക്കുക</button>
       </div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#fff3e0;">
-      <h3 style="color:#e65100;">📅 തെറ്റായ Date Format ഉള്ള Records കണ്ടെത്തുക</h3>
+    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#e65100;">📅 തെറ്റായ Date Format ഉള്ള Records കണ്ടെത്തുക</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         App-ൽ Date "YYYY-MM-DD" format-ൽ ആയിരിക്കണം. CSV-യിൽ വേറെ format-ൽ (ഉദാ: DD/MM/YYYY) date വന്നാൽ, ആ records ഒരു date range filter-ലും കാണില്ല. ഇവിടെ അവ കണ്ടെത്തി ശരിയാക്കാം.
       </p>
@@ -1881,10 +1910,12 @@
         <button class="full-btn" style="background:#2e7d32; margin-top:10px;" onclick="applyAllBadDateFixes()">✅ എല്ലാം ഒരുമിച്ച് ശരിയാക്കുക</button>
         <button class="full-btn" style="background:#c62828; margin-top:10px;" onclick="deleteAllBadDateRecords()">🗑️ ഇവയെല്ലാം Delete ചെയ്യുക</button>
       </div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form" style="background:#fff3e0;">
-      <h3 style="color:#e65100;">⚠️ Bulk Delete (Test Data)</h3>
+    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#e65100;">⚠️ Bulk Delete (Test Data)</summary>
+      <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         Test ചെയ്യാൻ ഉപയോഗിച്ച data, അല്ലെങ്കിൽ ഒരു മാസത്തെ തെറ്റായ bulk upload ഒറ്റയടിക്ക് നീക്കി വീണ്ടും upload ചെയ്യാൻ. <strong>ഈ action permanent ആണ്, തിരിച്ചെടുക്കാൻ പറ്റില്ല.</strong>
       </p>
@@ -1922,10 +1953,12 @@
       </div>
       <button class="full-btn" style="background:#c62828;" onclick="handleBulkDelete()">🗑️ Delete Selected Data</button>
       <div id="bulkDeleteStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form">
-      <h3>📂 Bulk Upload — Customers (CSV)</h3>
+    <details class="add-user-form" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary>📂 Bulk Upload — Customers (CSV)</summary>
+      <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         CSV columns (ക്രമത്തിൽ): Name, Phone, OpeningBalance, Notes, IsPrivate(Y/N) — ആദ്യ വരി header ആയാൽ automatic ആയി skip ചെയ്യും.<br>
         IsPrivate = <strong>Y</strong> ആയാൽ, "PVT-" prefix name-ൽ automatic ആയി ചേർക്കും (Local/Private customer).
@@ -1941,10 +1974,12 @@
       <button class="full-btn" style="background:#2e7d32;" onclick="handleCustomerCsvUploadAdmin()">Upload Customers CSV</button>
       <div id="customerCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
       <div id="customerCsvFailedRows"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form">
-      <h3>📂 Bulk Upload — Old Sales (CSV)</h3>
+    <details class="add-user-form" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary>📂 Bulk Upload — Old Sales (CSV)</summary>
+      <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Product, Godown, VehicleNo, Qty, UnitPrice, Discount, Freight, Amount, Status(pending/approved)<br>
         Customer **പേര് മാത്രം** വച്ചാണ് match ചെയ്യുന്നത് (Area നോക്കില്ല — ഒരു customer വേറെ Area-യിലെ stock വാങ്ങിയാലും duplicate ആകില്ല). പേര് match ആകുന്നില്ലെങ്കിൽ, ആ row-ലെ Area വച്ച് പുതിയ customer create ചെയ്യും. Godown-ൽ matching stock lots ഉണ്ടെങ്കിൽ, FIFO രീതിയിൽ stock automatic ആയി കുറയും. Matching stock ഇല്ലെങ്കിൽ മാത്രം "Advance Sale" ആയി save ആകും.
@@ -1953,10 +1988,12 @@
       <button class="full-btn" style="background:#2e7d32;" onclick="handleSalesCsvUpload()">Upload Sales CSV</button>
       <div id="salesCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
       <div id="salesCsvFailedRows"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form">
-      <h3>📂 Bulk Upload — Old Collections (CSV)</h3>
+    <details class="add-user-form" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary>📂 Bulk Upload — Old Collections (CSV)</summary>
+      <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Customer, Mode, Amount, Status(pending/approved), Account<br>
         Customer **പേര് മാത്രം** വച്ചാണ് match ചെയ്യുന്നത് (Area നോക്കില്ല). പേര് match ആകുന്നില്ലെങ്കിൽ, ആ row-ലെ Area വച്ച് പുതിയ customer create ചെയ്യും. Mode "Cash" അല്ലാത്തപ്പോൾ Account column-ൽ (SBI-ALPHA പോലെ) account name നൽകുക.
@@ -1965,10 +2002,12 @@
       <button class="full-btn" style="background:#2e7d32;" onclick="handleCollectionCsvUpload()">Upload Collection CSV</button>
       <div id="collectionCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
       <div id="collectionCsvFailedRows"></div>
-    </div>
+      </div>
+    </details>
 
-    <div class="add-user-form">
-      <h3>📂 Bulk Upload — Old Purchases (CSV)</h3>
+    <details class="add-user-form" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary>📂 Bulk Upload — Old Purchases (CSV)</summary>
+      <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved)<br>
         ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).
@@ -1977,7 +2016,8 @@
       <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
       <div id="purchaseCsvStatus" style="font-size:13px; color:#555; margin-top:8px; text-align:center;"></div>
       <div id="purchaseCsvFailedRows"></div>
-    </div>
+      </div>
+    </details>
 
   </div>
   </div>
@@ -2778,6 +2818,17 @@
     }
   };
 
+  // Accordion behavior for collapsible Settings sections (Data Tools, etc.) —
+  // when one details element opens, close its siblings sharing the same data-acc-group
+  // so only one section is expanded at a time.
+  window.handleSettingsAccordion = function (el) {
+    if (!el.open) return;
+    const group = el.dataset.accGroup;
+    document.querySelectorAll(`details[data-acc-group="${group}"]`).forEach(d => {
+      if (d !== el) d.open = false;
+    });
+  };
+
   window.switchAdminSettingsSubTab = function (sub) {
     const subTabs = ['users', 'customers', 'godown', 'product', 'account', 'data'];
     subTabs.forEach(t => {
@@ -3253,6 +3304,94 @@
 
   function normalizeName(str) {
     return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
+  }
+
+  // ============ CHECKED OK (per-record) ============
+  // A one-time "I have reviewed this entry" tick for Sale/Collection records. Once a
+  // User ticks it, it locks — the User cannot untick it. Only Admin can unlock/override
+  // any tick (their own or a User's), per the app's review workflow.
+  function renderCheckedOkCell(colName, d, id, isAdmin) {
+    if (d.checkedOk) {
+      const roleTag = d.checkedOkRole === 'admin' ? ' (Admin)' : '';
+      const who = `${d.checkedOkBy || '?'}${roleTag}`;
+      const unlockBtn = isAdmin
+        ? ` <button class="del-btn" style="background:#ffebee; color:#c62828; font-size:11px; padding:3px 6px;" onclick="unlockCheckedOk('${colName}','${id}')" title="Admin only: unlock">🔓</button>`
+        : '';
+      return `<span style="color:#2e7d32; font-size:11px; white-space:nowrap;">✅ ${who}</span>${unlockBtn}`;
+    }
+    return `<button class="del-btn" style="background:#e8f5e9; color:#2e7d32; font-size:11px; padding:4px 8px;" onclick="markCheckedOk('${colName}','${id}')">✅ Check OK</button>`;
+  }
+
+  window.markCheckedOk = async function (colName, id) {
+    try {
+      await updateDoc(doc(db, colName, id), {
+        checkedOk: true,
+        checkedOkBy: currentUserData.username || 'unknown',
+        checkedOkRole: currentUserData.role === 'admin' ? 'admin' : 'user',
+        checkedOkAt: new Date().toISOString()
+      });
+      if (colName === 'sales') {
+        if (document.getElementById('saleTableBody')) loadTodaysSales();
+        if (document.getElementById('adminSaleTableBody')) loadAdminSalesToday();
+      } else {
+        if (document.getElementById('collTableBody')) loadTodaysCollections();
+        if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
+      }
+    } catch (err) { console.error(err); alert("Check ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.unlockCheckedOk = async function (colName, id) {
+    if (currentUserData.role !== 'admin') return; // only Admin can unlock a CHECKED OK lock
+    if (!confirm("ഈ CHECKED OK ലോക്ക് നീക്കണോ? (Admin override)")) return;
+    try {
+      await updateDoc(doc(db, colName, id), {
+        checkedOk: false, checkedOkBy: null, checkedOkRole: null, checkedOkAt: null
+      });
+      if (colName === 'sales') {
+        if (document.getElementById('saleTableBody')) loadTodaysSales();
+        if (document.getElementById('adminSaleTableBody')) loadAdminSalesToday();
+      } else {
+        if (document.getElementById('collTableBody')) loadTodaysCollections();
+        if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
+      }
+    } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // ============ CHECKED OK (whole statement — Customer Ledger / Report) ============
+  // One tick covers an entire generated view (a customer's ledger for a date range, or a
+  // Sale/Collection report for a date range) — stored separately since there's no single
+  // record to attach it to. Locked the same way as the per-record tick above.
+  async function getStatementCheck(key) {
+    try {
+      const snap = await getDoc(doc(db, "statementChecks", key));
+      return snap.exists() ? snap.data() : null;
+    } catch (err) { console.error(err); return null; }
+  }
+
+  async function setStatementCheck(key, extra) {
+    await setDoc(doc(db, "statementChecks", key), {
+      ...extra,
+      checkedBy: currentUserData.username || 'unknown',
+      checkedByRole: currentUserData.role === 'admin' ? 'admin' : 'user',
+      checkedAt: new Date().toISOString()
+    });
+  }
+
+  async function clearStatementCheck(key) {
+    await deleteDoc(doc(db, "statementChecks", key));
+  }
+
+  function renderStatementCheckBox(check, isAdmin, onCheckFn, onUnlockFn) {
+    if (check) {
+      const roleTag = check.checkedByRole === 'admin' ? ' (Admin)' : '';
+      const unlockBtn = isAdmin
+        ? ` <button class="del-btn" style="background:#ffebee; color:#c62828; font-size:12px;" onclick="${onUnlockFn}">🔓 Unlock</button>`
+        : '';
+      return `<div style="background:#e8f5e9; border-radius:8px; padding:10px 14px; margin:12px 0; font-size:13px; color:#2e7d32;">
+        ✅ CHECKED OK — <strong>${check.checkedBy}${roleTag}</strong> (${fmtDate(check.checkedAt.slice(0, 10))})${unlockBtn}
+      </div>`;
+    }
+    return `<button class="full-btn" style="background:#2e7d32; margin:12px 0;" onclick="${onCheckFn}">✅ CHECKED OK (ഈ statement ശരിയാണെന്ന് confirm ചെയ്യുക)</button>`;
   }
 
   // Renders a detailed "which rows failed and why" report under a CSV upload's status
@@ -3921,11 +4060,12 @@
           <td>${d.qty || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
           <td>${statusBadge}</td>
+          <td>${renderCheckedOkCell('sales', d, id, currentUserData.role === 'admin')}</td>
           <td>${actions}</td>
         </tr>`;
       });
       rows += `<tr style="font-weight:700; background:#f5f7fa;">
-        <td colspan="4">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td>
+        <td colspan="4">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="3"></td>
       </tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
@@ -4941,7 +5081,7 @@
 
   async function loadAdminSalesToday() {
     const tbody = document.getElementById('adminSaleTableBody');
-    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(collection(db, "sales"), where("date", "==", todayStr));
@@ -4953,11 +5093,12 @@
         rows += `<tr>
           <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td>
           <td>${d.qty || 0}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
+          <td>${renderCheckedOkCell('sales', d, ds.id, true)}</td>
           <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="editAdminSaleRow('${ds.id}')">Edit</button>
               <button class="del-btn" onclick="deleteAdminSaleRow('${ds.id}')">Delete</button></td>
         </tr>`;
       });
-      tbody.innerHTML = rows || '<tr><td colspan="8">ഇന്ന് sales ഒന്നും ഇല്ല.</td></tr>';
+      tbody.innerHTML = rows || '<tr><td colspan="9">ഇന്ന് sales ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) { console.error(err); tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>'; }
   }
 
@@ -5132,7 +5273,7 @@
 
   async function loadAdminCollectionsToday() {
     const tbody = document.getElementById('adminCollTableBody');
-    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(collection(db, "collections"), where("date", "==", todayStr));
@@ -5144,12 +5285,13 @@
         rows += `<tr>
           <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
           <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
+          <td>${renderCheckedOkCell('collections', d, ds.id, true)}</td>
           <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="editAdminCollRow('${ds.id}')">Edit</button>
               <button class="del-btn" onclick="deleteAdminCollRow('${ds.id}')">Delete</button></td>
         </tr>`;
       });
-      tbody.innerHTML = rows || '<tr><td colspan="7">ഇന്ന് collections ഒന്നും ഇല്ല.</td></tr>';
-    } catch (err) { console.error(err); tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>'; }
+      tbody.innerHTML = rows || '<tr><td colspan="8">ഇന്ന് collections ഒന്നും ഇല്ല.</td></tr>';
+    } catch (err) { console.error(err); tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>'; }
   }
 
   document.addEventListener('click', function (e) {
@@ -6180,7 +6322,7 @@
 
   async function loadTodaysCollections() {
     const tbody = document.getElementById('collTableBody');
-    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(collection(db, "collections"), where("area", "==", currentWorkingArea));
@@ -6193,7 +6335,7 @@
       });
       docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="6">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ collections ഒന്നും ഇല്ല.</td></tr>'; return; }
+      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="7">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ collections ഒന്നും ഇല്ല.</td></tr>'; return; }
       let rows = '';
       let total = 0;
       docs.forEach(d => {
@@ -6209,13 +6351,15 @@
              ${isPending ? `<button class="del-btn" onclick="deleteCollRow('${id}')">Delete</button>` : ''}`
           : '';
         rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td>
-          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
+          <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge}</td>
+          <td>${renderCheckedOkCell('collections', d, id, currentUserData.role === 'admin')}</td>
+          <td>${actions}</td></tr>`;
       });
-      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="2"></td></tr>`;
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="3">Total</td><td>₹${total.toLocaleString('en-IN')}</td><td colspan="3"></td></tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="6">Error loading collections.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7">Error loading collections.</td></tr>';
     }
   }
 
@@ -6834,6 +6978,36 @@
     </div>`;
   }
 
+  let currentRepSaleCheckKey = null;
+  let currentRepCollCheckKey = null;
+
+  window.confirmRepCheckedOk = async function (which) {
+    const key = which === 'sale' ? currentRepSaleCheckKey : currentRepCollCheckKey;
+    if (!key) return;
+    try {
+      const parts = key.split('_'); // report_sale_<area>_<from>_<to> / report_coll_<area>_<from>_<to>
+      await setStatementCheck(key, { type: 'report', reportType: which, area: parts[2], from: parts[3], to: parts[4] });
+      const check = await getStatementCheck(key);
+      const boxId = which === 'sale' ? 'repSalesCheckedOkBox' : 'repCollCheckedOkBox';
+      document.getElementById(boxId).innerHTML = renderStatementCheckBox(
+        check, currentUserData.role === 'admin', `confirmRepCheckedOk("${which}")`, `unlockRepCheckedOk("${which}")`
+      );
+    } catch (err) { console.error(err); alert("Check ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.unlockRepCheckedOk = async function (which) {
+    const key = which === 'sale' ? currentRepSaleCheckKey : currentRepCollCheckKey;
+    if (!key || currentUserData.role !== 'admin') return;
+    if (!confirm("ഈ report-ന്റെ CHECKED OK ലോക്ക് നീക്കണോ?")) return;
+    try {
+      await clearStatementCheck(key);
+      const boxId = which === 'sale' ? 'repSalesCheckedOkBox' : 'repCollCheckedOkBox';
+      document.getElementById(boxId).innerHTML = renderStatementCheckBox(
+        null, currentUserData.role === 'admin', `confirmRepCheckedOk("${which}")`, `unlockRepCheckedOk("${which}")`
+      );
+    } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
   window.generateReport = async function () {
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
@@ -6912,6 +7086,18 @@
       }).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
         '<tr><td colspan="7">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+
+      currentRepSaleCheckKey = `report_sale_${currentWorkingArea}_${from}_${to}`;
+      currentRepCollCheckKey = `report_coll_${currentWorkingArea}_${from}_${to}`;
+      const [repSaleCheck, repCollCheck] = await Promise.all([
+        getStatementCheck(currentRepSaleCheckKey), getStatementCheck(currentRepCollCheckKey)
+      ]);
+      document.getElementById('repSalesCheckedOkBox').innerHTML = renderStatementCheckBox(
+        repSaleCheck, currentUserData.role === 'admin', 'confirmRepCheckedOk("sale")', 'unlockRepCheckedOk("sale")'
+      );
+      document.getElementById('repCollCheckedOkBox').innerHTML = renderStatementCheckBox(
+        repCollCheck, currentUserData.role === 'admin', 'confirmRepCheckedOk("coll")', 'unlockRepCheckedOk("coll")'
+      );
 
       // Lot Balance (current stock, not date-filtered) — group by Product+Godown+Vehicle
       // (includes both Godown-based purchase lots and Vehicle-transferred stock)
@@ -10349,9 +10535,20 @@
       }
 
       closeQuickEdit();
+
+      // Refresh whichever section the admin is actually viewing — Edit happens in-place
+      // (this is an overlay, not a page navigation), so the fix is to make sure the data
+      // underneath is fresh, not just the modal that closes on top of it.
       loadApprovals();
-      if (document.getElementById('tabAdminReports').style.display !== 'none') generateAdminReport();
-      if (document.getElementById('adminPurchaseTableBody')) loadAdminPurchasesToday();
+      loadAdminSalesToday();
+      loadAdminCollectionsToday();
+      loadAdminPurchasesToday();
+      if (document.getElementById('tabAdminReport').style.display !== 'none') generateAdminReport();
+      if (document.getElementById('tabAdminReports').style.display !== 'none') {
+        loadAdminHomeSummary();
+        if (document.getElementById('adminHomeDayDate').value) generateAdminHomeDayView();
+      }
+      if (document.getElementById('tabAdminCustomers').style.display !== 'none' && lastAdminCustReport) generateAdminCustomerReport();
     } catch (err) {
       console.error(err);
       alert("Save ചെയ്യാൻ പറ്റിയില്ല.");
@@ -10438,10 +10635,41 @@
       document.getElementById('stmtTableBody').innerHTML = rows || '<tr><td colspan="7">ഈ range-ൽ transactions ഇല്ല.</td></tr>';
       document.getElementById('stmtClosing').textContent = '₹' + runningBal.toLocaleString('en-IN');
 
+      currentStmtCheckKey = `custledger_${custId}_${from}_${to}`;
+      const stmtCheck = await getStatementCheck(currentStmtCheckKey);
+      document.getElementById('stmtCheckedOkBox').innerHTML = renderStatementCheckBox(
+        stmtCheck, currentUserData.role === 'admin', 'confirmStmtCheckedOk()', 'unlockStmtCheckedOk()'
+      );
+
     } catch (err) {
       console.error(err);
       document.getElementById('stmtTableBody').innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
     }
+  };
+
+  let currentStmtCheckKey = null;
+
+  window.confirmStmtCheckedOk = async function () {
+    if (!currentStmtCheckKey) return;
+    try {
+      const [type, custId, from, to] = currentStmtCheckKey.split('_');
+      await setStatementCheck(currentStmtCheckKey, { type: 'customerLedger', refId: custId, from, to });
+      const stmtCheck = await getStatementCheck(currentStmtCheckKey);
+      document.getElementById('stmtCheckedOkBox').innerHTML = renderStatementCheckBox(
+        stmtCheck, currentUserData.role === 'admin', 'confirmStmtCheckedOk()', 'unlockStmtCheckedOk()'
+      );
+    } catch (err) { console.error(err); alert("Check ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.unlockStmtCheckedOk = async function () {
+    if (!currentStmtCheckKey || currentUserData.role !== 'admin') return;
+    if (!confirm("ഈ statement-ന്റെ CHECKED OK ലോക്ക് നീക്കണോ?")) return;
+    try {
+      await clearStatementCheck(currentStmtCheckKey);
+      document.getElementById('stmtCheckedOkBox').innerHTML = renderStatementCheckBox(
+        null, currentUserData.role === 'admin', 'confirmStmtCheckedOk()', 'unlockStmtCheckedOk()'
+      );
+    } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
   window.exportStatementCSV = function () {
@@ -10549,8 +10777,16 @@
       });
       customers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
+      // Which of these customers' ledgers has the User already marked "CHECKED OK" for
+      // this exact date range — shown as a badge so Admin can see confirmation status
+      // at a glance, and unlock/override any of them.
+      const checksSnap = await getDocs(query(collection(db, "statementChecks"),
+        where("type", "==", "customerLedger"), where("from", "==", from), where("to", "==", to)));
+      const custCheckMap = {};
+      checksSnap.forEach(ds => { custCheckMap[ds.data().refId] = ds.data(); });
+
       lastAdminCustReport = { customers, from, to };
-      renderAdminCustomers(customers);
+      renderAdminCustomers(customers, custCheckMap, from, to);
 
     } catch (err) {
       console.error(err);
@@ -10558,7 +10794,16 @@
     }
   };
 
-  function renderAdminCustomers(customers) {
+  window.unlockAdminCustLedgerCheck = async function (custId, from, to) {
+    if (!confirm("ഈ Customer-ന്റെ ledger CHECKED OK ലോക്ക് നീക്കണോ?")) return;
+    try {
+      await clearStatementCheck(`custledger_${custId}_${from}_${to}`);
+      generateAdminCustomerReport();
+    } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  function renderAdminCustomers(customers, custCheckMap, from, to) {
+    custCheckMap = custCheckMap || {};
     const container = document.getElementById('adminCustContainer');
     const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
     let html = '';
@@ -10570,11 +10815,17 @@
 
       areaCustomers.forEach(c => {
         const balColor = c.closing > 0 ? '#c62828' : (c.closing < 0 ? '#2e7d32' : '#333');
+        const chk = custCheckMap[c.id];
+        const chkBadge = chk
+          ? `<span style="background:#e8f5e9; color:#2e7d32; font-size:11px; padding:3px 8px; border-radius:6px; margin-left:8px;">✅ ${chk.checkedBy}${chk.checkedByRole === 'admin' ? ' (Admin)' : ''}</span>
+             <button class="del-btn" style="background:#ffebee; color:#c62828; font-size:11px; padding:3px 6px;" onclick="unlockAdminCustLedgerCheck('${c.id}','${from}','${to}')">🔓</button>`
+          : `<span style="color:#999; font-size:11px; margin-left:8px;">Not checked</span>`;
         html += `<div class="table-wrap" style="margin-bottom:10px; border:1px solid #eee; border-radius:0 0 8px 8px;">
           <div style="padding:10px 12px; background:#f5f7fa; display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px;">
             <div>
               <strong style="color:#1e3c72;">${c.name}</strong> <span style="color:#999; font-size:12px;">${c.phone}</span>
               <button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-left:8px;" onclick="openCustomerEdit('${c.id}')">Edit</button>
+              ${chkBadge}
             </div>
             <div style="font-size:13px;">
               Opening: ₹${c.opening.toLocaleString('en-IN')} ·
