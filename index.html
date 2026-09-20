@@ -398,8 +398,8 @@
     <div id="stmtCheckedOkBox"></div>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th></tr></thead>
-        <tbody id="stmtTableBody"><tr><td colspan="7">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th><th>✅ Checked</th></tr></thead>
+        <tbody id="stmtTableBody"><tr><td colspan="8">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -751,8 +751,8 @@
     <div id="repSalesCheckedOkBox"></div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody id="repSalesBody"><tr><td colspan="11">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th><th>✅ Checked</th></tr></thead>
+        <tbody id="repSalesBody"><tr><td colspan="12">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -771,8 +771,8 @@
     <div id="repCollCheckedOkBox"></div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th></tr></thead>
-        <tbody id="repCollBody"><tr><td colspan="7">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th><th>✅ Checked</th></tr></thead>
+        <tbody id="repCollBody"><tr><td colspan="8">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -3209,9 +3209,9 @@
       const [salesSnap, collSnap] = await Promise.all([getDocs(salesQ), getDocs(collQ)]);
 
       let sales = [];
-      salesSnap.forEach(docSnap => sales.push({ ...docSnap.data(), _type: 'sale' }));
+      salesSnap.forEach(docSnap => sales.push({ ...docSnap.data(), id: docSnap.id, _type: 'sale' }));
       let colls = [];
-      collSnap.forEach(docSnap => colls.push({ ...docSnap.data(), _type: 'collection' }));
+      collSnap.forEach(docSnap => colls.push({ ...docSnap.data(), id: docSnap.id, _type: 'collection' }));
 
       ledgerCachedTxns = [...sales, ...colls].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       renderLedgerTxns(null, null);
@@ -3248,12 +3248,16 @@
     let runningBal = openingForRange;
     let rows = '';
     visibleTxns.forEach(t => {
+      const chkHtml = t.checkedOk
+        ? `<span style="color:#2e7d32; font-size:11px;">✅ ${t.checkedOkBy || '?'}${t.checkedOkRole === 'admin' ? ' (Admin)' : ''}</span>${currentUserData.role === 'admin' ? ` <button class="del-btn" style="background:#ffebee; color:#c62828; font-size:10px; padding:2px 5px;" onclick="unlockLedgerTxnChecked('${t._type}','${t.id}')">🔓</button>` : ''}`
+        : `<button class="del-btn" style="background:#e8f5e9; color:#2e7d32; font-size:10px; padding:2px 6px;" onclick="markLedgerTxnChecked('${t._type}','${t.id}')">✅ Check OK</button>`;
       if (t._type === 'sale') {
         runningBal += (t.amount || 0);
         rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
           <div>
             <div style="font-weight:600; color:#333;">${t.product || '-'}</div>
             <div style="color:#999; font-size:12px;">${fmtDate(t.date)} · Qty: ${t.qty || '-'} · Sale</div>
+            <div style="margin-top:4px;">${chkHtml}</div>
           </div>
           <div style="color:#c62828; font-weight:600;">+₹${(t.amount || 0).toLocaleString('en-IN')}</div>
         </div>`;
@@ -3263,6 +3267,7 @@
           <div>
             <div style="font-weight:600; color:#333;">Collection (${t.mode || '-'})</div>
             <div style="color:#999; font-size:12px;">${fmtDate(t.date)}</div>
+            <div style="margin-top:4px;">${chkHtml}</div>
           </div>
           <div style="color:#2e7d32; font-weight:600;">-₹${(t.amount || 0).toLocaleString('en-IN')}</div>
         </div>`;
@@ -3278,6 +3283,38 @@
     const from = document.getElementById('ledgerFromDate').value;
     const to = document.getElementById('ledgerToDate').value;
     renderLedgerTxns(from || null, to || null);
+  };
+
+  window.markLedgerTxnChecked = async function (type, id) {
+    const colName = type === 'sale' ? 'sales' : 'collections';
+    try {
+      const role = currentUserData.role === 'admin' ? 'admin' : 'user';
+      await updateDoc(doc(db, colName, id), {
+        checkedOk: true, checkedOkBy: currentUserData.username || 'unknown',
+        checkedOkRole: role, checkedOkAt: new Date().toISOString()
+      });
+      const txn = ledgerCachedTxns.find(t => t.id === id && t._type === type);
+      if (txn) { txn.checkedOk = true; txn.checkedOkBy = currentUserData.username || 'unknown'; txn.checkedOkRole = role; }
+      const from = document.getElementById('ledgerFromDate').value;
+      const to = document.getElementById('ledgerToDate').value;
+      renderLedgerTxns(from || null, to || null);
+      refreshEntryAndReportCheckedOkViews();
+    } catch (err) { console.error(err); alert("Check ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  window.unlockLedgerTxnChecked = async function (type, id) {
+    if (currentUserData.role !== 'admin') return;
+    if (!confirm("ഈ CHECKED OK ലോക്ക് നീക്കണോ?")) return;
+    const colName = type === 'sale' ? 'sales' : 'collections';
+    try {
+      await updateDoc(doc(db, colName, id), { checkedOk: false, checkedOkBy: null, checkedOkRole: null, checkedOkAt: null });
+      const txn = ledgerCachedTxns.find(t => t.id === id && t._type === type);
+      if (txn) { txn.checkedOk = false; txn.checkedOkBy = null; txn.checkedOkRole = null; }
+      const from = document.getElementById('ledgerFromDate').value;
+      const to = document.getElementById('ledgerToDate').value;
+      renderLedgerTxns(from || null, to || null);
+      refreshEntryAndReportCheckedOkViews();
+    } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
   window.closeLedger = function () {
@@ -3322,6 +3359,32 @@
     return `<button class="del-btn" style="background:#e8f5e9; color:#2e7d32; font-size:11px; padding:4px 8px;" onclick="markCheckedOk('${colName}','${id}')">✅ Check OK</button>`;
   }
 
+  // Refreshes every view that might currently be showing a per-record CHECKED OK cell,
+  // so a tick made from ANY one of them (Entry tab, Report tab, Customer Ledger modal,
+  // Admin Today's lists) is immediately visible everywhere else too — same record, same
+  // underlying `checkedOk` field, one source of truth.
+  function refreshEntryAndReportCheckedOkViews() {
+    if (document.getElementById('saleTableBody')) loadTodaysSales();
+    if (document.getElementById('collTableBody')) loadTodaysCollections();
+    if (document.getElementById('adminSaleTableBody')) loadAdminSalesToday();
+    if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
+    if (document.getElementById('tabReport') && document.getElementById('tabReport').style.display !== 'none'
+        && document.getElementById('reportFrom').value) generateReport();
+    if (document.getElementById('tabAdminReport') && document.getElementById('tabAdminReport').style.display !== 'none') generateAdminReport();
+    if (document.getElementById('stmtResultBox') && document.getElementById('stmtResultBox').style.display !== 'none'
+        && document.getElementById('stmtCustomer').value) generateCustomerStatement();
+  }
+
+  function refreshAllCheckedOkViews() {
+    refreshEntryAndReportCheckedOkViews();
+    // Re-opening the ledger modal resets its own date filter, so only do this when the
+    // tick did NOT originate from the ledger modal itself (that path refreshes in place).
+    if (document.getElementById('ledgerOverlay') && document.getElementById('ledgerOverlay').style.display !== 'none') {
+      const custId = document.getElementById('ledgerCustId').value;
+      if (custId) openLedger(custId);
+    }
+  }
+
   window.markCheckedOk = async function (colName, id) {
     try {
       await updateDoc(doc(db, colName, id), {
@@ -3330,13 +3393,7 @@
         checkedOkRole: currentUserData.role === 'admin' ? 'admin' : 'user',
         checkedOkAt: new Date().toISOString()
       });
-      if (colName === 'sales') {
-        if (document.getElementById('saleTableBody')) loadTodaysSales();
-        if (document.getElementById('adminSaleTableBody')) loadAdminSalesToday();
-      } else {
-        if (document.getElementById('collTableBody')) loadTodaysCollections();
-        if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
-      }
+      refreshAllCheckedOkViews();
     } catch (err) { console.error(err); alert("Check ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
@@ -3347,13 +3404,7 @@
       await updateDoc(doc(db, colName, id), {
         checkedOk: false, checkedOkBy: null, checkedOkRole: null, checkedOkAt: null
       });
-      if (colName === 'sales') {
-        if (document.getElementById('saleTableBody')) loadTodaysSales();
-        if (document.getElementById('adminSaleTableBody')) loadAdminSalesToday();
-      } else {
-        if (document.getElementById('collTableBody')) loadTodaysCollections();
-        if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
-      }
+      refreshAllCheckedOkViews();
     } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
@@ -7017,9 +7068,9 @@
       return;
     }
 
-    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="11">Loading...</td></tr>';
+    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="12">Loading...</td></tr>';
     document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
@@ -7034,9 +7085,9 @@
       const inRange = (d) => d && d >= from && d <= to;
 
       let sales = [], purchases = [], colls = [];
-      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) sales.push(d); });
-      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) purchases.push(d); });
-      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) colls.push(d); });
+      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) sales.push({ ...d, id: docSnap.id }); });
+      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) purchases.push({ ...d, id: docSnap.id }); });
+      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) colls.push({ ...d, id: docSnap.id }); });
 
       sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       purchases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -7059,10 +7110,11 @@
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
         <td>${d.qty || '-'}</td><td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
         <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td><td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td></tr>`;
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
+        <td>${renderCheckedOkCell('sales', d, d.id, currentUserData.role === 'admin')}</td></tr>`;
       }).join('');
       document.getElementById('repSalesBody').innerHTML = salesRows ||
-        '<tr><td colspan="11">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="12">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
 
       // Purchase table (Date, Area, Product, Godown, Vehicle, Qty, Status)
       let purchaseRows = purchases.map(d => {
@@ -7082,10 +7134,11 @@
           ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
         return `<tr class="${isCash ? 'cash-row' : ''}">
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
-        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td></tr>`;
+        <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
+        <td>${renderCheckedOkCell('collections', d, d.id, currentUserData.role === 'admin')}</td></tr>`;
       }).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
-        '<tr><td colspan="7">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="8">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
 
       currentRepSaleCheckKey = `report_sale_${currentWorkingArea}_${from}_${to}`;
       currentRepCollCheckKey = `report_coll_${currentWorkingArea}_${from}_${to}`;
@@ -10591,7 +10644,7 @@
     const opening = cust ? (cust.openingBalance || 0) : 0;
 
     document.getElementById('stmtResultBox').style.display = 'block';
-    document.getElementById('stmtTableBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    document.getElementById('stmtTableBody').innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
 
     try {
       const [salesSnap, collSnap] = await Promise.all([
@@ -10606,12 +10659,12 @@
       salesSnap.forEach(d => {
         const s = d.data();
         if (s.date < from) balanceBeforeRange += (s.amount || 0);
-        else if (s.date >= from && s.date <= to) txnsInRange.push({ ...s, _type: 'sale' });
+        else if (s.date >= from && s.date <= to) txnsInRange.push({ ...s, id: d.id, _type: 'sale' });
       });
       collSnap.forEach(d => {
         const c = d.data();
         if (c.date < from) balanceBeforeRange -= (c.amount || 0);
-        else if (c.date >= from && c.date <= to) txnsInRange.push({ ...c, _type: 'collection' });
+        else if (c.date >= from && c.date <= to) txnsInRange.push({ ...c, id: d.id, _type: 'collection' });
       });
 
       txnsInRange.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -10621,18 +10674,19 @@
       let runningBal = balanceBeforeRange;
       let rows = '';
       txnsInRange.forEach(t => {
+        const chk = renderCheckedOkCell(t._type === 'sale' ? 'sales' : 'collections', t, t.id, currentUserData.role === 'admin');
         if (t._type === 'sale') {
           runningBal += (t.amount || 0);
           rows += `<tr><td>${fmtDate(t.date)}</td><td>${t.area || '-'}</td><td>Sale</td><td>${t.product || '-'} (Qty: ${t.qty || '-'})</td>
-            <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${runningBal.toLocaleString('en-IN')}</td></tr>`;
+            <td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>-</td><td>₹${runningBal.toLocaleString('en-IN')}</td><td>${chk}</td></tr>`;
         } else {
           runningBal -= (t.amount || 0);
           rows += `<tr><td>${fmtDate(t.date)}</td><td>${t.area || '-'}</td><td>Collection</td><td>${t.mode || '-'}</td>
-            <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${runningBal.toLocaleString('en-IN')}</td></tr>`;
+            <td>-</td><td>₹${(t.amount || 0).toLocaleString('en-IN')}</td><td>₹${runningBal.toLocaleString('en-IN')}</td><td>${chk}</td></tr>`;
         }
       });
 
-      document.getElementById('stmtTableBody').innerHTML = rows || '<tr><td colspan="7">ഈ range-ൽ transactions ഇല്ല.</td></tr>';
+      document.getElementById('stmtTableBody').innerHTML = rows || '<tr><td colspan="8">ഈ range-ൽ transactions ഇല്ല.</td></tr>';
       document.getElementById('stmtClosing').textContent = '₹' + runningBal.toLocaleString('en-IN');
 
       currentStmtCheckKey = `custledger_${custId}_${from}_${to}`;
