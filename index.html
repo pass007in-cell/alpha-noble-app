@@ -3370,7 +3370,8 @@
     if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
     if (document.getElementById('tabReport') && document.getElementById('tabReport').style.display !== 'none'
         && document.getElementById('reportFrom').value) generateReport();
-    if (document.getElementById('tabAdminReport') && document.getElementById('tabAdminReport').style.display !== 'none') generateAdminReport();
+    if (document.getElementById('tabAdminReport') && document.getElementById('tabAdminReport').style.display !== 'none'
+        && document.getElementById('adminReportFrom') && document.getElementById('adminReportFrom').value) generateAdminReport();
     if (document.getElementById('stmtResultBox') && document.getElementById('stmtResultBox').style.display !== 'none'
         && document.getElementById('stmtCustomer').value) generateCustomerStatement();
   }
@@ -8070,7 +8071,7 @@
 
       // Sales — area-wise grouped, with Unit Price, Discount, Freight
       renderAreaGrouped('adminRepSalesContainer', sales,
-        ['', 'Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status', ''],
+        ['', 'Date', 'Area', 'Customer', 'Product', 'Godown', 'Qty', 'Unit Price', 'Discount', 'Freight', 'Amount', 'Status', '✅ Checked', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
@@ -8083,6 +8084,7 @@
             <td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
             <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
             <td>${badge}</td>
+            <td>${renderCheckedOkCell('sales', d, d.id, true)}</td>
             <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('sales','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('sales','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('sales','${d.id}')">Delete</button></td>
           </tr>`;
         }
@@ -8106,7 +8108,7 @@
 
       // Collection — area-wise grouped, Cash highlighted
       renderAreaGrouped('adminRepCollContainer', colls,
-        ['', 'Date', 'Area', 'Customer', 'Mode', 'Account', 'Amount', 'Status', ''],
+        ['', 'Date', 'Area', 'Customer', 'Mode', 'Account', 'Amount', 'Status', '✅ Checked', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
@@ -8116,6 +8118,7 @@
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
             <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td>
             <td>${badge}</td>
+            <td>${renderCheckedOkCell('collections', d, d.id, true)}</td>
             <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('collections','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('collections','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('collections','${d.id}')">Delete</button></td>
           </tr>`;
         }
