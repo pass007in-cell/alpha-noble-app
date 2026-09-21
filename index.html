@@ -149,6 +149,15 @@
   .cust-opt-header { padding:6px 12px; font-size:11px; font-weight:700; color:#aaa; background:#fafafa; text-transform:uppercase; }
   .cust-opt-new { color:#2e7d32; font-weight:700; }
   .cust-search-box { position:relative; margin-bottom:8px; }
+  /* Decorative dropdown arrow — the field is a searchable dropdown: typing filters the
+     list, and clicking/focusing it (with nothing typed) already opens the full list. This
+     arrow just makes that "click to browse the whole list" behaviour visible/discoverable.
+     pointer-events:none so clicks pass straight through to the input underneath. */
+  .cust-search-box::after {
+    content: '▼'; position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; color: #999; pointer-events: none;
+  }
+  .cust-search-box input[type="text"] { padding-right: 32px; }
   .cust-options-box { display:none; position:absolute; z-index:30; top:100%; left:0; right:0; background:#fff; border:1.5px solid #ccc; border-radius:8px; max-height:240px; overflow-y:auto; box-shadow:0 6px 14px rgba(0,0,0,0.15); }
   .cash-row td { font-weight:700 !important; color:#1565c0 !important; background:#e3f2fd; }
   .area-group-title { background:#1e3c72; color:#fff; padding:8px 12px; font-size:13px; font-weight:700; border-radius:6px 6px 0 0; }
@@ -2779,6 +2788,9 @@
 
   const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
   window.switchAdminTab = function (tab) {
+    // Abandoning the Entry tab without saving (navigating elsewhere manually) — don't leave
+    // a stale "return to Customer Ledger" intent hanging around for some later, unrelated save.
+    if (tab !== 'purchase') adminAddMissingReturnFlag = false;
     allAdminTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
       const panel = document.getElementById('tab' + key);
@@ -4820,6 +4832,10 @@
   let adminSaleAllCustomers = [];
   let adminSaleAvailableLots = [];
   let adminSaleKnownVehicles = [];
+  // Set when Sale/Collection Entry is opened via "+ Sale/Collection ചേർക്കുക" from the
+  // Admin Customer Ledger (openAdminAddMissing) — after a successful Save, this tells us
+  // to navigate back to that Customer Ledger view (refreshed) instead of staying on Entry.
+  let adminAddMissingReturnFlag = false;
   let adminEditingSaleId = null;
   let adminEditingSaleOldLots = [];
   let adminEditingSaleOldStatus = 'pending';
@@ -5109,6 +5125,12 @@
       document.getElementById('addAdminSaleBtn').textContent = "Save Sale";
 
       loadAdminSalesToday();
+
+      if (adminAddMissingReturnFlag) {
+        adminAddMissingReturnFlag = false;
+        switchAdminTab('settings');
+        switchAdminSettingsSubTab('customers');
+      }
     } catch (err) {
       console.error(err);
       errEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
@@ -5336,6 +5358,12 @@
       document.getElementById('addAdminCollBtn').textContent = "Save Collection";
 
       loadAdminCollectionsToday();
+
+      if (adminAddMissingReturnFlag) {
+        adminAddMissingReturnFlag = false;
+        switchAdminTab('settings');
+        switchAdminSettingsSubTab('customers');
+      }
     } catch (err) {
       console.error(err);
       errEl.textContent = "Collection save ചെയ്യാൻ പറ്റിയില്ല.";
@@ -10355,6 +10383,7 @@
   // buttons to quickly add a missed entry without re-searching for the customer.
   window.openAdminAddMissing = async function (type, custId, custName) {
     switchAdminTab('purchase');
+    adminAddMissingReturnFlag = true; // set AFTER switchAdminTab, so it isn't cleared by it
     if (type === 'sales') {
       switchAdminEntrySubTab('sale');
       selectAdminSaleCustomer(custId, custName);
