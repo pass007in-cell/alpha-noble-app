@@ -1622,6 +1622,19 @@
 
   <div id="tabAdminData" style="display:none;">
 
+    <details class="add-user-form" style="background:#ede7f6;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#4527a0;">📅 Advance Sale User Cutoff Date</summary>
+      <div class="details-body">
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        ഈ Date-ന് മുൻപ് ഉള്ള (അല്ലെങ്കിൽ ഇതേ Date-ലെ) Advance Sale / Lot data — Users-ന് അവരുടെ panel-ൽ കാണില്ല, Admin മാത്രം കൈകാര്യം ചെയ്യും. ഈ Date-ന് ശേഷം ഉള്ളവ Users സ്വയം കൈകാര്യം ചെയ്യും. ഓരോ മാസവും അവസാനിക്കുമ്പോൾ ഈ Date പുതുക്കാം.
+      </p>
+      <label>Cutoff Date</label>
+      <input type="date" id="advSaleCutoffInput" style="margin-bottom:14px;">
+      <button class="full-btn" style="background:#4527a0;" onclick="handleSaveAdvSaleCutoff()">Save Cutoff Date</button>
+      <div id="advSaleCutoffStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      </div>
+    </details>
+
     <details class="add-user-form" style="background:#e8f5e9;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
       <summary style="color:#2e7d32;">💾 Data Backup</summary>
       <div class="details-body">
@@ -2625,6 +2638,8 @@
         userData = userDocSnap.data();
       }
 
+      await loadAdvSaleCutoffSetting();
+
       if (userData.role === 'admin') {
         showAdminPanel(userData);
       } else {
@@ -2664,7 +2679,44 @@
   let currentWorkingArea = null;
   // Users only see Advance Sales from this date onward (app go-live date).
   // Old pending advance sales (up to this date) are handled by Admin only.
-  const ADVANCE_SALE_USER_CUTOFF = '2026-08-31';
+  // Default value below is used until the Firestore setting (settings/appConfig)
+  // loads — Admin can change this any time from Settings → Data Tools → Advance
+  // Sale User Cutoff Date, without needing a code/file update.
+  let ADVANCE_SALE_USER_CUTOFF = '2026-08-31';
+
+  async function loadAdvSaleCutoffSetting() {
+    try {
+      const snap = await getDoc(doc(db, "settings", "appConfig"));
+      if (snap.exists() && snap.data().advanceSaleUserCutoff) {
+        ADVANCE_SALE_USER_CUTOFF = snap.data().advanceSaleUserCutoff;
+      }
+    } catch (err) {
+      console.error("Cutoff setting load failed, using default:", err);
+    }
+  }
+
+  window.handleSaveAdvSaleCutoff = async function () {
+    const val = document.getElementById('advSaleCutoffInput').value;
+    const statusEl = document.getElementById('advSaleCutoffStatus');
+    if (!val) {
+      statusEl.style.color = '#c62828';
+      statusEl.textContent = "Date select ചെയ്യുക.";
+      return;
+    }
+    if (!confirm(`Cutoff Date ${val} ആയി മാറ്റണോ? ഇത് മാറ്റിയാൽ ${val}-ന് മുൻപ്/അന്ന് ഉള്ള Advance Sale/Lot data Users-ന് കാണാൻ പറ്റില്ല, Admin മാത്രം കൈകാര്യം ചെയ്യേണ്ടി വരും.`)) return;
+    try {
+      statusEl.style.color = '#555';
+      statusEl.textContent = "Saving...";
+      await setDoc(doc(db, "settings", "appConfig"), { advanceSaleUserCutoff: val }, { merge: true });
+      ADVANCE_SALE_USER_CUTOFF = val;
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = "✅ Cutoff Date സൂക്ഷിച്ചു: " + val;
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#c62828';
+      statusEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
+    }
+  };
   let editingSaleId = null;
   let editingSaleOldLots = [];
   let editingSaleOldStatus = 'pending';
@@ -2855,6 +2907,7 @@
     else if (sub === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
     else if (sub === 'product') loadAdminProducts();
     else if (sub === 'account') loadAdminAccounts();
+    else if (sub === 'data') document.getElementById('advSaleCutoffInput').value = ADVANCE_SALE_USER_CUTOFF;
   };
 
   // ---- ADMIN: Add User ----
