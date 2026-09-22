@@ -2069,8 +2069,9 @@
       <summary>📂 Bulk Upload — Old Purchases (CSV)</summary>
       <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved)<br>
-        ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).
+        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional)<br>
+        ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).<br>
+        <b>Duplicate protection:</b> Invoice Number കൊടുത്താൽ അത് വെച്ച് exact duplicate check ചെയ്യും. ഇല്ലെങ്കിൽ Date+Area+Product+Godown+Vehicle+Qty ഒരേ പോലെ ഉള്ള row-കൾ automatic ആയി skip ചെയ്യും (already DB-യിൽ ഉള്ളതും, ഇതേ CSV-യിൽ repeat ആയതും).
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
@@ -9855,7 +9856,7 @@
 
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
-      // Sanity check: expected 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status).
+      // Sanity check: expected 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status). Invoice Number (8th) is optional.
       // Fewer columns usually means an old-format file was used, which silently shifts
       // every value one position and corrupts the upload.
       const firstDataCols = parseCsvLine(lines[0]);
@@ -9867,7 +9868,18 @@
         }
       }
 
-      let successCount = 0, failCount = 0;
+      // Pre-fetch existing purchases once, to duplicate-check locally instead of a query per row.
+      statusEl.textContent = "Existing purchases duplicate-check ന് വേണ്ടി load ചെയ്യുന്നു...";
+      const existingSnap = await getDocs(collection(db, "purchases"));
+      const existingComboKeys = new Set();
+      const existingInvoiceKeys = new Set();
+      existingSnap.forEach(docSnap => {
+        const p = docSnap.data();
+        existingComboKeys.add([p.area || '', p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeName(p.vehicle), String(p.qty || 0)].join('|'));
+        if (p.invoiceNumber && String(p.invoiceNumber).trim()) existingInvoiceKeys.add(String(p.invoiceNumber).trim().toLowerCase());
+      });
+
+      let successCount = 0, failCount = 0, dupCount = 0;
       let failedRows = [];
 
       for (let i = 0; i < lines.length; i++) {
@@ -9880,6 +9892,7 @@
         const qty = parseNum(cols[5]);
         const statusRaw = (cols[6] || '').trim().toLowerCase();
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
+        const invoiceNumber = (cols[7] || '').trim();
 
         if (!date || !area || !product || qty === 0) {
           failCount++;
@@ -9892,15 +9905,33 @@
           continue;
         }
 
+        // Duplicate check: by Invoice Number if given, else by Date+Area+Product+Godown+Vehicle+Qty combo.
+        const comboKey = [area, date, normalizeName(product), normalizeName(godown), normalizeName(vehicle), String(qty)].join('|');
+        const invKey = invoiceNumber ? invoiceNumber.toLowerCase() : '';
+        if (invKey && existingInvoiceKeys.has(invKey)) {
+          dupCount++;
+          failedRows.push({ row: i + 1, raw: lines[i], reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
+          continue;
+        }
+        if (!invKey && existingComboKeys.has(comboKey)) {
+          dupCount++;
+          failedRows.push({ row: i + 1, raw: lines[i], reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
+          continue;
+        }
+
         statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
 
         try {
-          await addDoc(collection(db, "purchases"), {
+          const payload = {
             product: product, godown: godown, vehicle: vehicle,
             area: area, qty: qty, remainingQty: (status === 'approved' ? qty : 0), date: date, status: status,
             enteredBy: currentUserData.username || 'unknown', enteredVia: 'bulk-csv', createdAt: new Date().toISOString()
-          });
+          };
+          if (invoiceNumber) payload.invoiceNumber = invoiceNumber;
+          await addDoc(collection(db, "purchases"), payload);
           successCount++;
+          existingComboKeys.add(comboKey);
+          if (invKey) existingInvoiceKeys.add(invKey);
         } catch (e) {
           failCount++;
           failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
@@ -9908,7 +9939,7 @@
       }
 
       statusEl.style.color = '#2e7d32';
-      statusEl.textContent = `Done! ${successCount} purchases added.` + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
+      statusEl.textContent = `Done! ${successCount} purchases added.` + (dupCount > 0 ? ` (${dupCount} duplicate skip ചെയ്തു)` : '') + (failCount > 0 ? ` (${failCount} failed/skipped)` : '');
       renderFailedRowsReport('purchaseCsvFailedRows', failedRows);
       fileInput.value = '';
 
