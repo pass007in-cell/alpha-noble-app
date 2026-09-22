@@ -1849,6 +1849,35 @@
       </div>
     </details>
 
+    <details class="add-user-form" style="background:#fce4ec;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#ad1457;">🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക</summary>
+      <div class="details-body">
+      <p style="font-size:13px; color:#555; margin-bottom:10px;">
+        Purchase data പൂർണമായും delete ചെയ്ത് പുതുതായി upload ചെയ്താൽ, പഴയ Sales-ന്റെ <b>lots</b> link ഇപ്പോൾ ഇല്ലാത്ത (delete ആയ) Purchase record-കളെ ചൂണ്ടിക്കാണിച്ചുകൊണ്ട് അവശേഷിക്കും. ഈ Sales "linked" ആയി തന്നെ കാണിക്കും (Unlinked Sales list-ൽ വരില്ല), പക്ഷേ യഥാർത്ഥത്തിൽ അവയുടെ link ഒരു "ghost" purchase-ലേക്കാണ് — അതുകൊണ്ട് പുതിയ Purchase lots-ന്റെ Remaining Qty യഥാർത്ഥ available stock-നേക്കാൾ കൂടുതൽ ആയി കാണിക്കും.
+      </p>
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        <b>Step 1:</b> ഇവിടെ Scan ചെയ്ത് ഈ "orphaned" links കണ്ടെത്തി Clear ചെയ്യുക (ആ Sales വീണ്ടും "Advance/Unlinked" ആയി മാറും, Purchase-നെ ഒന്നും ബാധിക്കില്ല).<br>
+        <b>Step 2:</b> അതിന് ശേഷം <b>🔗 Old Advance</b> tab-ലെ <b>"Bulk Auto-Link"</b> ഉപയോഗിച്ച് ഈ Sales-നെ പുതിയ Purchase lots-ലേക്ക് വീണ്ടും link ചെയ്യുക.
+      </p>
+      <button class="full-btn" style="background:#ad1457;" onclick="scanOrphanedSaleLinks()">🔍 Orphaned Links Scan ചെയ്യുക</button>
+      <div id="orphanScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="orphanResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:6px;">
+          <strong><span id="orphanCount">0</span></strong> Sales-ൽ orphaned links കണ്ടെത്തി — ആകെ <strong><span id="orphanQty">0</span></strong> Qty.
+        </p>
+        <p style="font-size:12px; color:#777; margin-bottom:10px;" id="orphanAreaBreakdown"></p>
+        <div class="table-wrap" style="margin-bottom:14px; max-height:350px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Orphan Qty</th></tr></thead>
+            <tbody id="orphanListBody"></tbody>
+          </table>
+        </div>
+        <button class="full-btn" style="background:#c62828;" onclick="clearOrphanedSaleLinks()">🧹 ഈ Sales-ലെ Orphaned Links Clear ചെയ്യുക</button>
+      </div>
+      </div>
+    </details>
+
     <details class="add-user-form" style="background:#e8eaf6;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
       <summary style="color:#283593;">🧾 Bulk ആയി Invoice Number ചേർക്കുക (പഴയ Purchases)</summary>
       <div class="details-body">
@@ -2069,9 +2098,10 @@
       <summary>📂 Bulk Upload — Old Purchases (CSV)</summary>
       <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional)<br>
-        ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).<br>
-        <b>Duplicate protection:</b> Invoice Number കൊടുത്താൽ അത് വെച്ച് exact duplicate check ചെയ്യും. ഇല്ലെങ്കിൽ Date+Area+Product+Godown+Vehicle+Qty ഒരേ പോലെ ഉള്ള row-കൾ automatic ആയി skip ചെയ്യും (already DB-യിൽ ഉള്ളതും, ഇതേ CSV-യിൽ repeat ആയതും).
+        1-ാമത്തെ row **header** ആയി വേണം (Date, Area, Product, Godown, Vehicle, Qty, Status, Invoice Number എന്ന പേരുകൾ) — header ഉണ്ടെങ്കിൽ columns ഏത് ക്രമത്തിൽ ആയാലും ശരി ആയി തിരിച്ചറിയും. Header ഇല്ലെങ്കിൽ മാത്രം ഈ fixed ക്രമം ഉപയോഗിക്കും: Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional).<br>
+        Status=Approved ആയ rows-ന്റെ Remaining Qty = Qty ആയി തന്നെ വെക്കും (full stock available എന്ന നിലയിൽ) — ഇത് പിന്നീട് <b>🔗 Old Advance</b> tab-ലെ "Bulk Auto-Link" വഴി പഴയ Sales-നോട് ശരിയായി link ചെയ്യാൻ വേണ്ടിയാണ്. Status=Pending ആണെങ്കിൽ 0 ആയി വെക്കും.<br>
+        <b>Duplicate protection:</b> Invoice Number കൊടുത്താൽ അത് വെച്ച് exact duplicate check ചെയ്യും. ഇല്ലെങ്കിൽ Date+Area+Product+Godown+Vehicle+Qty ഒരേ പോലെ ഉള്ള row-കൾ automatic ആയി skip ചെയ്യും (already DB-യിൽ ഉള്ളതും, ഇതേ CSV-യിൽ repeat ആയതും).<br>
+        <b>⚠️ മുഴുവൻ Purchase data delete ചെയ്ത് ഇത് re-upload ചെയ്യുകയാണെങ്കിൽ:</b> പഴയ Sales-ന്റെ lot-links ഇപ്പോൾ ഇല്ലാത്ത (deleted) Purchase-കളെ ചൂണ്ടും — അത് "🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക" എന്ന tool വഴി Clear ചെയ്ത്, "🔗 Old Advance" tab-ലെ Bulk Auto-Link വഴി വീണ്ടും link ചെയ്യണം.
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
@@ -2579,7 +2609,8 @@
     addDoc,
     query,
     where,
-    orderBy
+    orderBy,
+    writeBatch
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -9171,6 +9202,112 @@
     }
   };
 
+  // ---- ADMIN: FIND & CLEAR ORPHANED SALE→PURCHASE LOT LINKS ----
+  // If all Purchase docs are deleted and re-uploaded, old Sales' `lots[].purchaseId`
+  // entries end up pointing at Purchase docs that no longer exist. Those Sales still
+  // look "linked" (isAdvance stays false, since lots-sum still equals the sale qty),
+  // so they never show up in the Unlinked Sales views, and the new Purchase's
+  // remainingQty never gets reduced for stock that was, in reality, already sold.
+  // This scans for exactly that mismatch and clears it (removes the dead lot entries,
+  // re-flags the sale as needing linking) so the existing "Bulk Auto-Link" tool
+  // (🔗 Old Advance tab) can then re-match them against the new Purchase lots.
+  let orphanedSalesScan = [];
+  let orphanExistingPurchaseIds = new Set();
+
+  window.scanOrphanedSaleLinks = async function () {
+    const statusEl = document.getElementById('orphanScanStatus');
+    const resultBox = document.getElementById('orphanResultBox');
+    resultBox.style.display = 'none';
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Scanning (എല്ലാ Purchases, Sales)...";
+
+    try {
+      const purchSnap = await getDocs(collection(db, "purchases"));
+      orphanExistingPurchaseIds = new Set();
+      purchSnap.forEach(docSnap => orphanExistingPurchaseIds.add(docSnap.id));
+
+      const saleSnap = await getDocs(collection(db, "sales"));
+      orphanedSalesScan = [];
+      saleSnap.forEach(docSnap => {
+        const sd = docSnap.data();
+        const lots = sd.lots || [];
+        if (lots.length === 0) return;
+        const orphanQty = lots.filter(l => !orphanExistingPurchaseIds.has(l.purchaseId)).reduce((s, l) => s + (l.qty || 0), 0);
+        if (orphanQty > 0) {
+          orphanedSalesScan.push({
+            id: docSnap.id, area: sd.area || '-', date: sd.date || '', customerName: sd.customerName || '',
+            product: sd.product || '', godown: sd.godown || '', vehicle: sd.vehicle || '', qty: sd.qty || 0, orphanQty
+          });
+        }
+      });
+
+      if (orphanedSalesScan.length === 0) {
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = "✅ Orphaned links ഒന്നും കണ്ടെത്തിയില്ല.";
+        return;
+      }
+
+      statusEl.textContent = '';
+      const totalQty = orphanedSalesScan.reduce((s, x) => s + x.orphanQty, 0);
+      const byArea = {};
+      orphanedSalesScan.forEach(x => { byArea[x.area] = (byArea[x.area] || 0) + x.orphanQty; });
+
+      document.getElementById('orphanCount').textContent = orphanedSalesScan.length;
+      document.getElementById('orphanQty').textContent = totalQty;
+      document.getElementById('orphanAreaBreakdown').textContent =
+        'Area-wise: ' + Object.entries(byArea).map(([a, q]) => `${a}: ${q}`).join(' · ');
+
+      let rows = '';
+      orphanedSalesScan.slice(0, 300).forEach(x => {
+        rows += `<tr><td>${fmtDate(x.date)}</td><td>${x.area}</td><td>${x.customerName}</td><td>${x.product}</td><td>${x.godown || '-'}</td><td>${x.vehicle || '-'}</td><td>${x.orphanQty}</td></tr>`;
+      });
+      if (orphanedSalesScan.length > 300) {
+        rows += `<tr><td colspan="7" style="text-align:center; color:#888;">...ബാക്കി ${orphanedSalesScan.length - 300} records കൂടി (Clear ചെയ്യുമ്പോൾ എല്ലാം ഉൾപ്പെടും)</td></tr>`;
+      }
+      document.getElementById('orphanListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Scan പരാജയപ്പെട്ടു.";
+    }
+  };
+
+  window.clearOrphanedSaleLinks = async function () {
+    if (orphanedSalesScan.length === 0) return;
+    const totalQty = orphanedSalesScan.reduce((s, x) => s + x.orphanQty, 0);
+    if (!confirm(`${orphanedSalesScan.length} Sales-ലെ orphaned links (ആകെ ${totalQty} Qty) clear ചെയ്യാൻ പോകുന്നു. ഇവ വീണ്ടും "Advance/Unlinked" ആയി മാറും — Purchase records-നെ ഇത് ബാധിക്കില്ല. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല. തുടരണോ?`)) return;
+
+    const statusEl = document.getElementById('orphanScanStatus');
+    let okCount = 0, failCount = 0;
+
+    for (let i = 0; i < orphanedSalesScan.length; i++) {
+      const item = orphanedSalesScan[i];
+      statusEl.style.color = '#555';
+      statusEl.textContent = `Clearing ${i + 1} / ${orphanedSalesScan.length}...`;
+      try {
+        const saleSnap = await getDoc(doc(db, "sales", item.id));
+        if (!saleSnap.exists()) { failCount++; continue; }
+        const sd = saleSnap.data();
+        const lots = sd.lots || [];
+        const keptLots = lots.filter(l => orphanExistingPurchaseIds.has(l.purchaseId));
+        const linkedQty = keptLots.reduce((s, l) => s + (l.qty || 0), 0);
+        const stillAdvance = linkedQty < (sd.qty || 0);
+        await updateDoc(doc(db, "sales", item.id), { lots: keptLots, isAdvance: stillAdvance });
+        okCount++;
+      } catch (err) {
+        console.error(err);
+        failCount++;
+      }
+    }
+
+    statusEl.style.color = '#2e7d32';
+    statusEl.textContent = `✅ Done! ${okCount} Sales clear ചെയ്തു.` + (failCount > 0 ? ` (${failCount} failed)` : '') +
+      ` ഇനി "🔗 Old Advance" tab-ലെ "Bulk Auto-Link" ഉപയോഗിച്ച് ഇവയെ പുതിയ Purchase lots-ലേക്ക് re-link ചെയ്യുക.`;
+    document.getElementById('orphanResultBox').style.display = 'none';
+    orphanedSalesScan = [];
+  };
+
   // ---- ADMIN: FIND & FIX REMAINING QTY MISMATCHES ----
   // Recomputes each lot's "correct" remaining as Purchased Qty − (sum of qty actually
   // linked to it via sale.lots), independent of whatever remainingQty currently says —
@@ -9851,17 +9988,34 @@
     try {
       const text = await file.text();
       let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
-      if (firstCols[0] && firstCols[0].includes('date')) lines = lines.slice(1);
+      if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
+
+      // Header-aware column mapping: if the first row looks like a header, map columns by NAME
+      // (so the order in the file doesn't matter and can't silently shift values into the wrong field).
+      // Falls back to the fixed position order (Date,Area,Product,Godown,Vehicle,Qty,Status,InvoiceNumber)
+      // only when no header row is present.
+      const headerNameMap = { date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty', status: 'status', invoicenumber: 'invoiceNumber', invoiceno: 'invoiceNumber', invoice: 'invoiceNumber' };
+      const firstCols = parseCsvLine(lines[0]).map(c => c.trim().toLowerCase().replace(/[^a-z]/g, ''));
+      let colIdx = { date: 0, area: 1, product: 2, godown: 3, vehicle: 4, qty: 5, status: 6, invoiceNumber: 7 };
+      let hasHeader = false;
+      if (firstCols[0] && firstCols[0].includes('date')) {
+        hasHeader = true;
+        const mapped = {};
+        firstCols.forEach((h, idx) => { if (headerNameMap[h]) mapped[headerNameMap[h]] = idx; });
+        // Only trust the header mapping if it found the essential columns; else keep fixed-position fallback.
+        if (mapped.date !== undefined && mapped.area !== undefined && mapped.product !== undefined && mapped.qty !== undefined) {
+          colIdx = { date: mapped.date, area: mapped.area, product: mapped.product, godown: mapped.godown, vehicle: mapped.vehicle, qty: mapped.qty, status: mapped.status, invoiceNumber: mapped.invoiceNumber };
+        }
+        lines = lines.slice(1);
+      }
 
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
-      // Sanity check: expected 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status). Invoice Number (8th) is optional.
-      // Fewer columns usually means an old-format file was used, which silently shifts
-      // every value one position and corrupts the upload.
+      // Sanity check: expected at least 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status). Invoice Number is optional.
+      // Fewer columns usually means an old-format file was used, which silently shifts every value one position.
       const firstDataCols = parseCsvLine(lines[0]);
-      if (firstDataCols.length < 7) {
-        if (!confirm(`⚠️ ഈ file-ൽ ${firstDataCols.length} columns മാത്രമേ ഉള്ളൂ (7 വേണം: Date,Area,Product,Godown,Vehicle,Qty,Status). പഴയ format ആണെങ്കിൽ data തെറ്റായി വീണേക്കാം. എന്നാലും തുടരണോ?`)) {
+      if (!hasHeader && firstDataCols.length < 7) {
+        if (!confirm(`⚠️ ഈ file-ൽ ${firstDataCols.length} columns മാത്രമേ ഉള്ളൂ (7 വേണം: Date,Area,Product,Godown,Vehicle,Qty,Status), header row ഉം ഇല്ല. പഴയ format ആണെങ്കിൽ data തെറ്റായി വീണേക്കാം. എന്നാലും തുടരണോ?`)) {
           statusEl.style.color = '#d32f2f';
           statusEl.textContent = "Cancel ചെയ്തു — column count ശരിയാക്കി വീണ്ടും ശ്രമിക്കുക.";
           return;
@@ -9884,15 +10038,16 @@
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
-        const date = (cols[0] || '').trim();
-        const area = (cols[1] || '').trim().toUpperCase();
-        const product = (cols[2] || '').trim();
-        const godown = (cols[3] || '').trim();
-        const vehicle = (cols[4] || '').trim();
-        const qty = parseNum(cols[5]);
-        const statusRaw = (cols[6] || '').trim().toLowerCase();
+        const rowNum = hasHeader ? i + 2 : i + 1; // +2 accounts for the stripped header row, for accurate error reporting
+        const date = (cols[colIdx.date] || '').trim();
+        const area = (cols[colIdx.area] || '').trim().toUpperCase();
+        const product = (cols[colIdx.product] || '').trim();
+        const godown = colIdx.godown !== undefined ? (cols[colIdx.godown] || '').trim() : '';
+        const vehicle = colIdx.vehicle !== undefined ? (cols[colIdx.vehicle] || '').trim() : '';
+        const qty = parseNum(cols[colIdx.qty]);
+        const statusRaw = colIdx.status !== undefined ? (cols[colIdx.status] || '').trim().toLowerCase() : '';
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
-        const invoiceNumber = (cols[7] || '').trim();
+        const invoiceNumber = colIdx.invoiceNumber !== undefined ? (cols[colIdx.invoiceNumber] || '').trim() : '';
 
         if (!date || !area || !product || qty === 0) {
           failCount++;
@@ -9901,7 +10056,7 @@
           if (!area) missing.push('Area');
           if (!product) missing.push('Product');
           if (qty === 0) missing.push('Qty (0 ആകാൻ പാടില്ല)');
-          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
           continue;
         }
 
@@ -9910,12 +10065,12 @@
         const invKey = invoiceNumber ? invoiceNumber.toLowerCase() : '';
         if (invKey && existingInvoiceKeys.has(invKey)) {
           dupCount++;
-          failedRows.push({ row: i + 1, raw: lines[i], reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
           continue;
         }
         if (!invKey && existingComboKeys.has(comboKey)) {
           dupCount++;
-          failedRows.push({ row: i + 1, raw: lines[i], reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
           continue;
         }
 
@@ -9934,7 +10089,7 @@
           if (invKey) existingInvoiceKeys.add(invKey);
         } catch (e) {
           failCount++;
-          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
       }
 
