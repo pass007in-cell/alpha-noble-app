@@ -760,8 +760,8 @@
     <div id="repSalesCheckedOkBox"></div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th><th>✅ Checked</th></tr></thead>
-        <tbody id="repSalesBody"><tr><td colspan="12">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Qty</th><th>Unit Price</th><th>Discount</th><th>Freight</th><th>Amount</th><th>Status</th><th>✅ Checked</th><th></th></tr></thead>
+        <tbody id="repSalesBody"><tr><td colspan="13">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -780,8 +780,8 @@
     <div id="repCollCheckedOkBox"></div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th><th>✅ Checked</th></tr></thead>
-        <tbody id="repCollBody"><tr><td colspan="8">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Mode</th><th>Account</th><th>Amount</th><th>Status</th><th>✅ Checked</th><th></th></tr></thead>
+        <tbody id="repCollBody"><tr><td colspan="9">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -2726,6 +2726,12 @@
       statusEl.textContent = "Save ചെയ്യാൻ പറ്റിയില്ല.";
     }
   };
+  // Set when a User opens Edit for their own Sale/Collection FROM the Customer Ledger
+  // modal or the Report tab (instead of the Entry tab's own Today's list) — after Save,
+  // this tells us to navigate back to that Ledger/Report view (refreshed) instead of
+  // leaving the User sitting on the Entry tab.
+  // { type:'ledger', custId } or { type:'report' } or null.
+  let userEditReturnTo = null;
   let editingSaleId = null;
   let editingSaleOldLots = [];
   let editingSaleOldStatus = 'pending';
@@ -3316,13 +3322,19 @@
       const chkHtml = t.checkedOk
         ? `<span style="color:#2e7d32; font-size:11px;">✅ ${t.checkedOkBy || '?'}${t.checkedOkRole === 'admin' ? ' (Admin)' : ''}</span>${currentUserData.role === 'admin' ? ` <button class="del-btn" style="background:#ffebee; color:#c62828; font-size:10px; padding:2px 5px;" onclick="unlockLedgerTxnChecked('${t._type}','${t.id}')">🔓</button>` : ''}`
         : `<button class="del-btn" style="background:#e8f5e9; color:#2e7d32; font-size:10px; padding:2px 6px;" onclick="markLedgerTxnChecked('${t._type}','${t.id}')">✅ Check OK</button>`;
+      // Own entry, still inside the self-edit window (up to the 2nd of next month) — same
+      // rule used on the Entry tab's own Today's list.
+      const canEdit = t.enteredBy === currentUserData.username && isUserEditWindowOpen(t.date);
+      const editHtml = canEdit
+        ? ` <button class="del-btn" style="background:#e3f2fd; color:#1565c0; font-size:10px; padding:2px 6px;" onclick="${t._type === 'sale' ? 'editSaleRow' : 'editCollRow'}('${t.id}','ledger')">Edit</button>`
+        : '';
       if (t._type === 'sale') {
         runningBal += (t.amount || 0);
         rows += `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;">
           <div>
             <div style="font-weight:600; color:#333;">${t.product || '-'}</div>
             <div style="color:#999; font-size:12px;">${fmtDate(t.date)} · Qty: ${t.qty || '-'} · Sale</div>
-            <div style="margin-top:4px;">${chkHtml}</div>
+            <div style="margin-top:4px;">${chkHtml}${editHtml}</div>
           </div>
           <div style="color:#c62828; font-weight:600;">+₹${(t.amount || 0).toLocaleString('en-IN')}</div>
         </div>`;
@@ -3332,7 +3344,7 @@
           <div>
             <div style="font-weight:600; color:#333;">Collection (${t.mode || '-'})</div>
             <div style="color:#999; font-size:12px;">${fmtDate(t.date)}</div>
-            <div style="margin-top:4px;">${chkHtml}</div>
+            <div style="margin-top:4px;">${chkHtml}${editHtml}</div>
           </div>
           <div style="color:#2e7d32; font-weight:600;">-₹${(t.amount || 0).toLocaleString('en-IN')}</div>
         </div>`;
@@ -3606,6 +3618,9 @@
   const allTabs = ['entry', 'linking', 'reports', 'report'];
 
   window.switchTab = function (tab) {
+    // Abandoning the Entry tab without saving (navigating elsewhere manually) — don't leave
+    // a stale "return to Ledger/Report" intent hanging around for some later, unrelated save.
+    if (tab !== 'entry') userEditReturnTo = null;
     allTabs.forEach(t => {
       const panel = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1));
       const btn = document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1) + 'Btn');
@@ -4120,6 +4135,7 @@
 
       loadTodaysSales();
       loadAdvanceSales();
+      handleUserEditReturn();
 
     } catch (err) {
       console.error(err);
@@ -4191,11 +4207,16 @@
     }
   }
 
-  window.editSaleRow = async function (id) {
+  window.editSaleRow = async function (id, returnTo) {
     try {
       const snap = await getDoc(doc(db, "sales", id));
       if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
       const d = snap.data();
+
+      if (returnTo === 'ledger') closeLedger(); // it's a fixed overlay — hide it before showing Entry tab
+      userEditReturnTo = returnTo
+        ? (returnTo === 'ledger' ? { type: 'ledger', custId: document.getElementById('ledgerCustId').value } : { type: 'report', subTab: 'sale' })
+        : null;
 
       switchTab('entry'); switchEntrySubTab('sale');
       await new Promise(r => setTimeout(r, 50)); // let dropdowns populate
@@ -4250,6 +4271,22 @@
       alert("Edit ചെയ്യാൻ പറ്റിയില്ല.");
     }
   };
+
+  // After a User saves an edit that was opened from the Customer Ledger or the Report tab
+  // (via editSaleRow/editCollRow's returnTo param), navigate back there (refreshed) instead
+  // of leaving them on the Entry tab. Returns true if it handled the navigation.
+  function handleUserEditReturn() {
+    if (!userEditReturnTo) return false;
+    const rt = userEditReturnTo;
+    userEditReturnTo = null;
+    if (rt.type === 'ledger' && rt.custId) {
+      openLedger(rt.custId);
+    } else if (rt.type === 'report') {
+      switchTab('report'); // this always lands on the Sale sub-tab first
+      if (rt.subTab === 'collection') switchReportSubTab('collection');
+    }
+    return true;
+  }
 
   window.deleteSaleRow = async function (id) {
     if (!confirm("ഈ Sale delete ചെയ്യണോ? (Stock lot balance തിരിച്ച് add ചെയ്യും)")) return;
@@ -6443,6 +6480,7 @@
       btn.textContent = "Save Collection";
 
       loadTodaysCollections();
+      handleUserEditReturn();
 
     } catch (err) {
       console.error(err);
@@ -6496,11 +6534,16 @@
     }
   }
 
-  window.editCollRow = async function (id) {
+  window.editCollRow = async function (id, returnTo) {
     try {
       const snap = await getDoc(doc(db, "collections", id));
       if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
       const d = snap.data();
+
+      if (returnTo === 'ledger') closeLedger(); // it's a fixed overlay — hide it before showing Entry tab
+      userEditReturnTo = returnTo
+        ? (returnTo === 'ledger' ? { type: 'ledger', custId: document.getElementById('ledgerCustId').value } : { type: 'report', subTab: 'collection' })
+        : null;
 
       switchTab('entry'); switchEntrySubTab('collection');
       await new Promise(r => setTimeout(r, 50));
@@ -7150,9 +7193,9 @@
       return;
     }
 
-    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="12">Loading...</td></tr>';
+    document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="13">Loading...</td></tr>';
     document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
-    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    document.getElementById('repCollBody').innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
@@ -7188,15 +7231,19 @@
       let salesRows = sales.map(d => {
         const badge = (d.status || 'pending') === 'pending'
           ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+        const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
+        const editBtn = canEdit
+          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="editSaleRow('${d.id}','report')">Edit</button>` : '';
         return `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
         <td>${d.qty || '-'}</td><td>₹${(d.rate || 0).toLocaleString('en-IN')}</td>
         <td>₹${(d.discAmt || 0).toLocaleString('en-IN')}</td><td>₹${(d.freight || 0).toLocaleString('en-IN')}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
-        <td>${renderCheckedOkCell('sales', d, d.id, currentUserData.role === 'admin')}</td></tr>`;
+        <td>${renderCheckedOkCell('sales', d, d.id, currentUserData.role === 'admin')}</td>
+        <td>${editBtn}</td></tr>`;
       }).join('');
       document.getElementById('repSalesBody').innerHTML = salesRows ||
-        '<tr><td colspan="12">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="13">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
 
       // Purchase table (Date, Area, Product, Godown, Vehicle, Qty, Status)
       let purchaseRows = purchases.map(d => {
@@ -7214,13 +7261,17 @@
         const isCash = (d.mode || '').toLowerCase() === 'cash';
         const badge = (d.status || 'pending') === 'pending'
           ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+        const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
+        const editBtn = canEdit
+          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="editCollRow('${d.id}','report')">Edit</button>` : '';
         return `<tr class="${isCash ? 'cash-row' : ''}">
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>${d.account || '-'}</td>
         <td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${badge}</td>
-        <td>${renderCheckedOkCell('collections', d, d.id, currentUserData.role === 'admin')}</td></tr>`;
+        <td>${renderCheckedOkCell('collections', d, d.id, currentUserData.role === 'admin')}</td>
+        <td>${editBtn}</td></tr>`;
       }).join('');
       document.getElementById('repCollBody').innerHTML = collRows ||
-        '<tr><td colspan="8">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="9">ഈ range-ൽ collections ഒന്നും ഇല്ല.</td></tr>';
 
       currentRepSaleCheckKey = `report_sale_${currentWorkingArea}_${from}_${to}`;
       currentRepCollCheckKey = `report_coll_${currentWorkingArea}_${from}_${to}`;
