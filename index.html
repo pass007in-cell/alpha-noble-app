@@ -646,14 +646,19 @@
           <label>Quantity</label>
           <input type="number" id="purchaseQty" placeholder="1" value="1" onfocus="this.select()">
         </div>
+        <div>
+          <label>Invoice Number <span style="color:#c62828;">*</span></label>
+          <input type="text" id="purchaseInvoiceNumber" placeholder="e.g. INV-1234">
+        </div>
       </div>
+      <p style="font-size:11px; color:#777; margin:-8px 0 12px;">Duplicate Purchase entries ഒഴിവാക്കാൻ — ഈ Invoice Number-ൽ നേരത്തെ ഒരു Purchase ഉണ്ടെങ്കിൽ save ചെയ്യാൻ പറ്റില്ല.</p>
       <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
     </div>
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases <span style="font-size:12px; color:#777; font-weight:400;">(+ ബാക്കി Pending ഉള്ളവ)</span></h3>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Status</th><th></th></tr></thead>
-        <tbody id="purchaseTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Invoice No.</th><th>Status</th><th></th></tr></thead>
+        <tbody id="purchaseTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -799,8 +804,8 @@
     </div>
     <div class="table-wrap" style="margin-bottom:20px;">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Status</th></tr></thead>
-        <tbody id="repPurchaseBody"><tr><td colspan="7">—</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Invoice No.</th><th>Status</th></tr></thead>
+        <tbody id="repPurchaseBody"><tr><td colspan="8">—</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -1309,6 +1314,9 @@
           <input type="number" id="adminPurchaseQty" placeholder="1" value="1" onfocus="this.select()">
         </div>
       </div>
+      <label>Invoice Number <span style="color:#c62828;">*</span></label>
+      <input type="text" id="adminPurchaseInvoiceNumber" placeholder="e.g. INV-1234" style="margin-bottom:4px;">
+      <p style="font-size:11px; color:#777; margin:0 0 12px;">Duplicate Purchase entries ഒഴിവാക്കാൻ — ഈ Invoice Number-ൽ (ഏത് Area-യിലും) നേരത്തെ ഒരു Purchase ഉണ്ടെങ്കിൽ save ചെയ്യാൻ പറ്റില്ല.</p>
 
       <button class="full-btn" id="addAdminPurchaseBtn" onclick="handleAdminAddPurchase()">Save Purchase</button>
     </div>
@@ -1316,8 +1324,8 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases (all areas)</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th></th></tr></thead>
-        <tbody id="adminPurchaseTableBody"><tr><td colspan="7">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Invoice No.</th><th></th></tr></thead>
+        <tbody id="adminPurchaseTableBody"><tr><td colspan="8">Loading...</td></tr></tbody>
       </table>
     </div>
     </div>
@@ -1837,6 +1845,36 @@
           </table>
         </div>
         <button class="full-btn" style="background:#c62828;" onclick="deleteDuplicatePurchases()">🗑️ Extra Duplicates മാത്രം Delete ചെയ്യുക (1 എണ്ണം വീതം നിലനിർത്തും)</button>
+      </div>
+      </div>
+    </details>
+
+    <details class="add-user-form" style="background:#e8eaf6;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#283593;">🧾 Bulk ആയി Invoice Number ചേർക്കുക (പഴയ Purchases)</summary>
+      <div class="details-body">
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        പഴയ Purchase records-ന് Invoice Number ഇല്ലല്ലോ — അവയ്ക്ക് ഇപ്പോൾ Invoice Number കയ്യിൽ കിട്ടിയാൽ, ഒരു CSV file ആയി upload ചെയ്ത് bulk ആയി ചേർക്കാം. App, Date+Product+Godown+Vehicle+Qty ഇവ വച്ച് ശരിയായ Purchase record കണ്ടെത്തി Invoice Number സ്വയം സെറ്റ് ചെയ്യും. ഒന്നിലധികം records ഒരേ പോലെ ഉണ്ടെങ്കിൽ (ambiguous) ഏതാണ് എന്ന് നിങ്ങൾ select ചെയ്യണം. Invoice Number നേരത്തെ ഉള്ള records touch ചെയ്യില്ല.
+      </p>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        CSV columns: <strong>Date (YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Invoice Number</strong> (Vehicle ഇല്ലെങ്കിൽ ശൂന്യമായി വിടുക).
+      </p>
+      <input type="file" id="invoiceBulkCsvFile" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#283593;" onclick="handleInvoiceBulkUpload()">🧾 Invoice Numbers Process ചെയ്യുക</button>
+      <div id="invoiceBulkStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="invoiceAutoMatchedBox" style="display:none; margin-top:16px; background:#e8f5e9; border-radius:10px; padding:12px;">
+        <p style="font-size:13px; color:#2e7d32; font-weight:600;">✅ <span id="invoiceAutoMatchedCount">0</span> purchases-ന് Invoice Number automatic ആയി set ചെയ്തു.</p>
+      </div>
+
+      <div id="invoiceAmbiguousBox" style="display:none; margin-top:16px;">
+        <h4 style="font-size:14px; color:#e65100; margin-bottom:8px;">⚠️ ഒന്നിലധികം matching purchases (ഏതെന്ന് select ചെയ്യുക)</h4>
+        <div id="invoiceAmbiguousList"></div>
+      </div>
+
+      <div id="invoiceNotFoundBox" style="display:none; margin-top:16px;">
+        <h4 style="font-size:14px; color:#c62828; margin-bottom:8px;">❌ Match ആയ Purchase കണ്ടെത്താനായില്ല</h4>
+        <p style="font-size:12px; color:#777; margin-bottom:8px;">ഈ rows-ന് Date+Product+Godown+Vehicle+Qty exact ആയി match ആയ Purchase record ഇല്ല (details തെറ്റിയതാകാം, അല്ലെങ്കിൽ ആ record ഇതിനകം invoice number ഉള്ളതാകാം). Purchase list-ൽ നിന്ന് manual ആയി Edit ചെയ്ത് ചേർക്കേണ്ടി വരും.</p>
+        <div id="invoiceNotFoundList"></div>
       </div>
       </div>
     </details>
@@ -3419,6 +3457,137 @@
   function normalizeName(str) {
     return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
+
+  // ============ PURCHASE: Invoice Number duplicate check ============
+  // Invoice Number must be unique across ALL areas (same paper invoice never has two
+  // different Purchase entries). Returns the existing conflicting Purchase doc {id, ...data}
+  // if one is found, or null if the number is free to use. `excludeId` is passed when
+  // editing an existing purchase, so it doesn't flag itself as a duplicate of itself.
+  async function findDuplicateInvoiceNumber(invoiceNumber, excludeId) {
+    const trimmed = (invoiceNumber || '').trim();
+    if (!trimmed) return null;
+    // Exact-value query (fast, indexed) — catches the normal case, including where the
+    // number was typed exactly the same way (copy-pasted or read off the same invoice).
+    const snap = await getDocs(query(collection(db, "purchases"), where("invoiceNumber", "==", trimmed)));
+    let found = null;
+    snap.forEach(docSnap => {
+      if (found) return;
+      if (excludeId && docSnap.id === excludeId) return;
+      found = { id: docSnap.id, ...docSnap.data() };
+    });
+    return found;
+  }
+
+  // ============ Bulk Assign Invoice Numbers (old Purchases) ============
+  let invoiceBulkAllPurchases = [];
+
+  window.handleInvoiceBulkUpload = async function () {
+    const fileInput = document.getElementById('invoiceBulkCsvFile');
+    const statusEl = document.getElementById('invoiceBulkStatus');
+    document.getElementById('invoiceAutoMatchedBox').style.display = 'none';
+    document.getElementById('invoiceAmbiguousBox').style.display = 'none';
+    document.getElementById('invoiceNotFoundBox').style.display = 'none';
+
+    if (!fileInput.files[0]) { statusEl.textContent = "CSV file select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
+
+    statusEl.textContent = "Processing...";
+    statusEl.style.color = '#555';
+
+    try {
+      const text = await fileInput.files[0].text();
+      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+      lines.shift(); // drop header
+
+      const purchSnap = await getDocs(collection(db, "purchases"));
+      invoiceBulkAllPurchases = [];
+      purchSnap.forEach(docSnap => invoiceBulkAllPurchases.push({ id: docSnap.id, ...docSnap.data() }));
+      // Only records that don't already have an Invoice Number are candidates — never
+      // silently overwrite one that's already set.
+      const candidatesPool = invoiceBulkAllPurchases.filter(p => !p.invoiceNumber);
+
+      const matchKey = (p) => [p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeName(p.vehicle), String(p.qty || 0)].join('|');
+
+      let autoMatchedCount = 0;
+      let ambiguousRows = [];
+      let notFoundRows = [];
+
+      for (const line of lines) {
+        const cols = parseCsvLine(line);
+        const csvDate = (cols[0] || '').trim();
+        const csvArea = (cols[1] || '').trim().toUpperCase();
+        const csvProduct = (cols[2] || '').trim();
+        const csvGodown = (cols[3] || '').trim();
+        const csvVehicle = (cols[4] || '').trim();
+        const csvQty = (cols[5] || '').trim();
+        const invoiceNumber = (cols[6] || '').trim();
+        if (!csvDate || !csvProduct || !invoiceNumber) continue;
+
+        const key = [csvDate, normalizeName(csvProduct), normalizeName(csvGodown), normalizeName(csvVehicle), String(parseFloat(csvQty) || 0)].join('|');
+        let candidates = candidatesPool.filter(p => matchKey(p) === key);
+        if (csvArea && candidates.length > 1) {
+          candidates = candidates.filter(p => (p.area || '').toUpperCase() === csvArea);
+        }
+
+        if (candidates.length === 1) {
+          await updateDoc(doc(db, "purchases", candidates[0].id), { invoiceNumber: invoiceNumber });
+          candidates[0].invoiceNumber = invoiceNumber; // keep local copy in sync, so it's excluded from further matches this run
+          autoMatchedCount++;
+        } else if (candidates.length > 1) {
+          ambiguousRows.push({ csvDate, csvArea, csvProduct, csvGodown, csvVehicle, csvQty, invoiceNumber, candidates });
+        } else {
+          notFoundRows.push({ csvDate, csvArea, csvProduct, csvGodown, csvVehicle, csvQty, invoiceNumber });
+        }
+      }
+
+      statusEl.textContent = '';
+
+      if (autoMatchedCount > 0) {
+        document.getElementById('invoiceAutoMatchedCount').textContent = autoMatchedCount;
+        document.getElementById('invoiceAutoMatchedBox').style.display = 'block';
+      }
+
+      if (ambiguousRows.length > 0) {
+        const html = ambiguousRows.map(r => {
+          const opts = r.candidates.map(p => `<button class="del-btn" style="background:#fff3e0; color:#e65100; margin:3px;" onclick="applyInvoiceToPurchase('${p.id}','${r.invoiceNumber.replace(/'/g, "\\'")}', this)">${p.area || '-'} · ${fmtDate(p.date)} · Qty: ${p.qty || '-'} · ID: ${p.id.slice(0, 6)}...</button>`).join('');
+          return `<div style="border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px;">
+            <p style="font-size:13px; font-weight:600;">CSV-ൽ: ${r.csvDate} · ${r.csvProduct} · ${r.csvGodown || '-'} · ${r.csvVehicle || '-'} · Qty: ${r.csvQty} (Invoice: ${r.invoiceNumber})</p>
+            <p style="font-size:12px; color:#777; margin:6px 0;">ഇതിൽ ഏതാണ് ശരിയായ Purchase എന്ന് select ചെയ്യുക:</p>
+            ${opts}
+          </div>`;
+        }).join('');
+        document.getElementById('invoiceAmbiguousList').innerHTML = html;
+        document.getElementById('invoiceAmbiguousBox').style.display = 'block';
+      }
+
+      if (notFoundRows.length > 0) {
+        const html = notFoundRows.map(r => `<div style="border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px; font-size:13px;">
+          ${r.csvDate} · ${r.csvArea || '-'} · ${r.csvProduct} · ${r.csvGodown || '-'} · ${r.csvVehicle || '-'} · Qty: ${r.csvQty} · Invoice: ${r.invoiceNumber}
+        </div>`).join('');
+        document.getElementById('invoiceNotFoundList').innerHTML = html;
+        document.getElementById('invoiceNotFoundBox').style.display = 'block';
+      }
+
+      fileInput.value = '';
+
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = "Process ചെയ്യാൻ പറ്റിയില്ല.";
+      statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  window.applyInvoiceToPurchase = async function (purchaseId, invoiceNumber, btnEl) {
+    try {
+      const dup = await findDuplicateInvoiceNumber(invoiceNumber, purchaseId);
+      if (dup) { alert(`ഈ Invoice Number "${invoiceNumber}" വേറെ ഒരു Purchase-ൽ ഇതിനകം ഉണ്ട്.`); return; }
+      await updateDoc(doc(db, "purchases", purchaseId), { invoiceNumber: invoiceNumber });
+      const wrap = btnEl.closest('div[style*="border:1px solid #eee"]');
+      if (wrap) wrap.innerHTML = `<p style="font-size:13px; color:#2e7d32;">✅ Invoice Number "${invoiceNumber}" set ചെയ്തു.</p>`;
+    } catch (err) {
+      console.error(err);
+      alert("Set ചെയ്യാൻ പറ്റിയില്ല.");
+    }
+  };
 
   // ============ CHECKED OK (per-record) ============
   // A one-time "I have reviewed this entry" tick for Sale/Collection records. Once a
@@ -5537,6 +5706,7 @@
     const vehicle = document.getElementById('adminPurchaseVehicleSearch').value.trim();
     const date = document.getElementById('adminPurchaseDate').value;
     const qty = parseFloat(document.getElementById('adminPurchaseQty').value) || 0;
+    const invoiceNumber = document.getElementById('adminPurchaseInvoiceNumber').value.trim();
     const errEl = document.getElementById('adminPurchaseErrorMsg');
     const okEl = document.getElementById('adminPurchaseSuccessMsg');
     const btn = document.getElementById('addAdminPurchaseBtn');
@@ -5547,10 +5717,19 @@
     if (!godown) { errEl.textContent = "Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
     if (!date) { errEl.textContent = "Date select ചെയ്യുക."; errEl.style.display = 'block'; return; }
     if (qty === 0) { errEl.textContent = "Qty 0 ആകാൻ പാടില്ല."; errEl.style.display = 'block'; return; }
+    if (!invoiceNumber) { errEl.textContent = "Invoice Number നൽകുക."; errEl.style.display = 'block'; return; }
 
     btn.disabled = true; btn.textContent = "Saving...";
 
     try {
+      const dupPurchase = await findDuplicateInvoiceNumber(invoiceNumber, null);
+      if (dupPurchase) {
+        errEl.textContent = `ഈ Invoice Number "${invoiceNumber}" നേരത്തെ ഒരു Purchase-ൽ ഉപയോഗിച്ചിട്ടുണ്ട് (${dupPurchase.area || '-'} — ${dupPurchase.product || '-'} — ${fmtDate(dupPurchase.date)}). Duplicate ആയിരിക്കാം, Invoice Number ഒന്ന് കൂടി check ചെയ്യുക.`;
+        errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = "Save Purchase";
+        return;
+      }
+
       if (vehicle && !adminPurchaseKnownVehicles.some(v => v.toLowerCase() === vehicle.toLowerCase())) {
         await addDoc(collection(db, "vehicles"), {
           number: vehicle, driver: '', area: area,
@@ -5562,6 +5741,7 @@
       await addDoc(collection(db, "purchases"), {
         product: product, godown: godown, vehicle: vehicle, area: area,
         qty: qty, remainingQty: qty, rate: 0, amount: 0, date: date, status: 'approved',
+        invoiceNumber: invoiceNumber,
         enteredBy: currentUserData.username || 'admin', enteredVia: 'manual', createdAt: new Date().toISOString()
       });
 
@@ -5570,6 +5750,7 @@
 
       document.getElementById('adminPurchaseQty').value = '1';
       document.getElementById('adminPurchaseVehicleSearch').value = '';
+      document.getElementById('adminPurchaseInvoiceNumber').value = '';
       loadAdminPurchasesToday();
 
     } catch (err) {
@@ -5583,7 +5764,7 @@
 
   async function loadAdminPurchasesToday() {
     const tbody = document.getElementById('adminPurchaseTableBody');
-    tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(collection(db, "purchases"), where("date", "==", todayStr));
@@ -5592,15 +5773,15 @@
       snap.forEach(docSnap => {
         const d = docSnap.data();
         rows += `<tr>
-          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td>
+          <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td><td>${d.invoiceNumber || '-'}</td>
           <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${docSnap.id}')">Edit</button>
               <button class="del-btn" onclick="adminDeleteRecord('purchases','${docSnap.id}')">Delete</button></td>
         </tr>`;
       });
-      tbody.innerHTML = rows || '<tr><td colspan="7">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>';
+      tbody.innerHTML = rows || '<tr><td colspan="8">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>';
     }
   }
 
@@ -5857,6 +6038,7 @@
     const godown = document.getElementById('purchaseGodown').value;
     const vehicle = document.getElementById('purchaseVehicleSearch').value.trim();
     const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
+    const invoiceNumber = document.getElementById('purchaseInvoiceNumber').value.trim();
     const errEl = document.getElementById('purchaseErrorMsg');
     const okEl = document.getElementById('purchaseSuccessMsg');
     const btn = document.getElementById('addPurchaseBtn');
@@ -5866,6 +6048,7 @@
     if (!product) { errEl.textContent = "Product select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (!godown) { errEl.textContent = "Godown select ചെയ്യുക"; errEl.style.display = 'block'; return; }
     if (qty === 0) { errEl.textContent = "Quantity 0 ആകാൻ പാടില്ല."; errEl.style.display = 'block'; return; }
+    if (!invoiceNumber) { errEl.textContent = "Invoice Number നൽകുക."; errEl.style.display = 'block'; return; }
     if (editingPurchaseId && !isUserEditWindowOpen(editingPurchaseOldDate)) {
       errEl.textContent = "ഈ Purchase-ന്റെ Edit period കഴിഞ്ഞു (അടുത്ത മാസം 2-ന് ശേഷം edit ചെയ്യാൻ പറ്റില്ല).";
       errEl.style.display = 'block';
@@ -5875,6 +6058,14 @@
     btn.disabled = true; btn.textContent = "Saving...";
 
     try {
+      const dupPurchase = await findDuplicateInvoiceNumber(invoiceNumber, editingPurchaseId);
+      if (dupPurchase) {
+        errEl.textContent = `ഈ Invoice Number "${invoiceNumber}" നേരത്തെ ഒരു Purchase-ൽ ഉപയോഗിച്ചിട്ടുണ്ട് (${dupPurchase.area || '-'} — ${dupPurchase.product || '-'} — ${fmtDate(dupPurchase.date)}). Duplicate ആയിരിക്കാം, Invoice Number ഒന്ന് കൂടി check ചെയ്യുക.`;
+        errEl.style.display = 'block';
+        btn.disabled = false; btn.textContent = "Save Purchase";
+        return;
+      }
+
       await ensureVehicleRegistered(vehicle);
 
       if (editingPurchaseId) {
@@ -5882,6 +6073,7 @@
         const updateData = {
           product: product, godown: godown, vehicle: vehicle,
           qty: qty, remainingQty: increment(qtyDelta), date: date,
+          invoiceNumber: invoiceNumber,
           updatedAt: new Date().toISOString()
         };
         if (editingPurchaseOldStatus === 'approved') {
@@ -5898,6 +6090,7 @@
         await addDoc(collection(db, "purchases"), {
           product: product, godown: godown, vehicle: vehicle,
           area: currentWorkingArea, qty: qty, remainingQty: qty, date: date,
+          invoiceNumber: invoiceNumber,
           status: 'pending',
           enteredBy: currentUserData.username || 'unknown', enteredVia: 'manual', createdAt: new Date().toISOString()
         });
@@ -5909,6 +6102,7 @@
       document.getElementById('purchaseQty').value = '1';
       document.getElementById('purchaseVehicle').value = '';
       document.getElementById('purchaseVehicleSearch').value = '';
+      document.getElementById('purchaseInvoiceNumber').value = '';
       editingPurchaseId = null;
       editingPurchaseOldQty = 0;
       btn.textContent = "Save Purchase";
@@ -5926,7 +6120,7 @@
 
   async function loadTodaysPurchases() {
     const tbody = document.getElementById('purchaseTableBody');
-    tbody.innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(collection(db, "purchases"), where("area", "==", currentWorkingArea));
@@ -5939,7 +6133,7 @@
       });
       docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="5">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
+      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="6">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
       let rows = '';
       let totalQty = 0;
       docs.forEach(d => {
@@ -5954,13 +6148,13 @@
           ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editPurchaseRow('${id}')">Edit</button>
              ${isPending ? `<button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>` : ''}`
           : '';
-        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
+        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${d.invoiceNumber || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
       });
-      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td></td><td>${totalQty}</td><td colspan="2"></td></tr>`;
+      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td></td><td>${totalQty}</td><td colspan="3"></td></tr>`;
       tbody.innerHTML = rows;
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="5">Error loading purchases.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6">Error loading purchases.</td></tr>';
     }
   }
 
@@ -5979,6 +6173,7 @@
       document.getElementById('purchaseVehicle').value = d.vehicle || '';
       document.getElementById('purchaseVehicleSearch').value = d.vehicle || '';
       document.getElementById('purchaseQty').value = d.qty || 0;
+      document.getElementById('purchaseInvoiceNumber').value = d.invoiceNumber || '';
 
       editingPurchaseId = id;
       editingPurchaseOldQty = d.qty || 0;
@@ -7194,7 +7389,7 @@
     }
 
     document.getElementById('repSalesBody').innerHTML = '<tr><td colspan="13">Loading...</td></tr>';
-    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
+    document.getElementById('repPurchaseBody').innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
     document.getElementById('repCollBody').innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
@@ -7245,16 +7440,16 @@
       document.getElementById('repSalesBody').innerHTML = salesRows ||
         '<tr><td colspan="13">ഈ range-ൽ sales ഒന്നും ഇല്ല.</td></tr>';
 
-      // Purchase table (Date, Area, Product, Godown, Vehicle, Qty, Status)
+      // Purchase table (Date, Area, Product, Godown, Vehicle, Qty, Invoice No., Status)
       let purchaseRows = purchases.map(d => {
         const badge = (d.status || 'pending') === 'pending'
           ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
         return `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td>
-        <td>${d.vehicle || '-'}</td><td>${d.qty || '-'}</td><td>${badge}</td></tr>`;
+        <td>${d.vehicle || '-'}</td><td>${d.qty || '-'}</td><td>${d.invoiceNumber || '-'}</td><td>${badge}</td></tr>`;
       }).join('');
       document.getElementById('repPurchaseBody').innerHTML = purchaseRows ||
-        '<tr><td colspan="7">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="8">ഈ range-ൽ purchases ഒന്നും ഇല്ല.</td></tr>';
 
       // Collection table (Date, Area, Customer, Mode, Account, Amount, Status — Cash highlighted)
       let collRows = colls.map(d => {
@@ -8224,7 +8419,7 @@
 
       // Purchase — area-wise grouped
       renderAreaGrouped('adminRepPurchaseContainer', purchases,
-        ['', 'Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Status', ''],
+        ['', 'Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Invoice No.', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
@@ -8232,6 +8427,7 @@
             <td><input type="checkbox" class="repCheck-purchases" value="${d.id}" style="width:auto;"></td>
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
             <td>${d.qty || '-'}</td>
+            <td>${d.invoiceNumber || '-'}</td>
             <td>${badge}</td>
             <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('purchases','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td>
           </tr>`;
@@ -10616,6 +10812,8 @@
           <label>Remaining Qty (Lot Balance-ൽ കാണുന്നത് — ഇത് directly edit ചെയ്യാം)</label>
           <input type="number" id="qeRemainingQty" value="${currentRemaining}" style="margin-bottom:6px;">
           <p style="font-size:11px; color:#777; margin-bottom:10px;">ഇത് ആ lot-ൽ ഇപ്പോൾ sell ചെയ്യാൻ ബാക്കിയുള്ള qty ആണ് — Bulk upload/status പ്രശ്നം കൊണ്ട് 0 ആയി വന്നാൽ ഇവിടെ ശരിയാക്കാം.</p>
+          <label>Invoice Number ${d.invoiceNumber ? '<span style="color:#c62828;">*</span>' : '<span style="color:#999; font-weight:400;">(പഴയ record — ഇല്ലെങ്കിൽ ശൂന്യമായി വിടാം)</span>'}</label>
+          <input type="text" id="qeInvoiceNumber" value="${d.invoiceNumber || ''}" placeholder="e.g. INV-1234" style="margin-bottom:14px;">
         `;
 
       } else {
@@ -10702,6 +10900,16 @@
       } else if (quickEditCol === 'purchases') {
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
         const remainingQty = parseFloat(document.getElementById('qeRemainingQty').value) || 0;
+        const invoiceNumber = document.getElementById('qeInvoiceNumber').value.trim();
+        // Old records may not have an Invoice Number yet — only enforce/duplicate-check
+        // when one is actually being entered, so leaving it blank on an old record is fine.
+        if (invoiceNumber) {
+          const dupPurchase = await findDuplicateInvoiceNumber(invoiceNumber, quickEditId);
+          if (dupPurchase) {
+            alert(`ഈ Invoice Number "${invoiceNumber}" നേരത്തെ ഒരു Purchase-ൽ ഉപയോഗിച്ചിട്ടുണ്ട് (${dupPurchase.area || '-'} — ${dupPurchase.product || '-'} — ${fmtDate(dupPurchase.date)}). Duplicate ആയിരിക്കാം, Invoice Number ഒന്ന് കൂടി check ചെയ്യുക.`);
+            return;
+          }
+        }
         await updateDoc(doc(db, "purchases", quickEditId), {
           area: document.getElementById('qeArea').value,
           product: document.getElementById('qeProduct').value,
@@ -10710,6 +10918,7 @@
           date: document.getElementById('qeDate').value,
           status: document.getElementById('qeStatus').value,
           qty: qty, remainingQty: remainingQty,
+          invoiceNumber: invoiceNumber,
           lastEditedBy: currentUserData.username || 'admin', lastEditedAt: new Date().toISOString()
         });
       } else {
