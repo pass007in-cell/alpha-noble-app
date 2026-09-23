@@ -10726,7 +10726,7 @@
         g.items.forEach(i => {
           const l = bulkLinkProposed[i];
           html += `<tr>
-            <td><input type="checkbox" ${l.selected ? 'checked' : ''} onchange="bulkLinkProposed[${i}].selected = this.checked"></td>
+            <td><input type="checkbox" ${l.selected ? 'checked' : ''} onchange="setBulkLinkSelected(${i}, this.checked)"></td>
             <td style="padding-left:18px;">↳ ${tierLabel(l.tier)}<br><span style="font-size:11px; color:#888;">${l.note}</span></td>
             <td>${fmtDate(l.saleDate)}</td><td>${l.saleCustomer}</td><td>${l.saleVehicle || '-'}</td>
             <td>${l.qty}</td>
@@ -10789,6 +10789,12 @@
     if (qty) document.getElementById('adminTransferQty').value = qty;
     const qtyEl = document.getElementById('adminTransferQty');
     if (qtyEl && qtyEl.scrollIntoView) qtyEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  // Inline onchange handlers run in global scope and can't see the module-scoped
+  // bulkLinkProposed array directly — expose a setter on window instead.
+  window.setBulkLinkSelected = function (i, checked) {
+    if (bulkLinkProposed[i]) bulkLinkProposed[i].selected = checked;
   };
 
   window.toggleBulkLinkAll = function (checked) {
