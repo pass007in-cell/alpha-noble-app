@@ -325,7 +325,8 @@
   <div id="tabEntry" style="display:none;">
     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
       <button id="entrySubTabSaleBtn" onclick="switchEntrySubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
-      <button id="entrySubTabPurchaseBtn" onclick="switchEntrySubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
+      <!-- Purchase entry is Admin-only now; button kept (hidden) so switchEntrySubTab's button lookup still resolves. -->
+      <button id="entrySubTabPurchaseBtn" onclick="switchEntrySubTab('purchase')" style="display:none; width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="entrySubTabCollectionBtn" onclick="switchEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
       <button id="entrySubTabCustomersBtn" onclick="switchEntrySubTab('customers')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Customers</button>
       <button id="entrySubTabVehicleBtn" onclick="switchEntrySubTab('vehicle')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Vehicle</button>
@@ -671,7 +672,7 @@
       <div class="form-grid">
         <div>
           <label>Vehicle Number</label>
-          <input type="text" id="vehicleNumber" placeholder="e.g. KL-09-AB-1234">
+          <input type="text" id="vehicleNumber" placeholder="e.g. KL09AB1234 (space ഇട്ടാലും automatic ആയി മാറ്റും)">
         </div>
         <div>
           <label>Driver Name (optional)</label>
@@ -705,15 +706,15 @@
       <span style="color:#1565c0; font-size:13px;">Linking tab-ൽ →</span>
     </div>
 
-    <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
-      <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details</h3>
-      <div class="table-wrap">
+    <details style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
+      <summary style="color:#1565c0; font-size:15px; font-weight:700; cursor:pointer;">📊 Stock Details</summary>
+      <div class="table-wrap" style="margin-top:10px;">
         <table>
           <thead><tr><th>Product</th><th>Total Purchase</th><th>Total Sale</th><th>Remaining</th></tr></thead>
           <tbody id="repTopStockBody"><tr><td colspan="4">Loading...</td></tr></tbody>
         </table>
       </div>
-    </div>
+    </details>
 
     <div class="add-user-form">
       <h3>📅 Day-wise Details</h3>
@@ -1400,6 +1401,7 @@
     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
       <button id="subTabUsersBtn" onclick="switchAdminSettingsSubTab('users')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Users</button>
       <button id="subTabCustomersBtn" onclick="switchAdminSettingsSubTab('customers')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Customers</button>
+      <button id="subTabVehiclesBtn" onclick="switchAdminSettingsSubTab('vehicles')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Vehicles</button>
       <button id="subTabGodownBtn" onclick="switchAdminSettingsSubTab('godown')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Godown</button>
       <button id="subTabProductBtn" onclick="switchAdminSettingsSubTab('product')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Product</button>
       <button id="subTabAccountBtn" onclick="switchAdminSettingsSubTab('account')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Accounts</button>
@@ -1487,6 +1489,53 @@
     </div>
 
     <div id="adminCustContainer">Loading...</div>
+  </div>
+
+  <div id="tabAdminVehicles" style="display:none;">
+    <div class="add-user-form">
+      <h3>🚚 Vehicles (All Areas)</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        Vehicle Number-ൽ click ചെയ്താൽ ആ vehicle-ന്റെ എല്ലാ Purchases-ഉം popup ആയി കാണാം. Space/hyphen മാത്രം വ്യത്യാസമുള്ള numbers (ഉദാ: "KL 50 D 6463", "kl50d6463") ഒരേ vehicle ആയി ഒന്നിച്ച് കാണിക്കും.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>Area (optional)</label>
+          <select id="adminVehArea" onchange="renderAdminVehicles()">
+            <option value="">-- All Areas --</option>
+            <option value="MKD">MKD - Mannarkkad</option>
+            <option value="PKD">PKD - Palakkad</option>
+            <option value="MLT">MLT - Melattur</option>
+            <option value="NLB">NLB - Nilambur</option>
+          </select>
+        </div>
+        <div>
+          <label>Search</label>
+          <input type="text" id="adminVehSearch" placeholder="🔍 Vehicle number search..." oninput="renderAdminVehicles()">
+        </div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Vehicle Number</th><th>Area</th><th>Driver</th><th>Purchases</th><th>ആകെ Qty</th><th>Last Purchase</th></tr></thead>
+        <tbody id="adminVehTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="vehPurchOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; padding:16px;" onclick="if(event.target===this) closeVehiclePurchases()">
+    <div style="background:#fff; border-radius:14px; padding:20px; width:100%; max-width:900px; max-height:85vh; overflow-y:auto;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; gap:10px;">
+        <h3 id="vehPurchTitle" style="color:#1e3c72; margin:0;">Vehicle Purchases</h3>
+        <button style="width:auto; background:#c62828; padding:6px 14px;" onclick="closeVehiclePurchases()">✕ Close</button>
+      </div>
+      <p id="vehPurchSummary" style="font-size:13px; color:#555; margin-bottom:10px;"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Invoice No.</th><th>Qty</th><th>Remaining</th><th>Status</th></tr></thead>
+          <tbody id="vehPurchBody"></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
   <div id="tabAdminGodown" style="display:none;">
@@ -1849,6 +1898,35 @@
       </div>
     </details>
 
+    <details class="add-user-form" style="background:#fce4ec;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#ad1457;">🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക</summary>
+      <div class="details-body">
+      <p style="font-size:13px; color:#555; margin-bottom:10px;">
+        Purchase data പൂർണമായും delete ചെയ്ത് പുതുതായി upload ചെയ്താൽ, പഴയ Sales-ന്റെ <b>lots</b> link ഇപ്പോൾ ഇല്ലാത്ത (delete ആയ) Purchase record-കളെ ചൂണ്ടിക്കാണിച്ചുകൊണ്ട് അവശേഷിക്കും. ഈ Sales "linked" ആയി തന്നെ കാണിക്കും (Unlinked Sales list-ൽ വരില്ല), പക്ഷേ യഥാർത്ഥത്തിൽ അവയുടെ link ഒരു "ghost" purchase-ലേക്കാണ് — അതുകൊണ്ട് പുതിയ Purchase lots-ന്റെ Remaining Qty യഥാർത്ഥ available stock-നേക്കാൾ കൂടുതൽ ആയി കാണിക്കും.
+      </p>
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        <b>Step 1:</b> ഇവിടെ Scan ചെയ്ത് ഈ "orphaned" links കണ്ടെത്തി Clear ചെയ്യുക (ആ Sales വീണ്ടും "Advance/Unlinked" ആയി മാറും, Purchase-നെ ഒന്നും ബാധിക്കില്ല).<br>
+        <b>Step 2:</b> അതിന് ശേഷം <b>🔗 Old Advance</b> tab-ലെ <b>"Bulk Auto-Link"</b> ഉപയോഗിച്ച് ഈ Sales-നെ പുതിയ Purchase lots-ലേക്ക് വീണ്ടും link ചെയ്യുക.
+      </p>
+      <button class="full-btn" style="background:#ad1457;" onclick="scanOrphanedSaleLinks()">🔍 Orphaned Links Scan ചെയ്യുക</button>
+      <div id="orphanScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+
+      <div id="orphanResultBox" style="display:none; margin-top:16px;">
+        <p style="font-size:13px; color:#333; margin-bottom:6px;">
+          <strong><span id="orphanCount">0</span></strong> Sales-ൽ orphaned links കണ്ടെത്തി — ആകെ <strong><span id="orphanQty">0</span></strong> Qty.
+        </p>
+        <p style="font-size:12px; color:#777; margin-bottom:10px;" id="orphanAreaBreakdown"></p>
+        <div class="table-wrap" style="margin-bottom:14px; max-height:350px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Orphan Qty</th></tr></thead>
+            <tbody id="orphanListBody"></tbody>
+          </table>
+        </div>
+        <button class="full-btn" style="background:#c62828;" onclick="clearOrphanedSaleLinks()">🧹 ഈ Sales-ലെ Orphaned Links Clear ചെയ്യുക</button>
+      </div>
+      </div>
+    </details>
+
     <details class="add-user-form" style="background:#e8eaf6;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
       <summary style="color:#283593;">🧾 Bulk ആയി Invoice Number ചേർക്കുക (പഴയ Purchases)</summary>
       <div class="details-body">
@@ -1905,9 +1983,19 @@
         </p>
         <div class="table-wrap" style="max-height:400px; overflow-y:auto;">
           <table>
-            <thead><tr><th>Doc ID</th><th>Date</th><th>Area</th><th>Qty</th><th>Remaining</th><th>Status</th><th>Entered Via</th></tr></thead>
+            <thead><tr><th>Doc ID</th><th>Date</th><th>Area</th><th>Qty</th><th>Remaining (saved)</th><th>Linked Sales Qty</th><th>ശരിയായ Remaining</th><th>Status</th><th>Entered Via</th></tr></thead>
             <tbody id="inspListBody"></tbody>
           </table>
+        </div>
+        <div id="inspVerdict" style="margin-top:12px; font-size:13px;"></div>
+        <div id="inspOrphanBox" style="display:none; margin-top:12px;">
+          <h4 style="color:#ad1457; font-size:14px; margin-bottom:6px;">👻 Delete ആയ Purchase-ലേക്ക് link ഉള്ള Sales (ഇതേ Product/Godown/Vehicle)</h4>
+          <div class="table-wrap" style="max-height:300px; overflow-y:auto;">
+            <table>
+              <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Sale Qty</th><th>Dead link Qty</th></tr></thead>
+              <tbody id="inspOrphanBody"></tbody>
+            </table>
+          </div>
         </div>
       </div>
       </div>
@@ -2069,9 +2157,10 @@
       <summary>📂 Bulk Upload — Old Purchases (CSV)</summary>
       <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        Columns (ക്രമത്തിൽ): Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional)<br>
-        ഇവയുടെ Remaining Qty automatic ആയി 0 ആയി വെക്കും (പഴയ closed purchase ആയതിനാൽ).<br>
-        <b>Duplicate protection:</b> Invoice Number കൊടുത്താൽ അത് വെച്ച് exact duplicate check ചെയ്യും. ഇല്ലെങ്കിൽ Date+Area+Product+Godown+Vehicle+Qty ഒരേ പോലെ ഉള്ള row-കൾ automatic ആയി skip ചെയ്യും (already DB-യിൽ ഉള്ളതും, ഇതേ CSV-യിൽ repeat ആയതും).
+        1-ാമത്തെ row **header** ആയി വേണം (Date, Area, Product, Godown, Vehicle, Qty, Status, Invoice Number എന്ന പേരുകൾ) — header ഉണ്ടെങ്കിൽ columns ഏത് ക്രമത്തിൽ ആയാലും ശരി ആയി തിരിച്ചറിയും. Header ഇല്ലെങ്കിൽ മാത്രം ഈ fixed ക്രമം ഉപയോഗിക്കും: Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional).<br>
+        Status=Approved ആയ rows-ന്റെ Remaining Qty = Qty ആയി തന്നെ വെക്കും (full stock available എന്ന നിലയിൽ) — ഇത് പിന്നീട് <b>🔗 Old Advance</b> tab-ലെ "Bulk Auto-Link" വഴി പഴയ Sales-നോട് ശരിയായി link ചെയ്യാൻ വേണ്ടിയാണ്. Status=Pending ആണെങ്കിൽ 0 ആയി വെക്കും.<br>
+        <b>Duplicate protection:</b> Invoice Number കൊടുത്താൽ അത് വെച്ച് exact duplicate check ചെയ്യും. ഇല്ലെങ്കിൽ Date+Area+Product+Godown+Vehicle+Qty ഒരേ പോലെ ഉള്ള row-കൾ automatic ആയി skip ചെയ്യും (already DB-യിൽ ഉള്ളതും, ഇതേ CSV-യിൽ repeat ആയതും).<br>
+        <b>⚠️ മുഴുവൻ Purchase data delete ചെയ്ത് ഇത് re-upload ചെയ്യുകയാണെങ്കിൽ:</b> പഴയ Sales-ന്റെ lot-links ഇപ്പോൾ ഇല്ലാത്ത (deleted) Purchase-കളെ ചൂണ്ടും — അത് "🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക" എന്ന tool വഴി Clear ചെയ്ത്, "🔗 Old Advance" tab-ലെ Bulk Auto-Link വഴി വീണ്ടും link ചെയ്യണം.
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
@@ -2223,7 +2312,7 @@
     <div style="background:#fff8e1; border:2px solid #f9a825; border-radius:10px; padding:14px; margin-top:24px;">
       <h3 style="color:#e65100; margin-bottom:6px;">🤖 Bulk Auto-Link (Old Sales ↔ Purchases)</h3>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        ഇത് ഒരു <b>Scan (Preview) മാത്രം</b> ആണ് — സ്വയമേവ ഒന്നും database ലേക്ക് save ആവില്ല. താഴെ കാണിക്കുന്ന proposed links-ൽ വേണ്ടാത്തത് uncheck ചെയ്ത് ഒഴിവാക്കാം. "Apply Selected Links" click ചെയ്യുമ്പോൾ മാത്രമേ check ചെയ്തവ actual ആയി link ആവുകയുള്ളൂ. Confusion ഉള്ളവ "Unmatched" list-ൽ കാണിക്കും — അവ auto ആയി link ചെയ്യില്ല, മുകളിലെ table-ൽ നിന്ന് manually link ചെയ്യുക.
+        ഇത് ഒരു <b>Scan (Preview) മാത്രം</b> ആണ് — സ്വയമേവ ഒന്നും database ലേക്ക് save ആവില്ല. TIER 1/2/3 (exact qty match) links default ആയി checked ആയി വരും. <b>TIER 4 (FIFO Split)</b> — ഒരു Purchase-നെ പല Sales ആയോ, ഒരു Sale-നെ പല Purchases ആയോ split ചെയ്യുന്നത് — default ആയി <b>unchecked</b> ആയിരിക്കും, ശ്രദ്ധയോടെ review ചെയ്ത് വേണ്ടത് മാത്രം check ചെയ്യുക. "Apply Selected Links" click ചെയ്യുമ്പോൾ മാത്രമേ check ചെയ്തവ actual ആയി link ആവുകയുള്ളൂ. ഇപ്പോഴും ബാക്കി വരുന്നവ "Unmatched" list-ൽ കാണിക്കും — അവ മുകളിലെ table-ൽ നിന്ന് manually link ചെയ്യുക.
       </p>
       <div class="form-grid" style="margin-bottom:10px;">
         <div>
@@ -2242,7 +2331,7 @@
         </div>
         <div>
           <label style="font-size:12px;">To Date (optional)</label>
-          <input type="date" id="bulkLinkTo" max="2026-08-31">
+          <input type="date" id="bulkLinkTo">
         </div>
       </div>
       <button class="full-btn" style="background:#f9a825;" onclick="scanBulkOldLinks()">🔍 Scan (Preview മാത്രം — ഒന്നും save ആകില്ല)</button>
@@ -2252,7 +2341,7 @@
 
   <div id="tabAdminReports">
 
-    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" open>
+    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (All Areas) — <span id="adminHomeAdvanceSaleCount">0</span></summary>
 
       <h4 style="font-size:13px; color:#e65100; margin:12px 0 6px;">Area-wise Count</h4>
@@ -2275,7 +2364,7 @@
       </div>
     </details>
 
-    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" open>
+    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">📦 Pending Lots (All Areas) — click ചെയ്ത് link ചെയ്യാം</summary>
 
       <h4 style="font-size:13px; color:#e65100; margin:12px 0 6px;">Area-wise Count</h4>
@@ -2294,15 +2383,15 @@
       </div>
     </details>
 
-    <div style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
-      <h3 style="color:#1565c0; font-size:15px; margin-bottom:8px;">📊 Stock Details (All Areas)</h3>
-      <div class="table-wrap">
+    <details style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
+      <summary style="color:#1565c0; font-size:15px; font-weight:700; cursor:pointer;">📊 Stock Details (All Areas)</summary>
+      <div class="table-wrap" style="margin-top:10px;">
         <table>
           <thead><tr><th>Area</th><th>Product</th><th>Total Purchase</th><th>Total Sale</th><th>Remaining</th></tr></thead>
           <tbody id="adminHomeStockBody"><tr><td colspan="5">Loading...</td></tr></tbody>
         </table>
       </div>
-    </div>
+    </details>
 
     <div class="add-user-form">
       <h3>📅 Day-wise Details (All Areas)</h3>
@@ -2579,7 +2668,8 @@
     addDoc,
     query,
     where,
-    orderBy
+    orderBy,
+    writeBatch
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2939,7 +3029,7 @@
   };
 
   window.switchAdminSettingsSubTab = function (sub) {
-    const subTabs = ['users', 'customers', 'godown', 'product', 'account', 'data'];
+    const subTabs = ['users', 'customers', 'vehicles', 'godown', 'product', 'account', 'data'];
     subTabs.forEach(t => {
       const key = 'Admin' + t.charAt(0).toUpperCase() + t.slice(1);
       const panel = document.getElementById('tab' + key);
@@ -2961,6 +3051,7 @@
       if (!document.getElementById('adminCustTo').value) document.getElementById('adminCustTo').value = todayStr;
       generateAdminCustomerReport();
     }
+    else if (sub === 'vehicles') loadAdminVehicles();
     else if (sub === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
     else if (sub === 'product') loadAdminProducts();
     else if (sub === 'account') loadAdminAccounts();
@@ -3459,6 +3550,12 @@
     return (str || '').trim().replace(/\s+/g, ' ').toLowerCase();
   }
 
+  // Canonical vehicle number: no spaces/hyphens/dots, all CAPITALS — so "KL 50 D-6463",
+  // "kl50d6463" and "KL50D6463" are all saved as the same vehicle ("KL50D6463").
+  function normalizeVehicleNo(str) {
+    return String(str || '').replace(/[\s\-.]/g, '').toUpperCase();
+  }
+
   // ============ PURCHASE: Invoice Number duplicate check ============
   // Invoice Number must be unique across ALL areas (same paper invoice never has two
   // different Purchase entries). Returns the existing conflicting Purchase doc {id, ...data}
@@ -3506,7 +3603,7 @@
       // silently overwrite one that's already set.
       const candidatesPool = invoiceBulkAllPurchases.filter(p => !p.invoiceNumber);
 
-      const matchKey = (p) => [p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeName(p.vehicle), String(p.qty || 0)].join('|');
+      const matchKey = (p) => [p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeVehicleNo(p.vehicle), String(p.qty || 0)].join('|');
 
       let autoMatchedCount = 0;
       let ambiguousRows = [];
@@ -3523,7 +3620,7 @@
         const invoiceNumber = (cols[6] || '').trim();
         if (!csvDate || !csvProduct || !invoiceNumber) continue;
 
-        const key = [csvDate, normalizeName(csvProduct), normalizeName(csvGodown), normalizeName(csvVehicle), String(parseFloat(csvQty) || 0)].join('|');
+        const key = [csvDate, normalizeName(csvProduct), normalizeName(csvGodown), normalizeVehicleNo(csvVehicle), String(parseFloat(csvQty) || 0)].join('|');
         let candidates = candidatesPool.filter(p => matchKey(p) === key);
         if (csvArea && candidates.length > 1) {
           candidates = candidates.filter(p => (p.area || '').toUpperCase() === csvArea);
@@ -3738,20 +3835,20 @@
   // master list, register it automatically so it appears in future searches.
   let knownVehicleNumbers = null; // cache, lazily loaded
   async function ensureVehicleRegistered(number) {
-    const num = (number || '').trim();
+    const num = normalizeVehicleNo(number);
     if (!num) return;
     try {
       if (!knownVehicleNumbers) {
         const snap = await getDocs(collection(db, "vehicles"));
         knownVehicleNumbers = new Set();
-        snap.forEach(d => knownVehicleNumbers.add(normalizeName(d.data().number)));
+        snap.forEach(d => knownVehicleNumbers.add(normalizeVehicleNo(d.data().number)));
       }
-      if (knownVehicleNumbers.has(normalizeName(num))) return;
+      if (knownVehicleNumbers.has(num)) return;
       await addDoc(collection(db, "vehicles"), {
         number: num, driver: '', area: currentWorkingArea,
         createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
       });
-      knownVehicleNumbers.add(normalizeName(num));
+      knownVehicleNumbers.add(num);
     } catch (err) {
       console.error('Vehicle auto-register failed', err);
     }
@@ -3831,6 +3928,8 @@
   };
 
   window.switchEntrySubTab = function (sub) {
+    // Purchase entry is Admin-only (Admin uses switchAdminEntrySubTab) — never open it on the User side.
+    if (sub === 'purchase') sub = 'sale';
     const subs = ['sale', 'purchase', 'collection', 'customers', 'vehicle'];
     subs.forEach(s => {
       const panel = document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1));
@@ -4002,8 +4101,8 @@
 
   window.renderSaleVehicleOptions = function () {
     const box = document.getElementById('saleVehicleOptionsBox');
-    const term = document.getElementById('saleVehicleSearch').value.trim().toLowerCase();
-    const matches = allVehiclesForSale.filter(v => !term || (v.number || '').toLowerCase().includes(term));
+    const term = normalizeVehicleNo(document.getElementById('saleVehicleSearch').value);
+    const matches = allVehiclesForSale.filter(v => !term || normalizeVehicleNo(v.number).includes(term));
     let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectSaleVehicle('${escapeHtml(v.number)}')">${v.number}${v.driver ? ' — ' + v.driver : ''}</div>`).join('');
     if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Vehicle കണ്ടെത്തിയില്ല.</div>';
     box.innerHTML = html;
@@ -4233,7 +4332,7 @@
     btn.textContent = "Saving...";
 
     try {
-      const saleVehicleNum = document.getElementById('saleVehicleSearch').value.trim();
+      const saleVehicleNum = normalizeVehicleNo(document.getElementById('saleVehicleSearch').value);
       await ensureVehicleRegistered(saleVehicleNum);
 
       const saleData = {
@@ -5140,8 +5239,8 @@
 
   window.renderAdminSaleVehicleOptions = function () {
     const box = document.getElementById('adminSaleVehicleOptionsBox');
-    const term = document.getElementById('adminSaleVehicleSearch').value.trim().toLowerCase();
-    const matches = adminSaleKnownVehicles.filter(v => !term || v.toLowerCase().includes(term));
+    const term = normalizeVehicleNo(document.getElementById('adminSaleVehicleSearch').value);
+    const matches = adminSaleKnownVehicles.filter(v => !term || normalizeVehicleNo(v).includes(term));
     let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectAdminSaleVehicle('${v}')">${v}</div>`).join('');
     if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല — പുതിയത് ആയി save ആകും.</div>';
     box.innerHTML = html; box.style.display = 'block';
@@ -5271,7 +5370,7 @@
       }
     }
 
-    const saleVehicleNum = document.getElementById('adminSaleVehicleSearch').value.trim();
+    const saleVehicleNum = normalizeVehicleNo(document.getElementById('adminSaleVehicleSearch').value);
 
     try {
       await ensureVehicleRegistered(saleVehicleNum);
@@ -5680,8 +5779,8 @@
 
   window.renderAdminPurchaseVehicleOptions = function () {
     const box = document.getElementById('adminPurchaseVehicleOptionsBox');
-    const term = document.getElementById('adminPurchaseVehicleSearch').value.trim().toLowerCase();
-    const matches = adminPurchaseKnownVehicles.filter(v => !term || v.toLowerCase().includes(term));
+    const term = normalizeVehicleNo(document.getElementById('adminPurchaseVehicleSearch').value);
+    const matches = adminPurchaseKnownVehicles.filter(v => !term || normalizeVehicleNo(v).includes(term));
     let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectAdminPurchaseVehicle('${v}')">${v}</div>`).join('');
     if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല — പുതിയത് ആയി save ആകും.</div>';
     box.innerHTML = html;
@@ -5704,7 +5803,7 @@
     const area = document.getElementById('adminPurchaseArea').value;
     const product = document.getElementById('adminPurchaseProduct').value;
     const godown = document.getElementById('adminPurchaseGodown').value;
-    const vehicle = document.getElementById('adminPurchaseVehicleSearch').value.trim();
+    const vehicle = normalizeVehicleNo(document.getElementById('adminPurchaseVehicleSearch').value);
     const date = document.getElementById('adminPurchaseDate').value;
     const qty = parseFloat(document.getElementById('adminPurchaseQty').value) || 0;
     const invoiceNumber = document.getElementById('adminPurchaseInvoiceNumber').value.trim();
@@ -5731,7 +5830,7 @@
         return;
       }
 
-      if (vehicle && !adminPurchaseKnownVehicles.some(v => v.toLowerCase() === vehicle.toLowerCase())) {
+      if (vehicle && !adminPurchaseKnownVehicles.some(v => normalizeVehicleNo(v) === vehicle)) {
         await addDoc(collection(db, "vehicles"), {
           number: vehicle, driver: '', area: area,
           createdBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
@@ -5920,7 +6019,7 @@
 
   // ---- VEHICLE ----
   window.handleAddVehicle = async function () {
-    const number = document.getElementById('vehicleNumber').value.trim();
+    const number = normalizeVehicleNo(document.getElementById('vehicleNumber').value);
     const driver = document.getElementById('vehicleDriver').value.trim();
     const errEl = document.getElementById('vehicleErrorMsg');
     const okEl = document.getElementById('vehicleSuccessMsg');
@@ -5931,6 +6030,10 @@
 
     btn.disabled = true; btn.textContent = "Adding...";
     try {
+      const existSnap = await getDocs(query(collection(db, "vehicles"), where("area", "==", currentWorkingArea)));
+      let exists = false;
+      existSnap.forEach(ds => { if (normalizeVehicleNo(ds.data().number) === number) exists = true; });
+      if (exists) { errEl.textContent = `"${number}" നേരത്തെ തന്നെ ഉണ്ട്.`; errEl.style.display = 'block'; return; }
       await addDoc(collection(db, "vehicles"), {
         number: number, driver: driver, area: currentWorkingArea,
         createdBy: currentUserData.username || 'unknown', createdAt: new Date().toISOString()
@@ -5971,6 +6074,100 @@
     if (!confirm("ഈ vehicle ഒഴിവാക്കണോ?")) return;
     try { await deleteDoc(doc(db, "vehicles", id)); loadVehicles(); }
     catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // ---- ADMIN: VEHICLES TAB (Settings → Vehicles) ----
+  // Groups the vehicles master list AND every vehicle seen on a purchase by the normalized
+  // number, so spacing/case variants collapse into one row. Click a number → its purchases.
+  let adminVehGroups = [];      // [{ key, display, areas:Set, drivers:Set, variants:Set, purchases:[] }]
+
+  window.loadAdminVehicles = async function () {
+    const tbody = document.getElementById('adminVehTableBody');
+    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+    try {
+      const [vehSnap, purchSnap] = await Promise.all([
+        getDocs(collection(db, "vehicles")),
+        getDocs(collection(db, "purchases"))
+      ]);
+      const groups = {};
+      const getGroup = (raw) => {
+        const key = normalizeVehicleNo(raw);
+        if (!key) return null;
+        if (!groups[key]) groups[key] = { key, display: key, areas: new Set(), drivers: new Set(), variants: new Set(), purchases: [] };
+        groups[key].variants.add(String(raw).trim());
+        return groups[key];
+      };
+      vehSnap.forEach(ds => {
+        const d = ds.data();
+        const g = getGroup(d.number);
+        if (!g) return;
+        if (d.area) g.areas.add(d.area);
+        if (d.driver) g.drivers.add(d.driver);
+      });
+      purchSnap.forEach(ds => {
+        const d = { id: ds.id, ...ds.data() };
+        const g = getGroup(d.vehicle);
+        if (!g) return;
+        if (d.area) g.areas.add(d.area);
+        g.purchases.push(d);
+      });
+      adminVehGroups = Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
+      renderAdminVehicles();
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="6">Error loading.</td></tr>';
+    }
+  };
+
+  window.renderAdminVehicles = function () {
+    const tbody = document.getElementById('adminVehTableBody');
+    const area = document.getElementById('adminVehArea').value;
+    const term = normalizeVehicleNo(document.getElementById('adminVehSearch').value);
+    const list = adminVehGroups.filter(g => (!area || g.areas.has(area)) && (!term || g.key.includes(term)));
+    if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="6">Vehicles ഒന്നും ഇല്ല.</td></tr>'; return; }
+    tbody.innerHTML = list.map(g => {
+      const purchases = area ? g.purchases.filter(p => p.area === area) : g.purchases;
+      const totalQty = purchases.reduce((s, p) => s + (p.qty || 0), 0);
+      const lastDate = purchases.reduce((m, p) => (p.date || '') > m ? p.date : m, '');
+      const variantNote = g.variants.size > 1
+        ? `<br><span style="font-size:11px; color:#e65100;">⚠️ ${g.variants.size} രീതിയിൽ save ആയിട്ടുണ്ട്: ${[...g.variants].join(', ')}</span>` : '';
+      return `<tr>
+        <td><a href="#" style="color:#1565c0; font-weight:700; text-decoration:underline;" onclick="openVehiclePurchases('${g.key}'); return false;">${g.display}</a>${variantNote}</td>
+        <td>${[...g.areas].join(', ') || '-'}</td>
+        <td>${[...g.drivers].join(', ') || '-'}</td>
+        <td>${purchases.length}</td>
+        <td>${totalQty}</td>
+        <td>${lastDate ? fmtDate(lastDate) : '-'}</td>
+      </tr>`;
+    }).join('');
+  };
+
+  window.openVehiclePurchases = function (key) {
+    const g = adminVehGroups.find(x => x.key === key);
+    if (!g) return;
+    const area = document.getElementById('adminVehArea').value;
+    const list = (area ? g.purchases.filter(p => p.area === area) : g.purchases)
+      .slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    const totalQty = list.reduce((s, p) => s + (p.qty || 0), 0);
+    const totalRem = list.reduce((s, p) => s + ((p.remainingQty !== undefined) ? p.remainingQty : (p.qty || 0)), 0);
+    document.getElementById('vehPurchTitle').textContent = `🚚 ${g.display} — Purchases`;
+    document.getElementById('vehPurchSummary').textContent =
+      `${list.length} Purchases · ആകെ Qty: ${totalQty} · ഇപ്പോഴും Remaining: ${totalRem}` + (area ? ` (Area: ${area})` : '');
+    document.getElementById('vehPurchBody').innerHTML = list.length === 0
+      ? '<tr><td colspan="8">ഈ vehicle-ന് Purchases ഒന്നും ഇല്ല.</td></tr>'
+      : list.map(p => {
+          const rem = (p.remainingQty !== undefined) ? p.remainingQty : (p.qty || 0);
+          const status = (p.status || 'pending') === 'pending'
+            ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
+          return `<tr><td>${fmtDate(p.date)}</td><td>${p.area || '-'}</td><td>${p.product || '-'}</td><td>${p.godown || '-'}</td>
+            <td>${p.invoiceNumber || '-'}</td><td>${p.qty || 0}</td><td>${rem}</td><td>${status}</td></tr>`;
+        }).join('') +
+        `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="5">Total</td><td>${totalQty}</td><td>${totalRem}</td><td></td></tr>`;
+    document.getElementById('vehPurchOverlay').style.display = 'flex';
+  };
+
+  window.closeVehiclePurchases = function () {
+    document.getElementById('vehPurchOverlay').style.display = 'none';
   };
 
   // ---- PURCHASE ----
@@ -6019,8 +6216,8 @@
 
   window.renderPurchaseVehicleOptions = function () {
     const box = document.getElementById('purchaseVehicleOptionsBox');
-    const term = document.getElementById('purchaseVehicleSearch').value.trim().toLowerCase();
-    const matches = allVehiclesForPurchase.filter(v => !term || (v.number || '').toLowerCase().includes(term));
+    const term = normalizeVehicleNo(document.getElementById('purchaseVehicleSearch').value);
+    const matches = allVehiclesForPurchase.filter(v => !term || normalizeVehicleNo(v.number).includes(term));
     let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectPurchaseVehicle('${escapeHtml(v.number)}')">${v.number}${v.driver ? ' — ' + v.driver : ''}</div>`).join('');
     if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Vehicle കണ്ടെത്തിയില്ല.</div>';
     box.innerHTML = html;
@@ -6034,10 +6231,11 @@
   };
 
   window.handleAddPurchase = async function () {
+    if (currentUserData.role !== 'admin') { alert("Purchase entry ഇപ്പോൾ Admin-ന് മാത്രമേ ഉള്ളൂ."); return; }
     const product = document.getElementById('purchaseProduct').value;
     const date = document.getElementById('purchaseDate').value;
     const godown = document.getElementById('purchaseGodown').value;
-    const vehicle = document.getElementById('purchaseVehicleSearch').value.trim();
+    const vehicle = normalizeVehicleNo(document.getElementById('purchaseVehicleSearch').value);
     const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
     const invoiceNumber = document.getElementById('purchaseInvoiceNumber').value.trim();
     const errEl = document.getElementById('purchaseErrorMsg');
@@ -6160,6 +6358,7 @@
   }
 
   window.editPurchaseRow = async function (id) {
+    if (currentUserData.role !== 'admin') { alert("Purchase entry/edit ഇപ്പോൾ Admin-ന് മാത്രമേ ഉള്ളൂ."); return; }
     try {
       const snap = await getDoc(doc(db, "purchases", id));
       if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
@@ -6190,6 +6389,7 @@
   };
 
   window.deletePurchaseRow = async function (id) {
+    if (currentUserData.role !== 'admin') { alert("Purchase delete ഇപ്പോൾ Admin-ന് മാത്രമേ ഉള്ളൂ."); return; }
     if (!confirm("ഈ Purchase delete ചെയ്യണോ?")) return;
     try {
       await deleteDoc(doc(db, "purchases", id));
@@ -7031,7 +7231,8 @@
 
       const salesRows = sales.map(d => `<tr><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.qty || 0}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editSaleRow', 'deleteSaleRow')}</td></tr>`).join('');
       const collRows = colls.map(d => `<tr><td>${d.customerName || '-'}</td><td>${d.mode || '-'}</td><td>₹${(d.amount || 0).toLocaleString('en-IN')}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editCollRow', 'deleteCollRow')}</td></tr>`).join('');
-      const purchRows = purchases.map(d => `<tr><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td><td>${statusBadge(d)}</td><td>${actionButtons(d, 'editPurchaseRow', 'deletePurchaseRow')}</td></tr>`).join('');
+      // Purchases are Admin-only now — Users can view them here but not edit/delete.
+      const purchRows = purchases.map(d => `<tr><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td><td>${statusBadge(d)}</td><td>-</td></tr>`).join('');
 
       container.innerHTML = `
         <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-bottom:16px;">
@@ -9110,7 +9311,7 @@
 
       const groups = {};
       items.forEach(d => {
-        const key = [d.area || '', d.date || '', d.product || '', d.godown || '', d.vehicle || '', d.qty || ''].join('|');
+        const key = [d.area || '', d.date || '', d.product || '', d.godown || '', normalizeVehicleNo(d.vehicle), d.qty || ''].join('|');
         if (!groups[key]) groups[key] = [];
         groups[key].push(d);
       });
@@ -9171,6 +9372,112 @@
     }
   };
 
+  // ---- ADMIN: FIND & CLEAR ORPHANED SALE→PURCHASE LOT LINKS ----
+  // If all Purchase docs are deleted and re-uploaded, old Sales' `lots[].purchaseId`
+  // entries end up pointing at Purchase docs that no longer exist. Those Sales still
+  // look "linked" (isAdvance stays false, since lots-sum still equals the sale qty),
+  // so they never show up in the Unlinked Sales views, and the new Purchase's
+  // remainingQty never gets reduced for stock that was, in reality, already sold.
+  // This scans for exactly that mismatch and clears it (removes the dead lot entries,
+  // re-flags the sale as needing linking) so the existing "Bulk Auto-Link" tool
+  // (🔗 Old Advance tab) can then re-match them against the new Purchase lots.
+  let orphanedSalesScan = [];
+  let orphanExistingPurchaseIds = new Set();
+
+  window.scanOrphanedSaleLinks = async function () {
+    const statusEl = document.getElementById('orphanScanStatus');
+    const resultBox = document.getElementById('orphanResultBox');
+    resultBox.style.display = 'none';
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Scanning (എല്ലാ Purchases, Sales)...";
+
+    try {
+      const purchSnap = await getDocs(collection(db, "purchases"));
+      orphanExistingPurchaseIds = new Set();
+      purchSnap.forEach(docSnap => orphanExistingPurchaseIds.add(docSnap.id));
+
+      const saleSnap = await getDocs(collection(db, "sales"));
+      orphanedSalesScan = [];
+      saleSnap.forEach(docSnap => {
+        const sd = docSnap.data();
+        const lots = sd.lots || [];
+        if (lots.length === 0) return;
+        const orphanQty = lots.filter(l => !orphanExistingPurchaseIds.has(l.purchaseId)).reduce((s, l) => s + (l.qty || 0), 0);
+        if (orphanQty > 0) {
+          orphanedSalesScan.push({
+            id: docSnap.id, area: sd.area || '-', date: sd.date || '', customerName: sd.customerName || '',
+            product: sd.product || '', godown: sd.godown || '', vehicle: sd.vehicle || '', qty: sd.qty || 0, orphanQty
+          });
+        }
+      });
+
+      if (orphanedSalesScan.length === 0) {
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = "✅ Orphaned links ഒന്നും കണ്ടെത്തിയില്ല.";
+        return;
+      }
+
+      statusEl.textContent = '';
+      const totalQty = orphanedSalesScan.reduce((s, x) => s + x.orphanQty, 0);
+      const byArea = {};
+      orphanedSalesScan.forEach(x => { byArea[x.area] = (byArea[x.area] || 0) + x.orphanQty; });
+
+      document.getElementById('orphanCount').textContent = orphanedSalesScan.length;
+      document.getElementById('orphanQty').textContent = totalQty;
+      document.getElementById('orphanAreaBreakdown').textContent =
+        'Area-wise: ' + Object.entries(byArea).map(([a, q]) => `${a}: ${q}`).join(' · ');
+
+      let rows = '';
+      orphanedSalesScan.slice(0, 300).forEach(x => {
+        rows += `<tr><td>${fmtDate(x.date)}</td><td>${x.area}</td><td>${x.customerName}</td><td>${x.product}</td><td>${x.godown || '-'}</td><td>${x.vehicle || '-'}</td><td>${x.orphanQty}</td></tr>`;
+      });
+      if (orphanedSalesScan.length > 300) {
+        rows += `<tr><td colspan="7" style="text-align:center; color:#888;">...ബാക്കി ${orphanedSalesScan.length - 300} records കൂടി (Clear ചെയ്യുമ്പോൾ എല്ലാം ഉൾപ്പെടും)</td></tr>`;
+      }
+      document.getElementById('orphanListBody').innerHTML = rows;
+      resultBox.style.display = 'block';
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Scan പരാജയപ്പെട്ടു.";
+    }
+  };
+
+  window.clearOrphanedSaleLinks = async function () {
+    if (orphanedSalesScan.length === 0) return;
+    const totalQty = orphanedSalesScan.reduce((s, x) => s + x.orphanQty, 0);
+    if (!confirm(`${orphanedSalesScan.length} Sales-ലെ orphaned links (ആകെ ${totalQty} Qty) clear ചെയ്യാൻ പോകുന്നു. ഇവ വീണ്ടും "Advance/Unlinked" ആയി മാറും — Purchase records-നെ ഇത് ബാധിക്കില്ല. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല. തുടരണോ?`)) return;
+
+    const statusEl = document.getElementById('orphanScanStatus');
+    let okCount = 0, failCount = 0;
+
+    for (let i = 0; i < orphanedSalesScan.length; i++) {
+      const item = orphanedSalesScan[i];
+      statusEl.style.color = '#555';
+      statusEl.textContent = `Clearing ${i + 1} / ${orphanedSalesScan.length}...`;
+      try {
+        const saleSnap = await getDoc(doc(db, "sales", item.id));
+        if (!saleSnap.exists()) { failCount++; continue; }
+        const sd = saleSnap.data();
+        const lots = sd.lots || [];
+        const keptLots = lots.filter(l => orphanExistingPurchaseIds.has(l.purchaseId));
+        const linkedQty = keptLots.reduce((s, l) => s + (l.qty || 0), 0);
+        const stillAdvance = linkedQty < (sd.qty || 0);
+        await updateDoc(doc(db, "sales", item.id), { lots: keptLots, isAdvance: stillAdvance });
+        okCount++;
+      } catch (err) {
+        console.error(err);
+        failCount++;
+      }
+    }
+
+    statusEl.style.color = '#2e7d32';
+    statusEl.textContent = `✅ Done! ${okCount} Sales clear ചെയ്തു.` + (failCount > 0 ? ` (${failCount} failed)` : '') +
+      ` ഇനി "🔗 Old Advance" tab-ലെ "Bulk Auto-Link" ഉപയോഗിച്ച് ഇവയെ പുതിയ Purchase lots-ലേക്ക് re-link ചെയ്യുക.`;
+    document.getElementById('orphanResultBox').style.display = 'none';
+    orphanedSalesScan = [];
+  };
+
   // ---- ADMIN: FIND & FIX REMAINING QTY MISMATCHES ----
   // Recomputes each lot's "correct" remaining as Purchased Qty − (sum of qty actually
   // linked to it via sale.lots), independent of whatever remainingQty currently says —
@@ -9197,36 +9504,82 @@
     resultBox.style.display = 'none';
 
     try {
-      const snap = await getDocs(collection(db, "purchases"));
+      const [snap, salesSnap] = await Promise.all([
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "sales"))
+      ]);
+      const matchesFilter = (d) => {
+        if (product && (d.product || '').toLowerCase() !== product.toLowerCase()) return false;
+        if (godown && (d.godown || '').toLowerCase() !== godown.toLowerCase()) return false;
+        if (vehicle && normalizeVehicleNo(d.vehicle) !== normalizeVehicleNo(vehicle)) return false;
+        return true;
+      };
+      const allPurchaseIds = new Set();
       let docs = [];
       snap.forEach(docSnap => {
+        allPurchaseIds.add(docSnap.id);
         const d = docSnap.data();
-        if (product && (d.product || '').toLowerCase() !== product.toLowerCase()) return;
-        if (godown && (d.godown || '').toLowerCase() !== godown.toLowerCase()) return;
-        if (vehicle && (d.vehicle || '').toLowerCase() !== vehicle.toLowerCase()) return;
+        if (!matchesFilter(d)) return;
         docs.push({ id: docSnap.id, ...d });
       });
       docs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
 
-      if (docs.length === 0) {
+      // What the sales themselves say is linked to each lot (source of truth), plus sales of
+      // this same Product/Godown/Vehicle whose links point at purchase docs that no longer exist.
+      const linkedByLot = {};
+      const orphanSales = [];
+      salesSnap.forEach(docSnap => {
+        const s = docSnap.data();
+        let deadQty = 0;
+        (s.lots || []).forEach(alloc => {
+          linkedByLot[alloc.purchaseId] = (linkedByLot[alloc.purchaseId] || 0) + (alloc.qty || 0);
+          if (alloc.source !== 'vehicle' && !allPurchaseIds.has(alloc.purchaseId)) deadQty += (alloc.qty || 0);
+        });
+        if (deadQty > 0 && matchesFilter(s)) orphanSales.push({ ...s, deadQty });
+      });
+
+      if (docs.length === 0 && orphanSales.length === 0) {
         statusEl.textContent = "Matching purchase documents ഒന്നും കണ്ടെത്തിയില്ല.";
         statusEl.style.color = '#e65100';
         return;
       }
 
       statusEl.textContent = '';
-      let totalQty = 0, totalRemaining = 0;
+      let totalQty = 0, totalRemaining = 0, mismatchCount = 0;
       const rows = docs.map(d => {
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        const linked = linkedByLot[d.id] || 0;
+        const correct = (d.qty || 0) - linked;
+        const bad = Math.abs(correct - (remaining || 0)) > 0.0001;
+        if (bad) mismatchCount++;
         totalQty += (d.qty || 0);
         totalRemaining += (remaining || 0);
-        return `<tr><td style="font-size:11px; color:#999;">${d.id}</td><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.qty || 0}</td><td>${remaining}</td><td>${d.status || 'pending'}</td><td>${d.enteredVia || '-'}</td></tr>`;
+        return `<tr${bad ? ' style="background:#ffebee;"' : ''}><td style="font-size:11px; color:#999;">${d.id}</td><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.qty || 0}</td>
+          <td>${remaining}</td><td>${linked}</td><td style="font-weight:700; color:${bad ? '#c62828' : '#2e7d32'};">${correct}</td>
+          <td>${d.status || 'pending'}</td><td>${d.enteredVia || '-'}</td></tr>`;
       }).join('');
 
       document.getElementById('inspCount').textContent = docs.length;
       document.getElementById('inspTotalQty').textContent = totalQty;
       document.getElementById('inspTotalRemaining').textContent = totalRemaining;
-      document.getElementById('inspListBody').innerHTML = rows;
+      document.getElementById('inspListBody').innerHTML = rows || '<tr><td colspan="9">Purchase docs ഇല്ല.</td></tr>';
+
+      const orphanBox = document.getElementById('inspOrphanBox');
+      if (orphanSales.length > 0) {
+        orphanSales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+        document.getElementById('inspOrphanBody').innerHTML = orphanSales.map(s =>
+          `<tr><td>${fmtDate(s.date)}</td><td>${s.area || '-'}</td><td>${s.customerName || '-'}</td><td>${s.qty || 0}</td><td style="color:#ad1457; font-weight:700;">${s.deadQty}</td></tr>`).join('');
+        orphanBox.style.display = 'block';
+      } else {
+        orphanBox.style.display = 'none';
+      }
+
+      const orphanTotal = orphanSales.reduce((t, s) => t + s.deadQty, 0);
+      const verdict = [];
+      if (orphanSales.length > 0) verdict.push(`👻 <b>${orphanSales.length} Sales (${orphanTotal} Qty)</b> delete ആയ പഴയ Purchase-ലേക്കാണ് link ചെയ്തിരിക്കുന്നത് — അതുകൊണ്ട് ഈ പുതിയ lots-ൽ നിന്ന് qty കുറഞ്ഞില്ല. <b>Fix:</b> "🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക" വഴി Clear ചെയ്ത്, "🔗 Old Advance → Bulk Auto-Link" വഴി re-link ചെയ്യുക.`);
+      if (mismatchCount > 0) verdict.push(`🔴 <b>${mismatchCount} lot(s)</b>-ന്റെ saved Remaining, അതിലേക്ക് link ആയ Sales-മായി ചേരുന്നില്ല (ചുവപ്പ് rows). <b>Fix:</b> "🔍 Remaining Qty Mismatch" tool ഓടിച്ച് ശരിയാക്കുക.`);
+      if (verdict.length === 0) verdict.push(`✅ Links-ഉം Remaining-ഉം ഒത്തുപോകുന്നു. ഈ lots-ൽ ഇപ്പോഴും ബാക്കി കാണിക്കുന്നത് യഥാർത്ഥത്തിൽ ഇതുവരെ ഒരു Sale-ഉം link ചെയ്യാത്ത qty ആണ്.`);
+      document.getElementById('inspVerdict').innerHTML = verdict.map(v => `<p style="margin-bottom:6px;">${v}</p>`).join('');
       resultBox.style.display = 'block';
 
     } catch (err) {
@@ -9653,7 +10006,7 @@
         const customerName = (cols[2] || '').trim();
         const product = (cols[3] || '').trim();
         const godown = (cols[4] || '').trim();
-        const vehicle = (cols[5] || '').trim();
+        const vehicle = normalizeVehicleNo(cols[5]);
         const qty = parseNum(cols[6]);
         const rate = parseNum(cols[7]);
         const discAmt = parseNum(cols[8]);
@@ -9851,17 +10204,34 @@
     try {
       const text = await file.text();
       let lines = text.split(/\r?\n/).filter(l => l.trim() !== '');
-      const firstCols = parseCsvLine(lines[0]).map(c => c.toLowerCase());
-      if (firstCols[0] && firstCols[0].includes('date')) lines = lines.slice(1);
+      if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
+
+      // Header-aware column mapping: if the first row looks like a header, map columns by NAME
+      // (so the order in the file doesn't matter and can't silently shift values into the wrong field).
+      // Falls back to the fixed position order (Date,Area,Product,Godown,Vehicle,Qty,Status,InvoiceNumber)
+      // only when no header row is present.
+      const headerNameMap = { date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty', status: 'status', invoicenumber: 'invoiceNumber', invoiceno: 'invoiceNumber', invoice: 'invoiceNumber' };
+      const firstCols = parseCsvLine(lines[0]).map(c => c.trim().toLowerCase().replace(/[^a-z]/g, ''));
+      let colIdx = { date: 0, area: 1, product: 2, godown: 3, vehicle: 4, qty: 5, status: 6, invoiceNumber: 7 };
+      let hasHeader = false;
+      if (firstCols[0] && firstCols[0].includes('date')) {
+        hasHeader = true;
+        const mapped = {};
+        firstCols.forEach((h, idx) => { if (headerNameMap[h]) mapped[headerNameMap[h]] = idx; });
+        // Only trust the header mapping if it found the essential columns; else keep fixed-position fallback.
+        if (mapped.date !== undefined && mapped.area !== undefined && mapped.product !== undefined && mapped.qty !== undefined) {
+          colIdx = { date: mapped.date, area: mapped.area, product: mapped.product, godown: mapped.godown, vehicle: mapped.vehicle, qty: mapped.qty, status: mapped.status, invoiceNumber: mapped.invoiceNumber };
+        }
+        lines = lines.slice(1);
+      }
 
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
-      // Sanity check: expected 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status). Invoice Number (8th) is optional.
-      // Fewer columns usually means an old-format file was used, which silently shifts
-      // every value one position and corrupts the upload.
+      // Sanity check: expected at least 7 columns (Date,Area,Product,Godown,Vehicle,Qty,Status). Invoice Number is optional.
+      // Fewer columns usually means an old-format file was used, which silently shifts every value one position.
       const firstDataCols = parseCsvLine(lines[0]);
-      if (firstDataCols.length < 7) {
-        if (!confirm(`⚠️ ഈ file-ൽ ${firstDataCols.length} columns മാത്രമേ ഉള്ളൂ (7 വേണം: Date,Area,Product,Godown,Vehicle,Qty,Status). പഴയ format ആണെങ്കിൽ data തെറ്റായി വീണേക്കാം. എന്നാലും തുടരണോ?`)) {
+      if (!hasHeader && firstDataCols.length < 7) {
+        if (!confirm(`⚠️ ഈ file-ൽ ${firstDataCols.length} columns മാത്രമേ ഉള്ളൂ (7 വേണം: Date,Area,Product,Godown,Vehicle,Qty,Status), header row ഉം ഇല്ല. പഴയ format ആണെങ്കിൽ data തെറ്റായി വീണേക്കാം. എന്നാലും തുടരണോ?`)) {
           statusEl.style.color = '#d32f2f';
           statusEl.textContent = "Cancel ചെയ്തു — column count ശരിയാക്കി വീണ്ടും ശ്രമിക്കുക.";
           return;
@@ -9875,7 +10245,7 @@
       const existingInvoiceKeys = new Set();
       existingSnap.forEach(docSnap => {
         const p = docSnap.data();
-        existingComboKeys.add([p.area || '', p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeName(p.vehicle), String(p.qty || 0)].join('|'));
+        existingComboKeys.add([p.area || '', p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeVehicleNo(p.vehicle), String(p.qty || 0)].join('|'));
         if (p.invoiceNumber && String(p.invoiceNumber).trim()) existingInvoiceKeys.add(String(p.invoiceNumber).trim().toLowerCase());
       });
 
@@ -9884,15 +10254,16 @@
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
-        const date = (cols[0] || '').trim();
-        const area = (cols[1] || '').trim().toUpperCase();
-        const product = (cols[2] || '').trim();
-        const godown = (cols[3] || '').trim();
-        const vehicle = (cols[4] || '').trim();
-        const qty = parseNum(cols[5]);
-        const statusRaw = (cols[6] || '').trim().toLowerCase();
+        const rowNum = hasHeader ? i + 2 : i + 1; // +2 accounts for the stripped header row, for accurate error reporting
+        const date = (cols[colIdx.date] || '').trim();
+        const area = (cols[colIdx.area] || '').trim().toUpperCase();
+        const product = (cols[colIdx.product] || '').trim();
+        const godown = colIdx.godown !== undefined ? (cols[colIdx.godown] || '').trim() : '';
+        const vehicle = colIdx.vehicle !== undefined ? normalizeVehicleNo(cols[colIdx.vehicle]) : '';
+        const qty = parseNum(cols[colIdx.qty]);
+        const statusRaw = colIdx.status !== undefined ? (cols[colIdx.status] || '').trim().toLowerCase() : '';
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
-        const invoiceNumber = (cols[7] || '').trim();
+        const invoiceNumber = colIdx.invoiceNumber !== undefined ? (cols[colIdx.invoiceNumber] || '').trim() : '';
 
         if (!date || !area || !product || qty === 0) {
           failCount++;
@@ -9901,21 +10272,21 @@
           if (!area) missing.push('Area');
           if (!product) missing.push('Product');
           if (qty === 0) missing.push('Qty (0 ആകാൻ പാടില്ല)');
-          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: 'Missing/Invalid: ' + missing.join(', ') });
           continue;
         }
 
         // Duplicate check: by Invoice Number if given, else by Date+Area+Product+Godown+Vehicle+Qty combo.
-        const comboKey = [area, date, normalizeName(product), normalizeName(godown), normalizeName(vehicle), String(qty)].join('|');
+        const comboKey = [area, date, normalizeName(product), normalizeName(godown), normalizeVehicleNo(vehicle), String(qty)].join('|');
         const invKey = invoiceNumber ? invoiceNumber.toLowerCase() : '';
         if (invKey && existingInvoiceKeys.has(invKey)) {
           dupCount++;
-          failedRows.push({ row: i + 1, raw: lines[i], reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
           continue;
         }
         if (!invKey && existingComboKeys.has(comboKey)) {
           dupCount++;
-          failedRows.push({ row: i + 1, raw: lines[i], reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
           continue;
         }
 
@@ -9934,7 +10305,7 @@
           if (invKey) existingInvoiceKeys.add(invKey);
         } catch (e) {
           failCount++;
-          failedRows.push({ row: i + 1, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
+          failedRows.push({ row: rowNum, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
       }
 
@@ -10358,6 +10729,7 @@
   let bulkLinkProposed = [];
   let bulkLinkUnmatchedSales = [];
   let bulkLinkUnmatchedPurchases = [];
+  let bulkLinkScanArea = '';
 
   function addDaysStr(dateStr, n) {
     const dt = new Date(dateStr + 'T00:00:00');
@@ -10372,6 +10744,7 @@
     const resultsBox = document.getElementById('bulkLinkResults');
 
     if (!area) { alert("ദയവായി ഒരു Area select ചെയ്യുക. Bulk linking Area-wise മാത്രമേ ചെയ്യാവൂ."); return; }
+    bulkLinkScanArea = area;
 
     resultsBox.innerHTML = '<p style="color:#888;">Scanning...</p>';
 
@@ -10481,6 +10854,30 @@
           }
         });
 
+        // ---- RULE 6 (TIER 4): FIFO split-match — a leftover Purchase may need splitting across
+        // several Sales, or a leftover Sale may need stock from several Purchases (no exact 1:1
+        // match found above). Allocate oldest-first on both sides until one side runs out. These
+        // are proposed UNCHECKED by default (proposeLink: selected = tier<=2) — always review
+        // before applying, since this is a best-guess split, not a confirmed exact match. ----
+        {
+          let pQueue = pLots.filter(p => p.avail > 0).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+          let sQueue = sItems.filter(s => s.need > 0).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+          let pi = 0, si = 0;
+          while (pi < pQueue.length && si < sQueue.length) {
+            const p = pQueue[pi], s = sQueue[si];
+            if (p.avail <= 0) { pi++; continue; }
+            if (s.need <= 0) { si++; continue; }
+            const qty = Math.min(p.avail, s.need);
+            if (qty > 0) {
+              proposeLink(4, 'FIFO split-match — ഒരു exact match ഇല്ല, ശ്രദ്ധയോടെ review ചെയ്ത ശേഷം മാത്രം select ചെയ്യുക', s, p, qty);
+              p.avail -= qty;
+              s.need -= qty;
+            }
+            if (p.avail <= 0) pi++;
+            if (s.need <= 0) si++;
+          }
+        }
+
         // ---- RULE 5: whatever is left is genuinely ambiguous/unmatched — leave for manual review ----
         pLots.filter(p => p.avail > 0).forEach(p => {
           bulkLinkUnmatchedPurchases.push({ ...p, product, possibleIgst: /igst/i.test(p.godown || '') });
@@ -10501,7 +10898,8 @@
   function tierLabel(tier) {
     if (tier === 1) return '<span style="background:#c8e6c9; color:#2e7d32; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 1: Same day+qty</span>';
     if (tier === 2) return '<span style="background:#fff9c4; color:#f57f17; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 2: Next-day carry</span>';
-    return '<span style="background:#ffccbc; color:#bf360c; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 3: Cross-date — verify</span>';
+    if (tier === 3) return '<span style="background:#ffccbc; color:#bf360c; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 3: Cross-date — verify</span>';
+    return '<span style="background:#e1bee7; color:#6a1b9a; padding:2px 8px; border-radius:6px; font-size:11px; font-weight:700;">TIER 4: FIFO Split — verify</span>';
   }
 
   window.renderBulkLinkResults = function () {
@@ -10515,33 +10913,49 @@
     </div>`;
 
     if (bulkLinkProposed.length > 0) {
-      html += `<h4 style="color:#2e7d32; margin:10px 0 6px;">✅ Proposed Links — Review ചെയ്യുക, വേണ്ടാത്തത് uncheck ചെയ്യുക</h4>
+      html += `<h4 style="color:#2e7d32; margin:10px 0 6px;">✅ Proposed Links — ഓരോ Purchase-ന് താഴെയും അതിന് match ആയ Sales കാണാം. Review ചെയ്യുക, വേണ്ടാത്തത് uncheck ചെയ്യുക</h4>
       <div class="table-wrap" style="margin-bottom:10px;">
         <table>
           <thead><tr>
             <th><input type="checkbox" checked onchange="toggleBulkLinkAll(this.checked)"></th>
-            <th>Match</th><th>Product</th>
+            <th>Match</th>
             <th>Sale Date</th><th>Customer</th><th>Sale Veh</th>
-            <th>Purchase Date</th><th>Purchase Godown</th><th>Purchase Veh</th>
             <th>Qty</th>
           </tr></thead>
           <tbody>`;
+      // Group proposed links by Purchase, so each Purchase lot shows the Sales matched to it underneath.
+      const purchGroups = {};
+      const purchOrder = [];
       bulkLinkProposed.forEach((l, i) => {
-        html += `<tr>
-          <td><input type="checkbox" ${l.selected ? 'checked' : ''} onchange="bulkLinkProposed[${i}].selected = this.checked"></td>
-          <td>${tierLabel(l.tier)}<br><span style="font-size:11px; color:#888;">${l.note}</span></td>
-          <td>${l.product}</td>
-          <td>${fmtDate(l.saleDate)}</td><td>${l.saleCustomer}</td><td>${l.saleVehicle || '-'}</td>
-          <td>${fmtDate(l.purchaseDate)}</td><td>${l.purchaseGodown || '-'}</td><td>${l.purchaseVehicle || '-'}</td>
-          <td>${l.qty}</td>
+        if (!purchGroups[l.purchaseId]) {
+          purchGroups[l.purchaseId] = { purchaseId: l.purchaseId, purchaseDate: l.purchaseDate, purchaseGodown: l.purchaseGodown, purchaseVehicle: l.purchaseVehicle, product: l.product, items: [] };
+          purchOrder.push(l.purchaseId);
+        }
+        purchGroups[l.purchaseId].items.push(i);
+      });
+      purchOrder.forEach(pid => {
+        const g = purchGroups[pid];
+        const groupQty = g.items.reduce((s, i) => s + (bulkLinkProposed[i].qty || 0), 0);
+        html += `<tr style="background:#fff3e0;">
+          <td colspan="6" style="font-weight:700; color:#e65100;">📦 Purchase: ${fmtDate(g.purchaseDate)} · ${g.product} · ${g.purchaseGodown || '-'}${g.purchaseVehicle ? ' · Veh: ' + g.purchaseVehicle : ''} — ആകെ match: ${groupQty}</td>
         </tr>`;
+        g.items.forEach(i => {
+          const l = bulkLinkProposed[i];
+          html += `<tr>
+            <td><input type="checkbox" ${l.selected ? 'checked' : ''} onchange="setBulkLinkSelected(${i}, this.checked)"></td>
+            <td style="padding-left:18px;">↳ ${tierLabel(l.tier)}<br><span style="font-size:11px; color:#888;">${l.note}</span></td>
+            <td>${fmtDate(l.saleDate)}</td><td>${l.saleCustomer}</td><td>${l.saleVehicle || '-'}</td>
+            <td>${l.qty}</td>
+          </tr>`;
+        });
       });
       html += `</tbody></table></div>
       <button class="full-btn" style="background:#2e7d32; margin-bottom:20px;" onclick="applyBulkOldLinks()">✅ Apply Selected Links</button>`;
     }
 
     if (bulkLinkUnmatchedSales.length > 0) {
-      html += `<h4 style="color:#e65100; margin:16px 0 6px;">⚠️ Unmatched Sales (advance ആയി തുടരും — manually link ചെയ്യേണ്ടത്)</h4>
+      html += `<h4 style="color:#e65100; margin:16px 0 6px;">⚠️ Unmatched Sales (advance ആയി തുടരും)</h4>
+      <p style="font-size:12px; color:#777; margin-bottom:8px;">ഇവിടെ നിന്ന് <b>Link</b> ചെയ്ത് manual ആയി lot select ചെയ്യാം. അല്ലെങ്കിൽ To Date കുറച്ച് കൂടി മുന്നോട്ട് (അടുത്ത period) വെച്ച് വീണ്ടും Scan ചെയ്താൽ, പിന്നീട് വന്ന Purchase-കളോടും ഇവ automatic ആയി match ചെയ്യാൻ ശ്രമിക്കും.</p>
       <div class="table-wrap" style="margin-bottom:10px;">
         <table>
           <thead><tr><th>Date</th><th>Customer</th><th>Product</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
@@ -10554,14 +10968,16 @@
     }
 
     if (bulkLinkUnmatchedPurchases.length > 0) {
-      html += `<h4 style="color:#5d4037; margin:16px 0 6px;">📦 Unmatched Purchases (excess stock — sell ചെയ്യാൻ ബാക്കി ഉള്ളത്)</h4>
+      html += `<h4 style="color:#5d4037; margin:16px 0 6px;">📦 Unmatched Purchases (excess stock — ഈ period-ൽ sell ആകാതെ ബാക്കി ഉള്ളത്)</h4>
+      <p style="font-size:12px; color:#777; margin-bottom:8px;">ഇത് അടുത്ത period-ലെ Sale-നോട് match ചെയ്യണമെങ്കിൽ To Date കൂട്ടി വീണ്ടും Scan ചെയ്യുക. ഉടനെ sell ചെയ്യാൻ പറ്റില്ലെങ്കിൽ, താഴെ <b>🚚 Transfer</b> ബട്ടൺ വഴി മറ്റൊരു Godown/Vehicle-ലേക്ക് നീക്കാം.</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Date</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th>Note</th></tr></thead>
+          <thead><tr><th>Date</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th>Note</th><th></th></tr></thead>
           <tbody>`;
       bulkLinkUnmatchedPurchases.forEach(p => {
         html += `<tr><td>${fmtDate(p.date)}</td><td>${p.product}</td><td>${p.godown || '-'}</td><td>${p.vehicle || '-'}</td><td>${p.avail}</td>
-          <td>${p.possibleIgst ? '<span style="color:#c62828;">IGST godown ആണെന്ന് തോന്നുന്നു — അടുത്ത load വരുന്നതിന് മുന്നേ sell ചെയ്യാൻ കഴിഞ്ഞില്ലെങ്കിൽ own godown ലേക്ക് Stock Transfer ചെയ്യുക.</span>' : '-'}</td></tr>`;
+          <td>${p.possibleIgst ? '<span style="color:#c62828;">IGST godown ആണെന്ന് തോന്നുന്നു — അടുത്ത load വരുന്നതിന് മുന്നേ sell ചെയ്യാൻ കഴിഞ്ഞില്ലെങ്കിൽ own godown ലേക്ക് Stock Transfer ചെയ്യുക.</span>' : '-'}</td>
+          <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="jumpToAdminTransfer('${p.product.replace(/'/g, "\\'")}', '${(p.godown || '').replace(/'/g, "\\'")}', '${p.id}', ${p.avail})">🚚 Transfer</button></td></tr>`;
       });
       html += `</tbody></table></div>`;
     }
@@ -10571,6 +10987,30 @@
     }
 
     box.innerHTML = html;
+  };
+
+  // Jump from the Bulk Auto-Link "Unmatched Purchases" list straight into Admin → Settings →
+  // Godown's Stock Transfer form, pre-filled with this lot — so leftover stock that couldn't be
+  // matched in this period can quickly be moved to another godown/vehicle for the next period.
+  window.jumpToAdminTransfer = async function (product, godown, lotId, qty) {
+    switchAdminTab('settings');
+    switchAdminSettingsSubTab('godown');
+    const areaSel = document.getElementById('adminTransferArea');
+    if (bulkLinkScanArea) areaSel.value = bulkLinkScanArea;
+    await populateAdminTransferDropdowns();
+    document.getElementById('adminTransferProduct').value = product;
+    document.getElementById('adminTransferFromGodown').value = godown;
+    await refreshAdminTransferLots();
+    if (lotId) document.getElementById('adminTransferLot').value = lotId;
+    if (qty) document.getElementById('adminTransferQty').value = qty;
+    const qtyEl = document.getElementById('adminTransferQty');
+    if (qtyEl && qtyEl.scrollIntoView) qtyEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  // Inline onchange handlers run in global scope and can't see the module-scoped
+  // bulkLinkProposed array directly — expose a setter on window instead.
+  window.setBulkLinkSelected = function (i, checked) {
+    if (bulkLinkProposed[i]) bulkLinkProposed[i].selected = checked;
   };
 
   window.toggleBulkLinkAll = function (checked) {
@@ -10919,7 +11359,7 @@
         await updateDoc(doc(db, "sales", quickEditId), {
           product: document.getElementById('qeProduct').value,
           godown: document.getElementById('qeGodown').value,
-          vehicle: document.getElementById('qeVehicle').value.trim(),
+          vehicle: normalizeVehicleNo(document.getElementById('qeVehicle').value),
           date: document.getElementById('qeDate').value,
           qty: newQty,
           rate: parseFloat(document.getElementById('qeRate').value) || 0,
@@ -10945,7 +11385,7 @@
           area: document.getElementById('qeArea').value,
           product: document.getElementById('qeProduct').value,
           godown: document.getElementById('qeGodown').value,
-          vehicle: document.getElementById('qeVehicle').value.trim(),
+          vehicle: normalizeVehicleNo(document.getElementById('qeVehicle').value),
           date: document.getElementById('qeDate').value,
           status: document.getElementById('qeStatus').value,
           qty: qty, remainingQty: remainingQty,
@@ -11482,6 +11922,9 @@
     });
   }
 </script>
+
+<!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-23b</div>
 
 </body>
 </html>
