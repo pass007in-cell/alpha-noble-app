@@ -2035,6 +2035,34 @@
       </div>
     </details>
 
+    <details class="add-user-form" style="background:#fff8e1;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#f57f17;">⚖️ Over-linked Lots ശരിയാക്കുക (Remaining മൈനസ് ആയവ)</summary>
+      <div class="details-body">
+      <p style="font-size:13px; color:#555; margin-bottom:14px;">
+        ഒരു lot-ന്റെ Qty-യേക്കാൾ കൂടുതൽ Sales അതിലേക്ക് link ആയിട്ടുണ്ടെങ്കിൽ (ഉദാ: Qty 20, Linked 100 → Remaining −80), അധികമുള്ള qty <b>അതേ ദിവസത്തെ, അതേ Product+Godown+Vehicle-ന്റെ</b> മറ്റ് lots-ലേക്ക് (stock ബാക്കി ഉള്ളവ) നീക്കും. Trip Sheet-ലെ merged row-ൽ നിന്ന് link ചെയ്തപ്പോൾ എല്ലാം ആദ്യ lot-ലേക്ക് പോയതാണ് ഇതിന്റെ സാധാരണ കാരണം. ആദ്യം Scan (Preview), പിന്നെ മാത്രം Apply.
+      </p>
+      <label>Area (optional)</label>
+      <select id="overLinkArea" style="margin-bottom:14px;">
+        <option value="">-- All Areas --</option>
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
+      <button class="full-btn" style="background:#f57f17;" onclick="scanOverLinkedLots()">🔍 Scan (Preview മാത്രം)</button>
+      <div id="overLinkStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      <div id="overLinkResultBox" style="display:none; margin-top:16px;">
+        <div class="table-wrap" style="margin-bottom:14px; max-height:380px; overflow-y:auto;">
+          <table>
+            <thead><tr><th>Date</th><th>Lot</th><th>Qty</th><th>Linked</th><th>അധികം</th><th>നീക്കുന്നത്</th><th>ബാക്കി പ്രശ്നം</th></tr></thead>
+            <tbody id="overLinkBody"></tbody>
+          </table>
+        </div>
+        <button class="full-btn" style="background:#2e7d32;" onclick="applyOverLinkedFix()">✅ Apply — അധിക links sibling lots-ലേക്ക് നീക്കുക</button>
+      </div>
+      </div>
+    </details>
+
     <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
       <summary style="color:#e65100;">📅 തെറ്റായ Date Format ഉള്ള Records കണ്ടെത്തുക</summary>
       <div class="details-body">
@@ -4863,9 +4891,14 @@
     if (qty > sale.remainingUnlinked) { errEl.textContent = `ഈ Sale-ന് ബാക്കി ${sale.remainingUnlinked} Qty മാത്രമേ link ചെയ്യാൻ ഉള്ളൂ.`; errEl.style.display = 'block'; return; }
 
     try {
-      await updateDoc(doc(db, "purchases", tripLinkLotId), { remainingQty: increment(-qty) });
+      // tripLinkLotId may be several merged purchase doc ids ("id1,id2,id3") from the Trip
+      // Sheet — spread the qty across them by each one's own live remaining, instead of
+      // dumping it all on the first doc (which used to drive that lot negative).
+      const plan = await planLotSpread(tripLinkLotId, qty);
+      if (!plan) { errEl.textContent = "ഈ lot-ൽ ഇപ്പോൾ അത്രയും stock ഇല്ല (വേറെ ആരോ ഇതിനിടയിൽ link ചെയ്തിരിക്കാം). Refresh ചെയ്ത് വീണ്ടും ശ്രമിക്കുക."; errEl.style.display = 'block'; return; }
+      for (const p of plan) await updateDoc(doc(db, "purchases", p.id), { remainingQty: increment(-p.qty) });
 
-      const newLots = [...(sale.lots || []), { purchaseId: tripLinkLotId, qty: qty, source: 'godown' }];
+      const newLots = [...(sale.lots || []), ...plan.map(p => ({ purchaseId: p.id, qty: p.qty, source: 'godown' }))];
       const newLinkedTotal = newLots.reduce((s, l) => s + (l.qty || 0), 0);
       const stillAdvance = newLinkedTotal < (sale.qty || 0);
 
@@ -4887,6 +4920,33 @@
       errEl.style.display = 'block';
     }
   };
+
+  // Given one or more purchase doc ids (comma-separated, e.g. a merged Trip Sheet lot),
+  // split `qty` across them oldest-first using each doc's CURRENT remainingQty.
+  // Returns [{id, qty}] or null if together they don't have enough stock.
+  async function planLotSpread(idList, qty) {
+    const ids = String(idList || '').split(',').map(x => x.trim()).filter(Boolean);
+    const docs = [];
+    for (const id of ids) {
+      const snap = await getDoc(doc(db, "purchases", id));
+      if (!snap.exists()) continue;
+      const d = snap.data();
+      const rem = (d.remainingQty !== undefined) ? d.remainingQty : (d.qty || 0);
+      if (rem > 0) docs.push({ id, rem, date: d.date || '', createdAt: d.createdAt || '' });
+    }
+    docs.sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt));
+    const total = docs.reduce((t, d) => t + d.rem, 0);
+    if (total + 0.0001 < qty) return null;
+    const plan = [];
+    let left = qty;
+    for (const d of docs) {
+      if (left <= 0) break;
+      const take = Math.min(d.rem, left);
+      plan.push({ id: d.id, qty: take });
+      left -= take;
+    }
+    return plan;
+  }
 
   // Removes ONE specific lot-allocation from a sale (in case of a wrong link), restoring
   // that qty back to the purchase lot's remaining stock, and re-marking the sale as
@@ -5021,24 +5081,31 @@
 
     const todayStr = new Date().toISOString().split('T')[0];
 
+    // Validate the destination BEFORE touching any stock, so a missing selection can't
+    // leave the source lot reduced with nothing created on the other side.
+    const toGodown = document.getElementById('tripTransferToGodown').value;
+    const toVehicle = document.getElementById('tripTransferToVehicle').value;
+    if (destType === 'godown' && !toGodown) { errEl.textContent = "To Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+    if (destType !== 'godown' && !toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
+
     try {
-      await updateDoc(doc(db, "purchases", tripTransferLotId), { remainingQty: increment(-qty) });
+      // Source may be several merged lot ids — take the qty from them oldest-first.
+      const plan = await planLotSpread(tripTransferLotId, qty);
+      if (!plan) { errEl.textContent = "ഈ lot-ൽ ഇപ്പോൾ അത്രയും stock ഇല്ല. Refresh ചെയ്ത് വീണ്ടും ശ്രമിക്കുക."; errEl.style.display = 'block'; return; }
+      for (const p of plan) await updateDoc(doc(db, "purchases", p.id), { remainingQty: increment(-p.qty) });
+      const fromId = plan[0].id;
 
       if (destType === 'godown') {
-        const toGodown = document.getElementById('tripTransferToGodown').value;
-        if (!toGodown) { errEl.textContent = "To Godown select ചെയ്യുക."; errEl.style.display = 'block'; return; }
         await addDoc(collection(db, "purchases"), {
           product: tripTransferProduct, godown: toGodown, vehicle: '', area: tripTransferArea,
           qty: qty, remainingQty: qty, rate: tripTransferRate, amount: 0, date: todayStr, status: 'approved',
-          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
+          transferredFrom: fromId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
       } else {
-        const toVehicle = document.getElementById('tripTransferToVehicle').value;
-        if (!toVehicle) { errEl.textContent = "To Vehicle select ചെയ്യുക."; errEl.style.display = 'block'; return; }
         await addDoc(collection(db, "vehicleStock"), {
           product: tripTransferProduct, vehicle: toVehicle, area: tripTransferArea,
           qty: qty, remainingQty: qty, rate: tripTransferRate, date: todayStr,
-          transferredFrom: tripTransferLotId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
+          transferredFrom: fromId, enteredBy: currentUserData.username || 'unknown', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
         });
       }
 
@@ -7399,7 +7466,7 @@
     filteredLots.forEach(lot => {
       const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
       const ids = lot.ids || [lot.id];
-      const actingId = ids[0];
+      const actingId = ids.join(','); // all merged doc ids — link/transfer spread qty across them, not just the first
       let linkedSales = [];
       ids.forEach(id => { linkedSales = linkedSales.concat(salesByLot[id] || []); });
       const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
@@ -7921,7 +7988,7 @@
     filteredLots.forEach(lot => {
       const remaining = (lot.remainingQty !== undefined) ? lot.remainingQty : lot.qty;
       const ids = lot.ids || [lot.id];
-      const actingId = ids[0];
+      const actingId = ids.join(','); // all merged doc ids — link/transfer spread qty across them, not just the first
       let linkedSales = [];
       ids.forEach(id => { linkedSales = linkedSales.concat(salesByLot[id] || []); });
       const soldQty = linkedSales.reduce((s, x) => s + (x.qty || 0), 0);
@@ -9561,13 +9628,15 @@
       }
 
       statusEl.textContent = '';
-      let totalQty = 0, totalRemaining = 0, mismatchCount = 0;
+      let totalQty = 0, totalRemaining = 0, mismatchCount = 0, overCount = 0;
       const rows = docs.map(d => {
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         const linked = linkedByLot[d.id] || 0;
         const correct = (d.qty || 0) - linked;
-        const bad = Math.abs(correct - (remaining || 0)) > 0.0001;
-        if (bad) mismatchCount++;
+        const over = linked > (d.qty || 0) + 0.0001; // more sales linked than the lot ever had
+        const bad = over || Math.abs(correct - (remaining || 0)) > 0.0001;
+        if (over) overCount++;
+        else if (bad) mismatchCount++;
         totalQty += (d.qty || 0);
         totalRemaining += (remaining || 0);
         return `<tr${bad ? ' style="background:#ffebee;"' : ''}><td style="font-size:11px; color:#999;">${d.id}</td><td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.qty || 0}</td>
@@ -9593,6 +9662,7 @@
       const orphanTotal = orphanSales.reduce((t, s) => t + s.deadQty, 0);
       const verdict = [];
       if (orphanSales.length > 0) verdict.push(`👻 <b>${orphanSales.length} Sales (${orphanTotal} Qty)</b> delete ആയ പഴയ Purchase-ലേക്കാണ് link ചെയ്തിരിക്കുന്നത് — അതുകൊണ്ട് ഈ പുതിയ lots-ൽ നിന്ന് qty കുറഞ്ഞില്ല. <b>Fix:</b> "🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക" വഴി Clear ചെയ്ത്, "🔗 Old Advance → Bulk Auto-Link" വഴി re-link ചെയ്യുക.`);
+      if (overCount > 0) verdict.push(`⚖️ <b>${overCount} lot(s)</b>-ലേക്ക് അതിന്റെ Qty-യേക്കാൾ കൂടുതൽ Sales link ആയിട്ടുണ്ട് (Remaining മൈനസ്) — ഇതേ ദിവസത്തെ മറ്റ് lots വെറുതെ കിടക്കുന്നതായി തോന്നും. <b>Fix:</b> "⚖️ Over-linked Lots ശരിയാക്കുക" tool ഉപയോഗിക്കുക.`);
       if (mismatchCount > 0) verdict.push(`🔴 <b>${mismatchCount} lot(s)</b>-ന്റെ saved Remaining, അതിലേക്ക് link ആയ Sales-മായി ചേരുന്നില്ല (ചുവപ്പ് rows). <b>Fix:</b> "🔍 Remaining Qty Mismatch" tool ഓടിച്ച് ശരിയാക്കുക.`);
       if (verdict.length === 0) verdict.push(`✅ Links-ഉം Remaining-ഉം ഒത്തുപോകുന്നു. ഈ lots-ൽ ഇപ്പോഴും ബാക്കി കാണിക്കുന്നത് യഥാർത്ഥത്തിൽ ഇതുവരെ ഒരു Sale-ഉം link ചെയ്യാത്ത qty ആണ്.`);
       document.getElementById('inspVerdict').innerHTML = verdict.map(v => `<p style="margin-bottom:6px;">${v}</p>`).join('');
@@ -9692,6 +9762,150 @@
       console.error(err);
       statusEl.textContent = "Fix ചെയ്യാൻ പറ്റിയില്ല.";
       statusEl.style.color = '#d32f2f';
+    }
+  };
+
+  // ---- ADMIN: OVER-LINKED LOTS (linked sales qty > lot qty, remaining negative) ----
+  // Moves the excess allocations onto same-day sibling lots (same Area+Product+Godown+Vehicle)
+  // that still have free capacity. Caused by the old Trip Sheet merged-row link bug, which
+  // put a merged group's whole qty onto its first doc only.
+  let overLinkPlan = null; // { moves:[{saleId, fromId, toId, qty}] }
+
+  window.scanOverLinkedLots = async function () {
+    const area = document.getElementById('overLinkArea').value;
+    const statusEl = document.getElementById('overLinkStatus');
+    const resultBox = document.getElementById('overLinkResultBox');
+    resultBox.style.display = 'none';
+    statusEl.style.color = '#555';
+    statusEl.textContent = "Scanning...";
+    overLinkPlan = null;
+    try {
+      const [purchSnap, salesSnap] = await Promise.all([getDocs(collection(db, "purchases")), getDocs(collection(db, "sales"))]);
+      const lots = {};
+      purchSnap.forEach(ds => { lots[ds.id] = { id: ds.id, ...ds.data() }; });
+      const allocsByLot = {}; // lotId -> [{saleId, qty, saleDate}]
+      const linked = {};
+      salesSnap.forEach(ds => {
+        const s = ds.data();
+        (s.lots || []).forEach(a => {
+          if (a.source === 'vehicle' || !lots[a.purchaseId]) return;
+          (allocsByLot[a.purchaseId] = allocsByLot[a.purchaseId] || []).push({ saleId: ds.id, qty: a.qty || 0, saleDate: s.date || '' });
+          linked[a.purchaseId] = (linked[a.purchaseId] || 0) + (a.qty || 0);
+        });
+      });
+      const sibKey = (d) => [(d.area || '').trim().toUpperCase(), d.date || '', normalizeName(d.product), normalizeName(d.godown), normalizeVehicleNo(d.vehicle)].join('|');
+      const byKey = {};
+      Object.values(lots).forEach(d => { (byKey[sibKey(d)] = byKey[sibKey(d)] || []).push(d); });
+
+      const finalLinked = { ...linked };
+      const capLeft = {};
+      const moves = [];
+      const rows = [];
+      Object.values(lots)
+        .filter(d => (!area || d.area === area) && (linked[d.id] || 0) > (d.qty || 0) + 0.0001)
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        .forEach(d => {
+          let excess = (finalLinked[d.id] || 0) - (d.qty || 0);
+          if (excess <= 0) return;
+          const sibs = (byKey[sibKey(d)] || []).filter(x => x.id !== d.id)
+            .sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+          // Move whole-or-partial allocations, newest sales first (oldest sales stay on the original lot).
+          const allocs = (allocsByLot[d.id] || []).map(a => ({ ...a })).sort((a, b) => b.saleDate.localeCompare(a.saleDate));
+          let moved = 0;
+          for (const sib of sibs) {
+            // Free stock = the smaller of (Qty − linked) and the saved Remaining, so stock
+            // already transferred out of the sibling isn't handed out twice.
+            if (capLeft[sib.id] === undefined) {
+              const savedRem = (sib.remainingQty !== undefined) ? sib.remainingQty : (sib.qty || 0);
+              capLeft[sib.id] = Math.max(0, Math.min((sib.qty || 0) - (linked[sib.id] || 0), savedRem));
+            }
+            let cap = capLeft[sib.id];
+            while (cap > 0.0001 && excess > 0.0001) {
+              const a = allocs.find(x => x.qty > 0.0001);
+              if (!a) break;
+              const q = Math.min(a.qty, cap, excess);
+              moves.push({ saleId: a.saleId, fromId: d.id, toId: sib.id, qty: q });
+              a.qty -= q; cap -= q; capLeft[sib.id] -= q; excess -= q; moved += q;
+              finalLinked[d.id] -= q;
+              finalLinked[sib.id] = (finalLinked[sib.id] || 0) + q;
+            }
+            if (excess <= 0.0001) break;
+          }
+          rows.push(`<tr><td>${fmtDate(d.date)}</td><td>${d.area || '-'} · ${d.product || '-'} · ${d.godown || '-'} · ${d.vehicle || '-'}</td>
+            <td>${d.qty || 0}</td><td>${linked[d.id]}</td><td>${linked[d.id] - (d.qty || 0)}</td>
+            <td style="color:#2e7d32; font-weight:700;">${moved}</td>
+            <td style="color:${excess > 0.0001 ? '#c62828' : '#2e7d32'};">${excess > 0.0001 ? excess + ' (sibling lots-ൽ stock ഇല്ല — manual)' : '✅ ഇല്ല'}</td></tr>`);
+        });
+
+      if (rows.length === 0) {
+        statusEl.style.color = '#2e7d32';
+        statusEl.textContent = "✅ Over-linked lots ഒന്നും ഇല്ല.";
+        return;
+      }
+      overLinkPlan = { moves };
+      statusEl.textContent = `${rows.length} over-linked lots കണ്ടെത്തി — ${moves.length} link-നീക്കങ്ങൾ propose ചെയ്യുന്നു.`;
+      document.getElementById('overLinkBody').innerHTML = rows.join('');
+      resultBox.style.display = 'block';
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Scan പരാജയപ്പെട്ടു.";
+    }
+  };
+
+  window.applyOverLinkedFix = async function () {
+    if (!overLinkPlan || overLinkPlan.moves.length === 0) { alert("നീക്കാൻ ഒന്നും ഇല്ല (sibling lots-ൽ stock ഇല്ലാത്തവ manual ആയി നോക്കണം)."); return; }
+    const { moves } = overLinkPlan;
+    if (!confirm(`${moves.length} link-നീക്കങ്ങൾ apply ചെയ്യണോ? Sales-ന്റെ ആകെ linked qty മാറില്ല — ഏത് lot-ലേക്ക് എന്നത് മാത്രം മാറും.`)) return;
+    const statusEl = document.getElementById('overLinkStatus');
+    statusEl.style.color = '#555';
+    try {
+      // Group moves per sale, then rewrite each sale's lots[] once.
+      const bySale = {};
+      moves.forEach(m => { (bySale[m.saleId] = bySale[m.saleId] || []).push(m); });
+      const saleIds = Object.keys(bySale);
+      const delta = {}; // lotId -> change to remainingQty (from-lot gets stock back, to-lot gives it)
+      for (let i = 0; i < saleIds.length; i++) {
+        statusEl.textContent = `Sales update ചെയ്യുന്നു ${i + 1} / ${saleIds.length}...`;
+        const sid = saleIds[i];
+        const snap = await getDoc(doc(db, "sales", sid));
+        if (!snap.exists()) continue;
+        let lotsArr = (snap.data().lots || []).map(a => ({ ...a }));
+        for (const m of bySale[sid]) {
+          let need = m.qty;
+          for (const a of lotsArr) {
+            if (need <= 0.0001) break;
+            if (a.purchaseId !== m.fromId) continue;
+            const take = Math.min(a.qty || 0, need);
+            a.qty = (a.qty || 0) - take;
+            need -= take;
+          }
+          const moved = m.qty - need;
+          if (moved > 0.0001) {
+            const existing = lotsArr.find(a => a.purchaseId === m.toId && (a.source || 'godown') === 'godown');
+            if (existing) existing.qty = (existing.qty || 0) + moved;
+            else lotsArr.push({ purchaseId: m.toId, qty: moved, source: 'godown' });
+            delta[m.fromId] = (delta[m.fromId] || 0) + moved;
+            delta[m.toId] = (delta[m.toId] || 0) - moved;
+          }
+        }
+        lotsArr = lotsArr.filter(a => (a.qty || 0) > 0.0001);
+        await updateDoc(doc(db, "sales", sid), { lots: lotsArr });
+      }
+      // Shift remainingQty by exactly what moved (increment, not overwrite) so any Stock
+      // Transfer already taken out of these lots is preserved.
+      const lotIds = Object.keys(delta).filter(id => Math.abs(delta[id]) > 0.0001);
+      for (const lotId of lotIds) {
+        await updateDoc(doc(db, "purchases", lotId), { remainingQty: increment(delta[lotId]) });
+      }
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `✅ ${saleIds.length} Sales-ന്റെ links ശരിയാക്കി, ${lotIds.length} lots-ന്റെ Remaining update ചെയ്തു.`;
+      document.getElementById('overLinkResultBox').style.display = 'none';
+      overLinkPlan = null;
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = "Apply ചെയ്യുമ്പോൾ പിശക് — വീണ്ടും Scan ചെയ്ത് നോക്കുക.";
     }
   };
 
@@ -11940,7 +12154,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-23c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-23d</div>
 
 </body>
 </html>
