@@ -1860,7 +1860,7 @@
       <summary style="color:#e65100;">🔁 Duplicate Purchases കണ്ടെത്തി Remove ചെയ്യുക</summary>
       <div class="details-body">
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
-        ഒരേ CSV file 2 തവണ upload ചെയ്തുപോയാൽ, Area+Date+Product+Godown+Vehicle+Qty എല്ലാം ഒരേപോലെ ഉള്ള records ഇവിടെ കണ്ടെത്താം. ഓരോ duplicate group-ലും <strong>ഒരെണ്ണം നിലനിർത്തി ബാക്കി മാത്രം</strong> delete ചെയ്യും.
+        ഒരേ CSV file 2 തവണ upload ചെയ്തുപോയാൽ, Area+Date+Product+Godown+Vehicle+Qty എല്ലാം ഒരേപോലെ ഉള്ള records ഇവിടെ കണ്ടെത്താം. Space/case വ്യത്യാസം മാത്രമുള്ളവയും (ഉദാ: "KL71L0742 " / "KL71L0742") duplicate ആയി കണക്കാക്കും. ഓരോ group-ലും <strong>Sales link ഉള്ള copy നിലനിർത്തി</strong>, Sales link <strong>ഇല്ലാത്ത</strong> copies മാത്രമേ delete ചെയ്യൂ — അതുകൊണ്ട് linked sales-ന് ഒന്നും സംഭവിക്കില്ല.
       </p>
       <div class="form-grid">
         <div>
@@ -9297,21 +9297,30 @@
     resultBox.style.display = 'none';
 
     try {
-      const snap = await getDocs(collection(db, "purchases"));
+      const [snap, salesSnap] = await Promise.all([
+        getDocs(collection(db, "purchases")),
+        getDocs(collection(db, "sales"))
+      ]);
+      // How much sale qty is linked to each purchase doc — a doc with linked sales must
+      // never be deleted (that would orphan those sales' links).
+      const linkedByLot = {};
+      salesSnap.forEach(ds => {
+        (ds.data().lots || []).forEach(a => { linkedByLot[a.purchaseId] = (linkedByLot[a.purchaseId] || 0) + (a.qty || 0); });
+      });
+
       let items = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
         if ((d.date || '') < fromDate || (d.date || '') > toDate) return;
         if (areaFilter && d.area !== areaFilter) return;
-        items.push({ id: docSnap.id, ...d });
+        items.push({ id: docSnap.id, ...d, linkedQty: linkedByLot[docSnap.id] || 0 });
       });
-      // Keep the earliest-created doc in each group (by createdAt if present, else by id),
-      // so the surviving record is the "original" upload, not an arbitrary one.
-      items.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
 
+      // Group ignoring spacing/case differences (e.g. "KL71L0742 " vs "KL71L0742", "nlb" vs "NLB").
       const groups = {};
       items.forEach(d => {
-        const key = [d.area || '', d.date || '', d.product || '', d.godown || '', normalizeVehicleNo(d.vehicle), d.qty || ''].join('|');
+        const key = [(d.area || '').trim().toUpperCase(), d.date || '', normalizeName(d.product), normalizeName(d.godown),
+          normalizeVehicleNo(d.vehicle), String(parseFloat(d.qty) || 0)].join('|');
         if (!groups[key]) groups[key] = [];
         groups[key].push(d);
       });
@@ -9319,10 +9328,13 @@
       dupExtraDocs = [];
       const dupGroups = [];
       Object.values(groups).forEach(g => {
-        if (g.length > 1) {
-          dupGroups.push(g);
-          g.slice(1).forEach(d => dupExtraDocs.push(d)); // keep g[0], mark rest as extra
-        }
+        if (g.length < 2) return;
+        // Keeper = the doc with the most linked sales; tie → earliest created (the original).
+        g.sort((a, b) => (b.linkedQty - a.linkedQty) || (a.createdAt || '').localeCompare(b.createdAt || ''));
+        const extras = g.slice(1).filter(d => d.linkedQty === 0); // never delete a doc that has linked sales
+        const blocked = g.slice(1).filter(d => d.linkedQty > 0);
+        extras.forEach(d => dupExtraDocs.push(d));
+        dupGroups.push({ g, extras, blocked });
       });
 
       if (dupGroups.length === 0) {
@@ -9335,9 +9347,13 @@
       document.getElementById('dupGroupCount').textContent = dupGroups.length;
       document.getElementById('dupExtraCount').textContent = dupExtraDocs.length;
 
-      const rows = dupGroups.map(g => {
+      const rows = dupGroups.map(({ g, extras, blocked }) => {
         const d = g[0];
-        return `<tr><td>${fmtDate(d.date)}</td><td>Area: ${d.area || '-'} · Godown: ${d.godown || '-'} · ${d.product || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}</td><td>${g.length} തവണ</td></tr>`;
+        const keepNote = `✅ നിലനിർത്തും: 1 (Linked Sales: ${d.linkedQty}, Remaining: ${(d.remainingQty !== undefined) ? d.remainingQty : d.qty})`;
+        const delNote = extras.length ? `<br>🗑️ Delete ചെയ്യും: ${extras.length} (Remaining: ${extras.map(x => (x.remainingQty !== undefined) ? x.remainingQty : x.qty).join(', ')})` : '';
+        const blockNote = blocked.length ? `<br><span style="color:#c62828;">⚠️ ${blocked.length} copy-ക്ക് കൂടി Sales link ഉള്ളതിനാൽ delete ചെയ്യില്ല — manual ആയി നോക്കുക</span>` : '';
+        return `<tr><td>${fmtDate(d.date)}</td><td>Area: ${d.area || '-'} · Godown: ${d.godown || '-'} · ${d.product || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}
+          <br><span style="font-size:11px; color:#555;">${keepNote}${delNote}${blockNote}</span></td><td>${g.length} തവണ</td></tr>`;
       }).join('');
       document.getElementById('dupListBody').innerHTML = rows;
       resultBox.style.display = 'block';
@@ -9351,7 +9367,7 @@
 
   window.deleteDuplicatePurchases = async function () {
     if (dupExtraDocs.length === 0) return;
-    if (!confirm(`⚠️ ${dupExtraDocs.length} extra (duplicate) records delete ചെയ്യണോ? ഓരോ group-ലും ഒരെണ്ണം നിലനിൽക്കും. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
+    if (!confirm(`⚠️ ${dupExtraDocs.length} extra (duplicate) records delete ചെയ്യണോ? ഓരോ group-ലും Sales link ഉള്ള copy നിലനിൽക്കും; Sales link ഇല്ലാത്ത copies മാത്രമേ delete ആകൂ. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
 
     const statusEl = document.getElementById('dupScanStatus');
     statusEl.textContent = "Deleting...";
@@ -11924,7 +11940,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-23b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-23c</div>
 
 </body>
 </html>
