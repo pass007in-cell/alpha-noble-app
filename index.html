@@ -381,6 +381,9 @@
       <div class="error-msg" id="saleErrorMsg"></div>
       <div class="success-msg" id="saleSuccessMsg"></div>
 
+      <label>📅 Date</label>
+      <input type="date" id="saleDate" style="margin-bottom:14px;">
+
       <label>Customer</label>
       <div class="cust-search-box">
         <input type="text" id="saleCustSearchInput" placeholder="🔍 Customer പേര് search ചെയ്യുക..." autocomplete="off"
@@ -415,10 +418,6 @@
           <select id="saleProduct" onchange="refreshAvailableLots()">
             <option value="">-- Select Product --</option>
           </select>
-        </div>
-        <div>
-          <label>Date</label>
-          <input type="date" id="saleDate">
         </div>
         <div id="saleGodownWrap">
           <label>Godown</label>
@@ -500,6 +499,9 @@
       <div class="error-msg" id="collErrorMsg"></div>
       <div class="success-msg" id="collSuccessMsg"></div>
 
+      <label>📅 Date</label>
+      <input type="date" id="collDate" style="margin-bottom:14px;">
+
       <label>Customer</label>
       <div class="cust-search-box">
         <input type="text" id="collCustSearchInput" placeholder="🔍 Customer പേര് search ചെയ്യുക..." autocomplete="off"
@@ -533,10 +535,6 @@
         <div>
           <label>Amount (₹) — negative ആയാൽ Extra Discount പോലുള്ള adjustment ആയി കണക്കാക്കും</label>
           <input type="number" id="collAmount" placeholder="0" value="0" onfocus="this.select()">
-        </div>
-        <div>
-          <label>Date</label>
-          <input type="date" id="collDate">
         </div>
         <div>
           <label>Mode</label>
@@ -1139,6 +1137,9 @@
           <option value="NLB">NLB - Nilambur</option>
         </select>
 
+        <label>📅 Date</label>
+        <input type="date" id="adminSaleDate" style="margin-bottom:14px;">
+
         <label>Customer</label>
         <div class="cust-search-box">
           <input type="text" id="adminSaleCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
@@ -1180,10 +1181,6 @@
         </div>
 
         <div class="form-grid">
-          <div>
-            <label>Date</label>
-            <input type="date" id="adminSaleDate">
-          </div>
           <div>
             <label>Quantity</label>
             <input type="number" id="adminSaleQty" placeholder="1" value="1" onfocus="this.select()" oninput="calcAdminSaleAmount(); checkAdminSaleLotQtyTotal();">
@@ -1253,6 +1250,9 @@
         <option value="NLB">NLB - Nilambur</option>
       </select>
 
+      <label>📅 Date</label>
+      <input type="date" id="adminPurchaseDate" style="margin-bottom:14px;">
+
       <div class="form-grid">
         <div>
           <label>Product</label>
@@ -1276,10 +1276,6 @@
       </div>
 
       <div class="form-grid">
-        <div>
-          <label>Date</label>
-          <input type="date" id="adminPurchaseDate">
-        </div>
         <div>
           <label>Quantity</label>
           <input type="number" id="adminPurchaseQty" placeholder="1" value="1" onfocus="this.select()" oninput="calcAdminPurchaseRate()">
@@ -1326,6 +1322,9 @@
           <option value="NLB">NLB - Nilambur</option>
         </select>
 
+        <label>📅 Date</label>
+        <input type="date" id="adminCollDate" style="margin-bottom:14px;">
+
         <label>Customer</label>
         <div class="cust-search-box">
           <input type="text" id="adminCollCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
@@ -1339,10 +1338,6 @@
           <div>
             <label>Amount (₹)</label>
             <input type="number" id="adminCollAmount" placeholder="0" value="0" onfocus="this.select()">
-          </div>
-          <div>
-            <label>Date</label>
-            <input type="date" id="adminCollDate">
           </div>
           <div>
             <label>Mode</label>
@@ -11200,7 +11195,7 @@
 
   window.approveRecord = async function (colName, id) {
     try {
-      await updateDoc(doc(db, colName, id), { status: 'approved' });
+      await updateDoc(doc(db, colName, id), { status: 'approved', approvedAt: new Date().toISOString(), approvedBy: currentUserData.username || 'admin' });
       loadApprovals();
     } catch (err) {
       console.error(err);
@@ -11223,7 +11218,7 @@
 
     for (const cb of checked) {
       try {
-        await updateDoc(doc(db, colName, cb.value), { status: 'approved' });
+        await updateDoc(doc(db, colName, cb.value), { status: 'approved', approvedAt: new Date().toISOString(), approvedBy: currentUserData.username || 'admin' });
       } catch (err) {
         console.error(err);
       }
@@ -12147,7 +12142,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-25b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-25c</div>
 
 </body>
 </html>
