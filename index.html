@@ -325,8 +325,6 @@
   <div id="tabEntry" style="display:none;">
     <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px; border-bottom:1px solid #ddd; padding-bottom:8px;">
       <button id="entrySubTabSaleBtn" onclick="switchEntrySubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
-      <!-- Purchase entry is Admin-only now; button kept (hidden) so switchEntrySubTab's button lookup still resolves. -->
-      <button id="entrySubTabPurchaseBtn" onclick="switchEntrySubTab('purchase')" style="display:none; width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="entrySubTabCollectionBtn" onclick="switchEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
       <button id="entrySubTabCustomersBtn" onclick="switchEntrySubTab('customers')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Customers</button>
       <button id="entrySubTabVehicleBtn" onclick="switchEntrySubTab('vehicle')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Vehicle</button>
@@ -375,44 +373,6 @@
     </table>
   </div>
 
-  <div class="add-user-form">
-    <h3>🧾 Customer Statement</h3>
-    <p style="font-size:12px; color:#777; margin-bottom:10px;">
-      ഒരു Customer-ന്റെ Sale &amp; Collection transactions, മറ്റ് areas-ലേത് ഉൾപ്പെടെ, date range-ൽ.
-    </p>
-    <label>Customer</label>
-    <div class="cust-search-box">
-      <input type="text" id="stmtCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
-        oninput="renderStmtCustOptions()" onfocus="renderStmtCustOptions()">
-      <input type="hidden" id="stmtCustomer">
-      <div id="stmtCustOptionsBox" class="cust-options-box"></div>
-    </div>
-    <button class="full-btn" onclick="generateCustomerStatement()">Generate Statement</button>
-    <div style="display:flex; gap:10px; margin-top:10px;">
-      <button style="flex:1; background:#2e7d32;" onclick="exportStatementCSV()">⬇️ Excel (CSV)</button>
-      <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
-    </div>
-  </div>
-
-  <div id="stmtResultBox" style="display:none;">
-    <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
-      <div>
-        <p style="font-size:12px; color:#555;">Opening Balance</p>
-        <p style="font-size:17px; font-weight:700; color:#555;" id="stmtOpening">₹0</p>
-      </div>
-      <div>
-        <p style="font-size:12px; color:#555;">Closing Balance</p>
-        <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="stmtClosing">₹0</p>
-      </div>
-    </div>
-    <div id="stmtCheckedOkBox"></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th><th>✅ Checked</th></tr></thead>
-        <tbody id="stmtTableBody"><tr><td colspan="8">—</td></tr></tbody>
-      </table>
-    </div>
-  </div>
   </div>
 
   <div id="tabSale" style="display:none;">
@@ -612,58 +572,6 @@
     </div>
   </div>
 
-  <div id="tabPurchase" style="display:none;">
-    <div class="add-user-form">
-      <h3>📦 New Purchase Entry</h3>
-      <div class="error-msg" id="purchaseErrorMsg"></div>
-      <div class="success-msg" id="purchaseSuccessMsg"></div>
-      <div class="form-grid">
-        <div>
-          <label>Product</label>
-          <select id="purchaseProduct">
-            <option value="">-- Select Product --</option>
-          </select>
-        </div>
-        <div>
-          <label>Date</label>
-          <input type="date" id="purchaseDate">
-        </div>
-        <div>
-          <label>Godown</label>
-          <select id="purchaseGodown">
-            <option value="">-- Select Godown --</option>
-          </select>
-        </div>
-        <div>
-          <label>Vehicle (optional)</label>
-          <div class="cust-search-box">
-            <input type="text" id="purchaseVehicleSearch" placeholder="🔍 Vehicle search..." autocomplete="off"
-              oninput="renderPurchaseVehicleOptions()" onfocus="renderPurchaseVehicleOptions()">
-            <input type="hidden" id="purchaseVehicle">
-            <div id="purchaseVehicleOptionsBox" class="cust-options-box"></div>
-          </div>
-        </div>
-        <div>
-          <label>Quantity</label>
-          <input type="number" id="purchaseQty" placeholder="1" value="1" onfocus="this.select()">
-        </div>
-        <div>
-          <label>Invoice Number <span style="color:#c62828;">*</span></label>
-          <input type="text" id="purchaseInvoiceNumber" placeholder="e.g. INV-1234">
-        </div>
-      </div>
-      <p style="font-size:11px; color:#777; margin:-8px 0 12px;">Duplicate Purchase entries ഒഴിവാക്കാൻ — ഈ Invoice Number-ൽ നേരത്തെ ഒരു Purchase ഉണ്ടെങ്കിൽ save ചെയ്യാൻ പറ്റില്ല.</p>
-      <button class="full-btn" id="addPurchaseBtn" onclick="handleAddPurchase()">Save Purchase</button>
-    </div>
-    <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases <span style="font-size:12px; color:#777; font-weight:400;">(+ ബാക്കി Pending ഉള്ളവ)</span></h3>
-    <div class="table-wrap" style="margin-bottom:24px;">
-      <table>
-        <thead><tr><th>Date</th><th>Product</th><th>Qty</th><th>Invoice No.</th><th>Status</th><th></th></tr></thead>
-        <tbody id="purchaseTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-
   <div id="tabVehicle" style="display:none;">
     <div class="add-user-form">
       <h3>🚚 Add Vehicle</h3>
@@ -749,7 +657,10 @@
     <button id="repSubTabPurchaseBtn" onclick="switchReportSubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
     <button id="repSubTabStockbookBtn" onclick="switchReportSubTab('stockbook')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Stock Book</button>
     <button id="repSubTabTripsheetBtn" onclick="switchReportSubTab('tripsheet')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Trip Sheet</button>
-    <button id="repSubTabTargetsBtn" onclick="switchReportSubTab('targets')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🎯 Targets</button>
+    <button id="repSubTabStatementBtn" onclick="switchReportSubTab('statement')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🧾 Customer Statement</button>
+    <button id="repSubTabAgeingBtn" onclick="switchReportSubTab('ageing')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">📊 Outstanding</button>
+    <!-- Targets hidden for Users (kept in DOM so the tab-switch lookup still resolves) -->
+    <button id="repSubTabTargetsBtn" onclick="switchReportSubTab('targets')" style="display:none; width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🎯 Targets</button>
   </div>
 
   <div id="repSubSale">
@@ -872,6 +783,65 @@
     <button class="del-btn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
     <div id="userTripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
   </div>
+
+  <div id="repSubStatement" style="display:none;">
+  <div class="add-user-form">
+    <h3>🧾 Customer Statement</h3>
+    <p style="font-size:12px; color:#777; margin-bottom:10px;">
+      ഒരു Customer-ന്റെ Sale &amp; Collection transactions, മറ്റ് areas-ലേത് ഉൾപ്പെടെ — മുകളിലെ From/To Date range-ൽ.
+    </p>
+    <label>Customer</label>
+    <div class="cust-search-box">
+      <input type="text" id="stmtCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+        oninput="renderStmtCustOptions()" onfocus="renderStmtCustOptions()">
+      <input type="hidden" id="stmtCustomer">
+      <div id="stmtCustOptionsBox" class="cust-options-box"></div>
+    </div>
+    <button class="full-btn" onclick="generateCustomerStatement()">Generate Statement</button>
+    <div style="display:flex; gap:10px; margin-top:10px;">
+      <button style="flex:1; background:#2e7d32;" onclick="exportStatementCSV()">⬇️ Excel (CSV)</button>
+      <button style="flex:1; background:#555;" onclick="printCustomerStatement()">🖨️ Print / PDF</button>
+    </div>
+  </div>
+
+  <div id="stmtResultBox" style="display:none;">
+    <div style="background:#f5f7fa; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between;">
+      <div>
+        <p style="font-size:12px; color:#555;">Opening Balance</p>
+        <p style="font-size:17px; font-weight:700; color:#555;" id="stmtOpening">₹0</p>
+      </div>
+      <div>
+        <p style="font-size:12px; color:#555;">Closing Balance</p>
+        <p style="font-size:20px; font-weight:700; color:#1e3c72;" id="stmtClosing">₹0</p>
+      </div>
+    </div>
+    <div id="stmtCheckedOkBox"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th>Debit</th><th>Credit</th><th>Balance</th><th>✅ Checked</th></tr></thead>
+        <tbody id="stmtTableBody"><tr><td colspan="8">—</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+  </div>
+
+    <div id="repSubAgeing" style="display:none;">
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ഓരോ customer-ന്റെയും ബാക്കി തുക, എത്ര ദിവസം പഴക്കമുള്ള Sales-ന്റേതാണ് എന്ന് തിരിച്ച് (Collections ആദ്യം ഏറ്റവും പഴയ Sale-ലേക്ക് വരവ് വെക്കും — FIFO). Opening Balance ഏറ്റവും പഴയതായി കണക്കാക്കും.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>As on Date</label>
+          <input type="date" id="userAgeAsOn">
+        </div>
+      </div>
+      <button class="full-btn" onclick="generateAgeingReport('user')">📊 Generate</button>
+      <div style="display:flex; gap:10px; margin:10px 0 14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportAgeingCSV('user')">⬇️ Excel (CSV)</button>
+        <button style="flex:1; background:#555;" onclick="printAgeingReport('user')">🖨️ Print / PDF</button>
+      </div>
+      <div id="userAgeContainer"></div>
+    </div>
 
   <div id="repSubTargets" style="display:none;">
     <div class="add-user-form">
@@ -1312,7 +1282,17 @@
         </div>
         <div>
           <label>Quantity</label>
-          <input type="number" id="adminPurchaseQty" placeholder="1" value="1" onfocus="this.select()">
+          <input type="number" id="adminPurchaseQty" placeholder="1" value="1" onfocus="this.select()" oninput="calcAdminPurchaseRate()">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div>
+          <label>Bill Amount (₹) <span style="font-size:11px; color:#777;">(optional)</span></label>
+          <input type="number" id="adminPurchaseBillAmount" placeholder="0" onfocus="this.select()" oninput="calcAdminPurchaseRate()">
+        </div>
+        <div>
+          <label>Unit Price (₹) <span style="font-size:11px; color:#777;">— auto</span></label>
+          <input type="text" id="adminPurchaseUnitPrice" readonly placeholder="Bill ÷ Qty" style="background:#f0f0f0;">
         </div>
       </div>
       <label>Invoice Number <span style="color:#c62828;">*</span></label>
@@ -1325,8 +1305,8 @@
     <h3 style="color:#1e3c72; margin-bottom:8px;">Today's Purchases (all areas)</h3>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Invoice No.</th><th></th></tr></thead>
-        <tbody id="adminPurchaseTableBody"><tr><td colspan="8">Loading...</td></tr></tbody>
+        <thead><tr><th>Date</th><th>Area</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th><th>Invoice No.</th><th>Bill Amt</th><th>Unit Price</th><th></th></tr></thead>
+        <tbody id="adminPurchaseTableBody"><tr><td colspan="10">Loading...</td></tr></tbody>
       </table>
     </div>
     </div>
@@ -1704,8 +1684,9 @@
     <details class="add-user-form" style="background:#e8f5e9;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
       <summary style="color:#2e7d32;">💾 Data Backup</summary>
       <div class="details-body">
+      <div id="driveBackupInfo" style="font-size:13px; border-radius:8px; padding:10px; margin-bottom:12px; background:#fff;"></div>
       <p style="font-size:13px; color:#555; margin-bottom:14px;">
-        എല്ലാ data-ഉം (users, customers, sales, purchases, collections, godowns, products, vehicles) ഒരു JSON file ആയി download ചെയ്യാം — safety backup ആയി സൂക്ഷിക്കാം.
+        എല്ലാ data-ഉം (users, customers, sales, purchases, collections, godowns, products, vehicles, accounts, targets, settings) ഒരു JSON file ആയി download ചെയ്യാം — safety backup ആയി സൂക്ഷിക്കാം. വലിയ മാറ്റങ്ങൾ (bulk delete, CSV re-upload) ചെയ്യുന്നതിന് മുമ്പ് ഒരു backup എടുക്കുക.
       </p>
       <button class="full-btn" style="background:#2e7d32;" onclick="handleDataBackup()">⬇️ Download Full Backup (JSON)</button>
       <div id="backupStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
@@ -1856,103 +1837,56 @@
       </div>
     </details>
 
-    <details class="add-user-form" style="background:#fff3e0;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
-      <summary style="color:#e65100;">🔁 Duplicate Purchases കണ്ടെത്തി Remove ചെയ്യുക</summary>
-      <div class="details-body">
-      <p style="font-size:13px; color:#777; margin-bottom:14px;">
-        ഒരേ CSV file 2 തവണ upload ചെയ്തുപോയാൽ, Area+Date+Product+Godown+Vehicle+Qty എല്ലാം ഒരേപോലെ ഉള്ള records ഇവിടെ കണ്ടെത്താം. Space/case വ്യത്യാസം മാത്രമുള്ളവയും (ഉദാ: "KL71L0742 " / "KL71L0742") duplicate ആയി കണക്കാക്കും. ഓരോ group-ലും <strong>Sales link ഉള്ള copy നിലനിർത്തി</strong>, Sales link <strong>ഇല്ലാത്ത</strong> copies മാത്രമേ delete ചെയ്യൂ — അതുകൊണ്ട് linked sales-ന് ഒന്നും സംഭവിക്കില്ല.
-      </p>
-      <div class="form-grid">
-        <div>
-          <label>From Date</label>
-          <input type="date" id="dupFromDate">
-        </div>
-        <div>
-          <label>To Date</label>
-          <input type="date" id="dupToDate">
-        </div>
-      </div>
-      <label>Area (optional)</label>
-      <select id="dupArea" style="margin-bottom:14px;">
-        <option value="">-- All Areas --</option>
-        <option value="MKD">MKD - Mannarkkad</option>
-        <option value="PKD">PKD - Palakkad</option>
-        <option value="MLT">MLT - Melattur</option>
-        <option value="NLB">NLB - Nilambur</option>
-      </select>
-      <button class="full-btn" style="background:#e65100;" onclick="scanDuplicatePurchases()">🔍 Duplicates കണ്ടെത്തുക</button>
-      <div id="dupScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-
-      <div id="dupResultBox" style="display:none; margin-top:16px;">
-        <p style="font-size:13px; color:#333; margin-bottom:10px;">
-          <strong><span id="dupGroupCount">0</span></strong> duplicate groups കണ്ടെത്തി — ആകെ <strong><span id="dupExtraCount">0</span></strong> extra (delete ചെയ്യാവുന്ന) records.
-        </p>
-        <div class="table-wrap" style="margin-bottom:14px; max-height:350px; overflow-y:auto;">
-          <table>
-            <thead><tr><th>Date</th><th>Details</th><th>എത്ര തവണ</th></tr></thead>
-            <tbody id="dupListBody"></tbody>
-          </table>
-        </div>
-        <button class="full-btn" style="background:#c62828;" onclick="deleteDuplicatePurchases()">🗑️ Extra Duplicates മാത്രം Delete ചെയ്യുക (1 എണ്ണം വീതം നിലനിർത്തും)</button>
-      </div>
-      </div>
-    </details>
-
-    <details class="add-user-form" style="background:#fce4ec;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
-      <summary style="color:#ad1457;">🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക</summary>
+    <details class="add-user-form" style="background:#e8eaf6;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#283593;">🧾 പഴയ Purchases-ന് Bill Amount / Invoice No. Bulk ആയി ചേർക്കുക</summary>
       <div class="details-body">
       <p style="font-size:13px; color:#555; margin-bottom:10px;">
-        Purchase data പൂർണമായും delete ചെയ്ത് പുതുതായി upload ചെയ്താൽ, പഴയ Sales-ന്റെ <b>lots</b> link ഇപ്പോൾ ഇല്ലാത്ത (delete ആയ) Purchase record-കളെ ചൂണ്ടിക്കാണിച്ചുകൊണ്ട് അവശേഷിക്കും. ഈ Sales "linked" ആയി തന്നെ കാണിക്കും (Unlinked Sales list-ൽ വരില്ല), പക്ഷേ യഥാർത്ഥത്തിൽ അവയുടെ link ഒരു "ghost" purchase-ലേക്കാണ് — അതുകൊണ്ട് പുതിയ Purchase lots-ന്റെ Remaining Qty യഥാർത്ഥ available stock-നേക്കാൾ കൂടുതൽ ആയി കാണിക്കും.
+        CSV-യിലെ ഓരോ row-ഉം ഒരു പഴയ Purchase record-മായി match ചെയ്ത് <b>Bill Amount</b> ചേർക്കും (Unit Price = Bill Amount ÷ Qty automatic ആയി കണക്കാക്കും). Record-ന് Invoice No. ഇല്ലെങ്കിൽ CSV-യിലേത് ചേർക്കും.
       </p>
-      <p style="font-size:13px; color:#555; margin-bottom:14px;">
-        <b>Step 1:</b> ഇവിടെ Scan ചെയ്ത് ഈ "orphaned" links കണ്ടെത്തി Clear ചെയ്യുക (ആ Sales വീണ്ടും "Advance/Unlinked" ആയി മാറും, Purchase-നെ ഒന്നും ബാധിക്കില്ല).<br>
-        <b>Step 2:</b> അതിന് ശേഷം <b>🔗 Old Advance</b> tab-ലെ <b>"Bulk Auto-Link"</b> ഉപയോഗിച്ച് ഈ Sales-നെ പുതിയ Purchase lots-ലേക്ക് വീണ്ടും link ചെയ്യുക.
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ആദ്യ row header ആയി വേണം. Columns: <b>Invoice Number, Bill Amount</b> — ഇത് മാത്രം മതി (Invoice No. വെച്ച് match ചെയ്യും).<br>
+        Invoice No. ഇല്ലാത്ത പഴയ records-ന് കൂടി: <b>Date, Area, Product, Godown, Vehicle, Qty</b> columns ചേർക്കുക (അവ വെച്ച് match ചെയ്യും).<br>
+        ആദ്യം Preview കാണിക്കും — "Apply" അമർത്തുമ്പോൾ മാത്രമേ save ആകൂ.
       </p>
-      <button class="full-btn" style="background:#ad1457;" onclick="scanOrphanedSaleLinks()">🔍 Orphaned Links Scan ചെയ്യുക</button>
-      <div id="orphanScanStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-
-      <div id="orphanResultBox" style="display:none; margin-top:16px;">
-        <p style="font-size:13px; color:#333; margin-bottom:6px;">
-          <strong><span id="orphanCount">0</span></strong> Sales-ൽ orphaned links കണ്ടെത്തി — ആകെ <strong><span id="orphanQty">0</span></strong> Qty.
-        </p>
-        <p style="font-size:12px; color:#777; margin-bottom:10px;" id="orphanAreaBreakdown"></p>
-        <div class="table-wrap" style="margin-bottom:14px; max-height:350px; overflow-y:auto;">
-          <table>
-            <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Orphan Qty</th></tr></thead>
-            <tbody id="orphanListBody"></tbody>
-          </table>
-        </div>
-        <button class="full-btn" style="background:#c62828;" onclick="clearOrphanedSaleLinks()">🧹 ഈ Sales-ലെ Orphaned Links Clear ചെയ്യുക</button>
-      </div>
+      <input type="file" id="billBulkCsvFile" accept=".csv" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#283593;" onclick="previewBillBulk()">🔍 Preview</button>
+      <div id="billBulkStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      <div id="billBulkResult" style="margin-top:14px;"></div>
       </div>
     </details>
 
-    <details class="add-user-form" style="background:#e8eaf6;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
-      <summary style="color:#283593;">🧾 Bulk ആയി Invoice Number ചേർക്കുക (പഴയ Purchases)</summary>
+    <details class="add-user-form" style="background:#f1f8e9;" data-acc-group="adminData" ontoggle="handleSettingsAccordion(this)">
+      <summary style="color:#33691e;">📜 Audit Log — ആര്, എപ്പോൾ, എന്ത് മാറ്റി</summary>
       <div class="details-body">
-      <p style="font-size:13px; color:#555; margin-bottom:14px;">
-        പഴയ Purchase records-ന് Invoice Number ഇല്ലല്ലോ — അവയ്ക്ക് ഇപ്പോൾ Invoice Number കയ്യിൽ കിട്ടിയാൽ, ഒരു CSV file ആയി upload ചെയ്ത് bulk ആയി ചേർക്കാം. App, Date+Product+Godown+Vehicle+Qty ഇവ വച്ച് ശരിയായ Purchase record കണ്ടെത്തി Invoice Number സ്വയം സെറ്റ് ചെയ്യും. ഒന്നിലധികം records ഒരേ പോലെ ഉണ്ടെങ്കിൽ (ambiguous) ഏതാണ് എന്ന് നിങ്ങൾ select ചെയ്യണം. Invoice Number നേരത്തെ ഉള്ള records touch ചെയ്യില്ല.
-      </p>
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        CSV columns: <strong>Date (YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Invoice Number</strong> (Vehicle ഇല്ലെങ്കിൽ ശൂന്യമായി വിടുക).
+        App-ൽ നടക്കുന്ന എല്ലാ Add / Edit / Delete-ഉം ഇവിടെ രേഖപ്പെടുത്തും. Edit/Delete ആണെങ്കിൽ മാറ്റത്തിന് <b>മുമ്പുള്ള</b> record-ഉം കാണാം. Bulk tools (CSV upload മുതലായവ) ഒരു summary line ആയി മാത്രം വരും.
       </p>
-      <input type="file" id="invoiceBulkCsvFile" accept=".csv" style="margin-bottom:10px;">
-      <button class="full-btn" style="background:#283593;" onclick="handleInvoiceBulkUpload()">🧾 Invoice Numbers Process ചെയ്യുക</button>
-      <div id="invoiceBulkStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-
-      <div id="invoiceAutoMatchedBox" style="display:none; margin-top:16px; background:#e8f5e9; border-radius:10px; padding:12px;">
-        <p style="font-size:13px; color:#2e7d32; font-weight:600;">✅ <span id="invoiceAutoMatchedCount">0</span> purchases-ന് Invoice Number automatic ആയി set ചെയ്തു.</p>
+      <div class="form-grid">
+        <div><label>Date</label><input type="date" id="auditDate"></div>
+        <div><label>User (optional)</label><input type="text" id="auditUser" placeholder="username"></div>
+        <div>
+          <label>Type (optional)</label>
+          <select id="auditCol">
+            <option value="">-- എല്ലാം --</option>
+            <option value="sales">Sales</option><option value="collections">Collections</option><option value="purchases">Purchases</option>
+            <option value="customers">Customers</option><option value="users">Users</option><option value="vehicleStock">Vehicle Stock</option>
+            <option value="-">Bulk tools</option>
+          </select>
+        </div>
+        <div>
+          <label>Action (optional)</label>
+          <select id="auditAction">
+            <option value="">-- എല്ലാം --</option><option value="create">Add</option><option value="update">Edit</option><option value="delete">Delete</option><option value="bulk">Bulk</option>
+          </select>
+        </div>
       </div>
-
-      <div id="invoiceAmbiguousBox" style="display:none; margin-top:16px;">
-        <h4 style="font-size:14px; color:#e65100; margin-bottom:8px;">⚠️ ഒന്നിലധികം matching purchases (ഏതെന്ന് select ചെയ്യുക)</h4>
-        <div id="invoiceAmbiguousList"></div>
-      </div>
-
-      <div id="invoiceNotFoundBox" style="display:none; margin-top:16px;">
-        <h4 style="font-size:14px; color:#c62828; margin-bottom:8px;">❌ Match ആയ Purchase കണ്ടെത്താനായില്ല</h4>
-        <p style="font-size:12px; color:#777; margin-bottom:8px;">ഈ rows-ന് Date+Product+Godown+Vehicle+Qty exact ആയി match ആയ Purchase record ഇല്ല (details തെറ്റിയതാകാം, അല്ലെങ്കിൽ ആ record ഇതിനകം invoice number ഉള്ളതാകാം). Purchase list-ൽ നിന്ന് manual ആയി Edit ചെയ്ത് ചേർക്കേണ്ടി വരും.</p>
-        <div id="invoiceNotFoundList"></div>
+      <button class="full-btn" style="background:#33691e;" onclick="loadAuditLog()">📜 Show</button>
+      <div id="auditStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      <div class="table-wrap" style="margin-top:12px; max-height:450px; overflow-y:auto;">
+        <table>
+          <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Type</th><th>Details</th></tr></thead>
+          <tbody id="auditBody"></tbody>
+        </table>
       </div>
       </div>
     </details>
@@ -2185,10 +2119,11 @@
       <summary>📂 Bulk Upload — Old Purchases (CSV)</summary>
       <div class="details-body">
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
-        1-ാമത്തെ row **header** ആയി വേണം (Date, Area, Product, Godown, Vehicle, Qty, Status, Invoice Number എന്ന പേരുകൾ) — header ഉണ്ടെങ്കിൽ columns ഏത് ക്രമത്തിൽ ആയാലും ശരി ആയി തിരിച്ചറിയും. Header ഇല്ലെങ്കിൽ മാത്രം ഈ fixed ക്രമം ഉപയോഗിക്കും: Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional).<br>
+        1-ാമത്തെ row **header** ആയി വേണം (Date, Area, Product, Godown, Vehicle, Qty, Status, Invoice Number, Bill Amount എന്ന പേരുകൾ) — header ഉണ്ടെങ്കിൽ columns ഏത് ക്രമത്തിൽ ആയാലും ശരി ആയി തിരിച്ചറിയും. Header ഇല്ലെങ്കിൽ മാത്രം ഈ fixed ക്രമം ഉപയോഗിക്കും: Date(YYYY-MM-DD), Area, Product, Godown, Vehicle, Qty, Status(pending/approved), Invoice Number(optional), Bill Amount(optional).<br>
+        <b>Bill Amount</b> column കൊടുത്താൽ Unit Price (Bill Amount ÷ Qty) automatic ആയി കണക്കാക്കി save ചെയ്യും.<br>
         Status=Approved ആയ rows-ന്റെ Remaining Qty = Qty ആയി തന്നെ വെക്കും (full stock available എന്ന നിലയിൽ) — ഇത് പിന്നീട് <b>🔗 Old Advance</b> tab-ലെ "Bulk Auto-Link" വഴി പഴയ Sales-നോട് ശരിയായി link ചെയ്യാൻ വേണ്ടിയാണ്. Status=Pending ആണെങ്കിൽ 0 ആയി വെക്കും.<br>
         <b>Duplicate protection:</b> Invoice Number കൊടുത്താൽ അത് വെച്ച് exact duplicate check ചെയ്യും. ഇല്ലെങ്കിൽ Date+Area+Product+Godown+Vehicle+Qty ഒരേ പോലെ ഉള്ള row-കൾ automatic ആയി skip ചെയ്യും (already DB-യിൽ ഉള്ളതും, ഇതേ CSV-യിൽ repeat ആയതും).<br>
-        <b>⚠️ മുഴുവൻ Purchase data delete ചെയ്ത് ഇത് re-upload ചെയ്യുകയാണെങ്കിൽ:</b> പഴയ Sales-ന്റെ lot-links ഇപ്പോൾ ഇല്ലാത്ത (deleted) Purchase-കളെ ചൂണ്ടും — അത് "🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക" എന്ന tool വഴി Clear ചെയ്ത്, "🔗 Old Advance" tab-ലെ Bulk Auto-Link വഴി വീണ്ടും link ചെയ്യണം.
+        <b>⚠️ ശ്രദ്ധിക്കുക:</b> Purchase data മുഴുവൻ delete ചെയ്ത് വീണ്ടും upload ചെയ്യരുത് — പഴയ Sales-ന്റെ lot-links നഷ്ടപ്പെടും. തെറ്റുള്ള records മാത്രം Edit/Delete ചെയ്യുക.
       </p>
       <input type="file" id="purchaseCsvInput" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#2e7d32;" onclick="handlePurchaseCsvUpload()">Upload Purchase CSV</button>
@@ -2305,14 +2240,14 @@
   </div>
 
   <div id="tabAdminOldadvance" style="display:none;">
-    <h3 style="color:#e65100; margin-bottom:8px;">🔗 Old Advance Sales (up to 31-Aug-26) — Admin only</h3>
+    <h3 id="oldAdvHeading" style="color:#e65100; margin-bottom:8px;">🔗 Old Advance Sales — Admin only</h3>
     <p style="font-size:12px; color:#777; margin-bottom:10px;">
       Sept 1 മുതൽ ഇത് users-ന്റെ own panel-ൽ കാണും. ഇത് വരെയുള്ള (go-live-ന് മുന്നേയുള്ള) advance sales ഇവിടെ Admin മാത്രം link ചെയ്ത് clear ചെയ്യുക.
     </p>
     <div class="form-grid" style="margin-bottom:10px;">
       <div>
         <label style="font-size:12px;">Area (optional)</label>
-        <select id="oldAdvFilterArea" onchange="renderOldAdvanceSalesList()">
+        <select id="oldAdvFilterArea">
           <option value="">-- All Areas --</option>
           <option value="MKD">MKD - Mannarkkad</option>
           <option value="PKD">PKD - Palakkad</option>
@@ -2322,18 +2257,23 @@
       </div>
       <div>
         <label style="font-size:12px;">From Date (optional)</label>
-        <input type="date" id="oldAdvFilterFrom" onchange="renderOldAdvanceSalesList()">
+        <input type="date" id="oldAdvFilterFrom">
       </div>
       <div>
         <label style="font-size:12px;">To Date (optional)</label>
-        <input type="date" id="oldAdvFilterTo" onchange="renderOldAdvanceSalesList()">
+        <input type="date" id="oldAdvFilterTo">
       </div>
     </div>
-    <input type="text" id="oldAdvFilterCustomer" placeholder="🔍 Customer പേര് വച്ച് search ചെയ്യുക..." style="margin-bottom:14px;" oninput="renderOldAdvanceSalesList()">
+    <input type="text" id="oldAdvFilterCustomer" placeholder="Customer പേര് (optional)..." style="margin-bottom:10px;" onkeydown="if(event.key==='Enter') searchOldAdvanceSales()">
+    <div style="display:flex; gap:10px; margin-bottom:14px;">
+      <button class="full-btn" style="flex:2; margin:0;" onclick="searchOldAdvanceSales()">🔍 Search</button>
+      <button style="flex:1; background:#777;" onclick="clearOldAdvanceSearch()">✕ Clear</button>
+    </div>
+    <p id="oldAdvSummary" style="font-size:12px; color:#777; margin-bottom:8px;"></p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Date</th><th>Area</th><th>Customer</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Remaining</th><th></th></tr></thead>
-        <tbody id="adminOldAdvanceBody"><tr><td colspan="8">Loading...</td></tr></tbody>
+        <tbody id="adminOldAdvanceBody"><tr><td colspan="8" style="color:#888;">Area / Date / Customer കൊടുത്ത് 🔍 Search അമർത്തുക.</td></tr></tbody>
       </table>
     </div>
 
@@ -2368,6 +2308,7 @@
   </div>
 
   <div id="tabAdminReports">
+    <div id="adminBackupWarn" style="display:none; background:#ffebee; color:#c62828; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:13px;"></div>
 
     <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (All Areas) — <span id="adminHomeAdvanceSaleCount">0</span></summary>
@@ -2461,6 +2402,7 @@
       <button id="adminRepSubTabPurchaseBtn" onclick="switchAdminReportSubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="adminRepSubTabStockbookBtn" onclick="switchAdminReportSubTab('stockbook')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Stock Book</button>
       <button id="adminRepSubTabTripsheetBtn" onclick="switchAdminReportSubTab('tripsheet')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🚚 Trip Sheet</button>
+      <button id="adminRepSubTabAgeingBtn" onclick="switchAdminReportSubTab('ageing')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">📊 Outstanding</button>
       <button id="adminRepSubTabTargetsBtn" onclick="switchAdminReportSubTab('targets')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">🎯 Targets</button>
     </div>
 
@@ -2601,6 +2543,32 @@
       <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
     </div>
 
+    <div id="adminRepSubAgeing" style="display:none;">
+      <p style="font-size:12px; color:#777; margin-bottom:10px;">
+        ഓരോ customer-ന്റെയും ബാക്കി തുക, എത്ര ദിവസം പഴക്കമുള്ള Sales-ന്റേതാണ് എന്ന് തിരിച്ച് (Collections ആദ്യം ഏറ്റവും പഴയ Sale-ലേക്ക് വരവ് വെക്കും — FIFO). Opening Balance ഏറ്റവും പഴയതായി കണക്കാക്കും.
+      </p>
+      <div class="form-grid">
+        <div>
+          <label>As on Date</label>
+          <input type="date" id="adminAgeAsOn">
+        </div>
+        <div>
+          <label>Area</label>
+          <select id="adminAgeArea">
+            <option value="">-- All Areas --</option>
+            <option value="MKD">MKD - Mannarkkad</option><option value="PKD">PKD - Palakkad</option>
+            <option value="MLT">MLT - Melattur</option><option value="NLB">NLB - Nilambur</option>
+          </select>
+        </div>
+      </div>
+      <button class="full-btn" onclick="generateAgeingReport('admin')">📊 Generate</button>
+      <div style="display:flex; gap:10px; margin:10px 0 14px;">
+        <button style="flex:1; background:#2e7d32;" onclick="exportAgeingCSV('admin')">⬇️ Excel (CSV)</button>
+        <button style="flex:1; background:#555;" onclick="printAgeingReport('admin')">🖨️ Print / PDF</button>
+      </div>
+      <div id="adminAgeContainer"></div>
+    </div>
+
     <div id="adminRepSubTargets" style="display:none;">
       <div class="add-user-form">
         <h3>🎯 Monthly Sales Target — Customer-wise</h3>
@@ -2687,16 +2655,17 @@
     getFirestore,
     doc,
     getDoc,
-    setDoc,
-    updateDoc,
+    setDoc as _fsSetDoc,
+    updateDoc as _fsUpdateDoc,
     increment,
-    deleteDoc,
+    deleteDoc as _fsDeleteDoc,
     collection,
     getDocs,
-    addDoc,
+    addDoc as _fsAddDoc,
     query,
     where,
     orderBy,
+    limit,
     writeBatch
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
@@ -2713,6 +2682,123 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // ============ AUDIT LOG ============
+  // Every Firestore write in the app goes through these four wrappers (same names as the
+  // Firestore functions, so no call site had to change). Each successful write adds one
+  // entry to the "auditLogs" collection: who, when, what, which record, and — for edits and
+  // deletes of business records — the record as it was BEFORE the change.
+  // Bulk tools run inside withBulkAudit(): individual writes are only counted, and a single
+  // summary entry is written at the end (so a 2,000-row CSV doesn't create 2,000 log entries).
+  const AUDIT_SKIP = new Set(['auditLogs']);
+  const AUDIT_BEFORE = new Set(['sales', 'collections', 'purchases', 'customers', 'vehicleStock', 'users']);
+  let auditBulkDepth = 0;
+  let auditBulkCounts = null;
+
+  function auditSafeJson(obj) {
+    try {
+      const txt = JSON.stringify(obj, (k, v) => {
+        if (v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) !== Object.prototype) return '[auto]';
+        return v;
+      });
+      return txt && txt.length > 4000 ? txt.slice(0, 4000) + '…' : (txt || '');
+    } catch (e) { return ''; }
+  }
+
+  function auditSummary(col, d) {
+    if (!d) return '';
+    const bits = [];
+    if (d.date) bits.push(d.date);
+    if (d.area) bits.push(d.area);
+    if (d.customerName) bits.push(d.customerName);
+    if (d.name) bits.push(d.name);
+    if (d.number) bits.push(d.number);
+    if (d.product) bits.push(d.product);
+    if (d.vehicle && typeof d.vehicle === 'string') bits.push(d.vehicle);
+    if (typeof d.qty === 'number') bits.push('Qty ' + d.qty);
+    if (typeof d.amount === 'number') bits.push('₹' + d.amount);
+    if (d.invoiceNumber) bits.push('Inv ' + d.invoiceNumber);
+    if (d.username && col === 'users') bits.push(d.username);
+    return bits.join(' · ').slice(0, 200);
+  }
+
+  function auditWrite(entry) {
+    if (!currentUserData) return; // not logged in yet (e.g. during login itself)
+    const now = new Date();
+    const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString();
+    _fsAddDoc(collection(db, "auditLogs"), {
+      ts: now.toISOString(), date: local.slice(0, 10), time: local.slice(11, 19),
+      user: currentUserData.username || '?', role: currentUserData.role || '?', area: currentWorkingArea || '',
+      ...entry
+    }).catch(err => console.warn('Audit log failed', err));
+  }
+
+  function auditRecord(action, path, id, data, before) {
+    const col = String(path).split('/')[0];
+    if (AUDIT_SKIP.has(col)) return;
+    if (auditBulkDepth > 0) { auditBulkCounts[action] = (auditBulkCounts[action] || 0) + 1; return; }
+    auditWrite({
+      action, col, docId: id || '',
+      summary: auditSummary(col, before ? { ...before, ...(data || {}) } : data),
+      data: data ? auditSafeJson(data) : '',
+      before: before ? auditSafeJson(before) : ''
+    });
+  }
+
+  async function auditBefore(ref) {
+    const col = ref.path.split('/')[0];
+    if (auditBulkDepth > 0 || AUDIT_SKIP.has(col) || !AUDIT_BEFORE.has(col) || !currentUserData) return null;
+    try { const snap = await getDoc(ref); return snap.exists() ? snap.data() : null; } catch (e) { return null; }
+  }
+
+  async function addDoc(colRef, data) {
+    const res = await _fsAddDoc(colRef, data);
+    auditRecord('create', colRef.path, res.id, data, null);
+    return res;
+  }
+  async function updateDoc(ref, data) {
+    const before = await auditBefore(ref);
+    const res = await _fsUpdateDoc(ref, data);
+    auditRecord('update', ref.path, ref.id, data, before);
+    return res;
+  }
+  async function setDoc(ref, data, opts) {
+    const before = await auditBefore(ref);
+    const res = opts ? await _fsSetDoc(ref, data, opts) : await _fsSetDoc(ref, data);
+    auditRecord(before ? 'update' : 'set', ref.path, ref.id, data, before);
+    return res;
+  }
+  async function deleteDoc(ref) {
+    const before = await auditBefore(ref);
+    const res = await _fsDeleteDoc(ref);
+    auditRecord('delete', ref.path, ref.id, null, before);
+    return res;
+  }
+
+  // Run a bulk operation, logging ONE summary entry (counts + optional result text) instead
+  // of one entry per write.
+  async function withBulkAudit(label, fn) {
+    const outer = auditBulkDepth === 0;
+    if (outer) auditBulkCounts = {};
+    auditBulkDepth++;
+    let result, error = null;
+    try { result = await fn(); } catch (e) { error = e; }
+    auditBulkDepth--;
+    if (outer) {
+      const counts = auditBulkCounts; auditBulkCounts = null;
+      const total = Object.values(counts).reduce((t, n) => t + n, 0);
+      if (total > 0 || error) {
+        auditWrite({ action: 'bulk', col: '-', docId: '',
+          summary: `${label} — ${Object.entries(counts).map(([k, n]) => `${k}: ${n}`).join(', ') || 'no writes'}${typeof result === 'string' ? ' · ' + result : ''}${error ? ' · ERROR' : ''}`,
+          data: '', before: '' });
+      }
+    }
+    if (error) throw error;
+    return result;
+  }
+  function auditBulkWrap(label, fn) {
+    return function (...args) { return withBulkAudit(label, () => fn.apply(this, args)); };
+  }
 
   // Try local persistence; if it fails (restricted storage contexts),
   // fall back to in-memory so login doesn't hang forever.
@@ -2850,11 +2936,30 @@
   // Sale User Cutoff Date, without needing a code/file update.
   let ADVANCE_SALE_USER_CUTOFF = '2026-08-31';
 
+  let lastDriveBackup = { at: '', file: '', count: 0 };
+
+  // Shows when the automatic Google Drive backup (Apps Script) last ran. Warns if it's
+  // more than 8 days old (the job runs weekly) or has never run.
+  function renderDriveBackupInfo() {
+    const days = lastDriveBackup.at ? Math.floor((Date.now() - new Date(lastDriveBackup.at).getTime()) / 86400000) : null;
+    const ok = days !== null && days <= 8;
+    const msg = days === null
+      ? '⚠️ Google Drive auto-backup ഇതുവരെ ഓടിയിട്ടില്ല (setup ചെയ്തിട്ടില്ല).'
+      : `${ok ? '✅' : '⚠️'} അവസാന Google Drive backup: <b>${fmtDate(lastDriveBackup.at.slice(0, 10))}</b> (${days} ദിവസം മുമ്പ്) · ${lastDriveBackup.count} records` + (ok ? '' : ' — weekly backup മുടങ്ങിയിരിക്കാം, Apps Script നോക്കുക.');
+    const box = document.getElementById('driveBackupInfo');
+    if (box) { box.innerHTML = msg; box.style.color = ok ? '#2e7d32' : '#c62828'; }
+    const warn = document.getElementById('adminBackupWarn');
+    if (warn) { warn.style.display = ok ? 'none' : 'block'; warn.innerHTML = msg + ' <a href="#" onclick="switchAdminTab(\'settings\'); switchAdminSettingsSubTab(\'data\'); return false;">Settings →</a>'; }
+  }
+
   async function loadAdvSaleCutoffSetting() {
     try {
       const snap = await getDoc(doc(db, "settings", "appConfig"));
       if (snap.exists() && snap.data().advanceSaleUserCutoff) {
         ADVANCE_SALE_USER_CUTOFF = snap.data().advanceSaleUserCutoff;
+      }
+      if (snap.exists()) {
+        lastDriveBackup = { at: snap.data().lastDriveBackupAt || '', file: snap.data().lastDriveBackupFile || '', count: snap.data().lastDriveBackupCount || 0 };
       }
     } catch (err) {
       console.error("Cutoff setting load failed, using default:", err);
@@ -2896,10 +3001,6 @@
   let editingCollId = null;
   let editingCollOldStatus = 'pending';
   let editingCollOldDate = '';
-  let editingPurchaseId = null;
-  let editingPurchaseOldStatus = 'pending';
-  let editingPurchaseOldDate = '';
-  let editingPurchaseOldQty = 0;
 
   window.switchWorkingArea = function () {
     currentWorkingArea = document.getElementById('workingAreaSelect').value;
@@ -2912,7 +3013,6 @@
     } else if (document.getElementById('tabEntry').style.display !== 'none') {
       refreshAvailableLots();
       loadTodaysSales();
-      loadTodaysPurchases();
       loadTodaysCollections();
     } else if (document.getElementById('tabLinking').style.display !== 'none') {
       loadAdvanceSales();
@@ -2947,6 +3047,7 @@
     document.getElementById('centerWrap').style.display = 'none';
     document.getElementById('adminBox').style.display = 'block';
     switchAdminTab('reports');
+    renderDriveBackupInfo();
   }
 
   const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
@@ -2996,7 +3097,7 @@
   };
 
   window.switchAdminReportSubTab = function (sub) {
-    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet', 'targets'];
+    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet', 'ageing', 'targets'];
     subs.forEach(s => {
       const panel = document.getElementById('adminRepSub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('adminRepSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -3009,6 +3110,7 @@
       }
     });
     if (sub === 'tripsheet') loadTripSheetUnlinkedSales();
+    if (sub === 'ageing' && !document.getElementById('adminAgeAsOn').value) document.getElementById('adminAgeAsOn').value = new Date().toISOString().slice(0, 10);
     if (sub === 'targets') {
       if (!document.getElementById('targetsMonth').value) {
         document.getElementById('targetsMonth').value = new Date().toISOString().slice(0, 7);
@@ -3083,7 +3185,7 @@
     else if (sub === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
     else if (sub === 'product') loadAdminProducts();
     else if (sub === 'account') loadAdminAccounts();
-    else if (sub === 'data') document.getElementById('advSaleCutoffInput').value = ADVANCE_SALE_USER_CUTOFF;
+    else if (sub === 'data') { document.getElementById('advSaleCutoffInput').value = ADVANCE_SALE_USER_CUTOFF; renderDriveBackupInfo(); }
   };
 
   // ---- ADMIN: Add User ----
@@ -3402,6 +3504,7 @@
   };
 
   window.handleDeleteCustomer = async function (custId) {
+    if (currentUserData.role !== 'admin') { alert("Customer delete ചെയ്യാൻ Admin-ന് മാത്രമേ പറ്റൂ. Admin-നോട് പറയുക."); return; }
     if (!confirm("ഈ customer-നെ ഒഴിവാക്കണോ?")) return;
     try {
       await deleteDoc(doc(db, "customers", custId));
@@ -3604,115 +3707,319 @@
     return found;
   }
 
-  // ============ Bulk Assign Invoice Numbers (old Purchases) ============
-  let invoiceBulkAllPurchases = [];
+  // ============ Bulk update old Purchases: Bill Amount (+ Invoice No. if missing) ============
+  let billBulkMatches = []; // [{ purchase, billAmount, invoiceNumber, row }]
 
-  window.handleInvoiceBulkUpload = async function () {
-    const fileInput = document.getElementById('invoiceBulkCsvFile');
-    const statusEl = document.getElementById('invoiceBulkStatus');
-    document.getElementById('invoiceAutoMatchedBox').style.display = 'none';
-    document.getElementById('invoiceAmbiguousBox').style.display = 'none';
-    document.getElementById('invoiceNotFoundBox').style.display = 'none';
-
-    if (!fileInput.files[0]) { statusEl.textContent = "CSV file select ചെയ്യുക."; statusEl.style.color = '#d32f2f'; return; }
-
-    statusEl.textContent = "Processing...";
-    statusEl.style.color = '#555';
-
+  window.previewBillBulk = async function () {
+    const file = document.getElementById('billBulkCsvFile').files[0];
+    const statusEl = document.getElementById('billBulkStatus');
+    const box = document.getElementById('billBulkResult');
+    box.innerHTML = ''; billBulkMatches = [];
+    if (!file) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "CSV file select ചെയ്യുക."; return; }
+    statusEl.style.color = '#555'; statusEl.textContent = "Reading...";
     try {
-      const text = await fileInput.files[0].text();
-      const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-      lines.shift(); // drop header
+      const lines = (await file.text()).split(/\r?\n/).filter(l => l.trim() !== '');
+      if (lines.length < 2) { statusEl.textContent = "Header + data rows വേണം."; return; }
+      const hdr = parseCsvLine(lines[0]).map(c => c.trim().toLowerCase().replace(/[^a-z]/g, ''));
+      const map = { invoicenumber: 'inv', invoiceno: 'inv', invoice: 'inv', billamount: 'bill', billamt: 'bill', amount: 'bill', bill: 'bill',
+        date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty' };
+      const ix = {}; hdr.forEach((h, i) => { if (map[h] !== undefined && ix[map[h]] === undefined) ix[map[h]] = i; });
+      if (ix.bill === undefined) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Header-ൽ 'Bill Amount' column കണ്ടില്ല."; return; }
 
-      const purchSnap = await getDocs(collection(db, "purchases"));
-      invoiceBulkAllPurchases = [];
-      purchSnap.forEach(docSnap => invoiceBulkAllPurchases.push({ id: docSnap.id, ...docSnap.data() }));
-      // Only records that don't already have an Invoice Number are candidates — never
-      // silently overwrite one that's already set.
-      const candidatesPool = invoiceBulkAllPurchases.filter(p => !p.invoiceNumber);
+      statusEl.textContent = "Purchases load ചെയ്യുന്നു...";
+      const snap = await getDocs(collection(db, "purchases"));
+      const all = []; snap.forEach(ds => all.push({ id: ds.id, ...ds.data() }));
+      const byInv = {};
+      all.forEach(p => { if (p.invoiceNumber) { const k = String(p.invoiceNumber).trim().toLowerCase(); (byInv[k] = byInv[k] || []).push(p); } });
+      const keyOf = (date, product, godown, vehicle, qty) => [date || '', normalizeName(product), normalizeName(godown), normalizeVehicleNo(vehicle), String(parseFloat(qty) || 0)].join('|');
+      const byKey = {};
+      all.forEach(p => { const k = keyOf(p.date, p.product, p.godown, p.vehicle, p.qty); (byKey[k] = byKey[k] || []).push(p); });
 
-      const matchKey = (p) => [p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeVehicleNo(p.vehicle), String(p.qty || 0)].join('|');
-
-      let autoMatchedCount = 0;
-      let ambiguousRows = [];
-      let notFoundRows = [];
-
-      for (const line of lines) {
-        const cols = parseCsvLine(line);
-        const csvDate = (cols[0] || '').trim();
-        const csvArea = (cols[1] || '').trim().toUpperCase();
-        const csvProduct = (cols[2] || '').trim();
-        const csvGodown = (cols[3] || '').trim();
-        const csvVehicle = (cols[4] || '').trim();
-        const csvQty = (cols[5] || '').trim();
-        const invoiceNumber = (cols[6] || '').trim();
-        if (!csvDate || !csvProduct || !invoiceNumber) continue;
-
-        const key = [csvDate, normalizeName(csvProduct), normalizeName(csvGodown), normalizeVehicleNo(csvVehicle), String(parseFloat(csvQty) || 0)].join('|');
-        let candidates = candidatesPool.filter(p => matchKey(p) === key);
-        if (csvArea && candidates.length > 1) {
-          candidates = candidates.filter(p => (p.area || '').toUpperCase() === csvArea);
+      const ambiguous = [], notFound = [], used = new Set();
+      for (let i = 1; i < lines.length; i++) {
+        const c = parseCsvLine(lines[i]);
+        const get = (k) => ix[k] !== undefined ? (c[ix[k]] || '').trim() : '';
+        const bill = parseNum(get('bill'));
+        const inv = get('inv');
+        if (!(bill > 0)) { notFound.push({ row: i + 1, raw: lines[i], why: 'Bill Amount ഇല്ല / 0' }); continue; }
+        let cands = inv ? (byInv[inv.toLowerCase()] || []) : [];
+        let via = 'Invoice No.';
+        if (cands.length === 0 && get('date') && get('product')) {
+          cands = byKey[keyOf(get('date'), get('product'), get('godown'), get('vehicle'), get('qty'))] || [];
+          const area = get('area').toUpperCase();
+          if (area && cands.length > 1) cands = cands.filter(p => (p.area || '').toUpperCase() === area);
+          via = 'Date+Product+Godown+Vehicle+Qty';
         }
-
-        if (candidates.length === 1) {
-          await updateDoc(doc(db, "purchases", candidates[0].id), { invoiceNumber: invoiceNumber });
-          candidates[0].invoiceNumber = invoiceNumber; // keep local copy in sync, so it's excluded from further matches this run
-          autoMatchedCount++;
-        } else if (candidates.length > 1) {
-          ambiguousRows.push({ csvDate, csvArea, csvProduct, csvGodown, csvVehicle, csvQty, invoiceNumber, candidates });
-        } else {
-          notFoundRows.push({ csvDate, csvArea, csvProduct, csvGodown, csvVehicle, csvQty, invoiceNumber });
-        }
+        cands = cands.filter(p => !used.has(p.id));
+        if (cands.length === 1) { used.add(cands[0].id); billBulkMatches.push({ purchase: cands[0], billAmount: bill, invoiceNumber: inv, row: i + 1, via }); }
+        else if (cands.length > 1) ambiguous.push({ row: i + 1, bill, inv, cands });
+        else notFound.push({ row: i + 1, raw: lines[i], why: 'Match ആയ Purchase ഇല്ല' });
       }
 
       statusEl.textContent = '';
-
-      if (autoMatchedCount > 0) {
-        document.getElementById('invoiceAutoMatchedCount').textContent = autoMatchedCount;
-        document.getElementById('invoiceAutoMatchedBox').style.display = 'block';
+      let html = `<p style="font-size:13px; margin-bottom:8px;">✅ Match: <b>${billBulkMatches.length}</b> · ⚠️ ഒന്നിലധികം: <b>${ambiguous.length}</b> · ❌ കിട്ടിയില്ല: <b>${notFound.length}</b></p>`;
+      if (billBulkMatches.length) {
+        html += `<div class="table-wrap" style="max-height:300px; overflow-y:auto; margin-bottom:10px;"><table>
+          <thead><tr><th>Row</th><th>Purchase</th><th>Qty</th><th>Bill Amt</th><th>Unit Price</th><th>Match by</th></tr></thead><tbody>` +
+          billBulkMatches.slice(0, 300).map(m => `<tr><td>${m.row}</td><td>${fmtDate(m.purchase.date)} · ${m.purchase.area || '-'} · ${m.purchase.product || '-'} · ${m.purchase.vehicle || '-'}${m.purchase.billAmount ? ' <span style="color:#e65100;">(പഴയ ' + inr(m.purchase.billAmount) + ' മാറും)</span>' : ''}</td>
+            <td>${m.purchase.qty || 0}</td><td>${inr(m.billAmount)}</td><td>${inr(calcUnitPrice(m.billAmount, m.purchase.qty))}</td><td style="font-size:11px;">${m.via}</td></tr>`).join('') +
+          `</tbody></table></div>
+          <button class="full-btn" style="background:#2e7d32;" onclick="applyBillBulk()">✅ Apply — ${billBulkMatches.length} purchases update ചെയ്യുക</button>`;
       }
-
-      if (ambiguousRows.length > 0) {
-        const html = ambiguousRows.map(r => {
-          const opts = r.candidates.map(p => `<button class="del-btn" style="background:#fff3e0; color:#e65100; margin:3px;" onclick="applyInvoiceToPurchase('${p.id}','${r.invoiceNumber.replace(/'/g, "\\'")}', this)">${p.area || '-'} · ${fmtDate(p.date)} · Qty: ${p.qty || '-'} · ID: ${p.id.slice(0, 6)}...</button>`).join('');
-          return `<div style="border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px;">
-            <p style="font-size:13px; font-weight:600;">CSV-ൽ: ${r.csvDate} · ${r.csvProduct} · ${r.csvGodown || '-'} · ${r.csvVehicle || '-'} · Qty: ${r.csvQty} (Invoice: ${r.invoiceNumber})</p>
-            <p style="font-size:12px; color:#777; margin:6px 0;">ഇതിൽ ഏതാണ് ശരിയായ Purchase എന്ന് select ചെയ്യുക:</p>
-            ${opts}
-          </div>`;
-        }).join('');
-        document.getElementById('invoiceAmbiguousList').innerHTML = html;
-        document.getElementById('invoiceAmbiguousBox').style.display = 'block';
+      if (ambiguous.length) {
+        html += `<h4 style="color:#e65100; margin:14px 0 6px;">⚠️ ഒന്നിലധികം match — ശരിയായത് click ചെയ്യുക (ഉടനെ save ആകും)</h4>` +
+          ambiguous.map(a => `<div style="border:1px solid #eee; border-radius:8px; padding:8px; margin-bottom:6px; font-size:12px;">Row ${a.row} · ${inr(a.bill)}${a.inv ? ' · Inv: ' + a.inv : ''}<br>` +
+            a.cands.map(p => `<button class="del-btn" style="background:#fff3e0; color:#e65100; margin:3px;" onclick="applyBillToOne('${p.id}', ${a.bill}, ${p.qty || 0}, '${(a.inv || '').replace(/'/g, "\\'")}', this)">${p.area || '-'} · ${fmtDate(p.date)} · Qty ${p.qty || 0} · ${p.invoiceNumber || 'no inv'}</button>`).join('') + `</div>`).join('');
       }
-
-      if (notFoundRows.length > 0) {
-        const html = notFoundRows.map(r => `<div style="border:1px solid #eee; border-radius:8px; padding:10px; margin-bottom:8px; font-size:13px;">
-          ${r.csvDate} · ${r.csvArea || '-'} · ${r.csvProduct} · ${r.csvGodown || '-'} · ${r.csvVehicle || '-'} · Qty: ${r.csvQty} · Invoice: ${r.invoiceNumber}
-        </div>`).join('');
-        document.getElementById('invoiceNotFoundList').innerHTML = html;
-        document.getElementById('invoiceNotFoundBox').style.display = 'block';
+      if (notFound.length) {
+        html += `<h4 style="color:#c62828; margin:14px 0 6px;">❌ Match ആകാത്ത rows</h4><div style="font-size:12px; color:#555; max-height:200px; overflow-y:auto;">` +
+          notFound.map(n => `Row ${n.row}: ${n.why} — <span style="color:#999;">${n.raw}</span>`).join('<br>') + `</div>`;
       }
-
-      fileInput.value = '';
-
+      box.innerHTML = html;
     } catch (err) {
       console.error(err);
-      statusEl.textContent = "Process ചെയ്യാൻ പറ്റിയില്ല.";
-      statusEl.style.color = '#d32f2f';
+      statusEl.style.color = '#d32f2f'; statusEl.textContent = "Preview പരാജയപ്പെട്ടു.";
     }
   };
 
-  window.applyInvoiceToPurchase = async function (purchaseId, invoiceNumber, btnEl) {
+  async function billUpdatePayload(p, billAmount, qty, inv) {
+    const payload = { billAmount: billAmount, amount: billAmount, rate: calcUnitPrice(billAmount, qty) };
+    if (inv && !p.invoiceNumber) {
+      const dup = await findDuplicateInvoiceNumber(inv, p.id);
+      if (!dup) payload.invoiceNumber = inv;
+    }
+    return payload;
+  }
+
+  window.applyBillBulk = async function () {
+    if (!billBulkMatches.length) return;
+    if (!confirm(`${billBulkMatches.length} purchases-ന് Bill Amount / Unit Price save ചെയ്യണോ?`)) return;
+    const statusEl = document.getElementById('billBulkStatus');
+    let ok = 0, fail = 0;
+    await withBulkAudit('Purchases: Bill Amount bulk update', async () => {
+      for (let i = 0; i < billBulkMatches.length; i++) {
+        const m = billBulkMatches[i];
+        statusEl.textContent = `Saving ${i + 1} / ${billBulkMatches.length}...`;
+        try {
+          await updateDoc(doc(db, "purchases", m.purchase.id), await billUpdatePayload(m.purchase, m.billAmount, m.purchase.qty, m.invoiceNumber));
+          ok++;
+        } catch (e) { console.error(e); fail++; }
+      }
+      return `${ok} updated, ${fail} failed`;
+    });
+    statusEl.style.color = '#2e7d32';
+    statusEl.textContent = `✅ ${ok} purchases update ചെയ്തു.` + (fail ? ` (${fail} failed)` : '');
+    billBulkMatches = [];
+    document.getElementById('billBulkResult').innerHTML = '';
+  };
+
+  window.applyBillToOne = async function (purchaseId, billAmount, qty, inv, btnEl) {
     try {
-      const dup = await findDuplicateInvoiceNumber(invoiceNumber, purchaseId);
-      if (dup) { alert(`ഈ Invoice Number "${invoiceNumber}" വേറെ ഒരു Purchase-ൽ ഇതിനകം ഉണ്ട്.`); return; }
-      await updateDoc(doc(db, "purchases", purchaseId), { invoiceNumber: invoiceNumber });
-      const wrap = btnEl.closest('div[style*="border:1px solid #eee"]');
-      if (wrap) wrap.innerHTML = `<p style="font-size:13px; color:#2e7d32;">✅ Invoice Number "${invoiceNumber}" set ചെയ്തു.</p>`;
+      const snap = await getDoc(doc(db, "purchases", purchaseId));
+      if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
+      await updateDoc(doc(db, "purchases", purchaseId), await billUpdatePayload({ id: purchaseId, ...snap.data() }, billAmount, qty, inv));
+      btnEl.parentElement.innerHTML = `<span style="color:#2e7d32;">✅ ${inr(billAmount)} save ചെയ്തു.</span>`;
+    } catch (err) { console.error(err); alert("Save ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // ============ OUTSTANDING / AGEING REPORT ============
+  // Per customer: every Sale (and a positive Opening Balance, treated as the oldest item) is
+  // a debit; Collections (and credit openings / negative sales) are paid against the OLDEST
+  // debits first (FIFO). Whatever is still unpaid is bucketed by its age on the "As on" date.
+  const AGE_BUCKETS = [['0–30', 30], ['31–60', 60], ['61–90', 90], ['90+', Infinity]];
+  const lastAgeing = { admin: null, user: null };
+
+  function daysBetween(a, b) {
+    return Math.floor((new Date(b + 'T00:00:00') - new Date(a + 'T00:00:00')) / 86400000);
+  }
+
+  window.generateAgeingReport = async function (scope) {
+    const pre = scope === 'admin' ? 'admin' : 'user';
+    const asOn = document.getElementById(pre + 'AgeAsOn').value || new Date().toISOString().slice(0, 10);
+    document.getElementById(pre + 'AgeAsOn').value = asOn;
+    const areaF = scope === 'admin' ? document.getElementById('adminAgeArea').value : currentWorkingArea;
+    const box = document.getElementById(pre + 'AgeContainer');
+    box.innerHTML = 'Loading...';
+    try {
+      const [custSnap, salesSnap, collSnap] = await Promise.all([
+        getDocs(collection(db, "customers")), getDocs(collection(db, "sales")), getDocs(collection(db, "collections"))
+      ]);
+      const debits = {}, credits = {}, lastPay = {}, lastSale = {};
+      salesSnap.forEach(ds => {
+        const d = ds.data();
+        if (!d.customerId || !d.date || d.date > asOn) return;
+        const amt = Number(d.amount) || 0;
+        if (amt >= 0) (debits[d.customerId] = debits[d.customerId] || []).push({ date: d.date, amt });
+        else credits[d.customerId] = (credits[d.customerId] || 0) - amt;
+        if (!lastSale[d.customerId] || d.date > lastSale[d.customerId]) lastSale[d.customerId] = d.date;
+      });
+      collSnap.forEach(ds => {
+        const d = ds.data();
+        if (!d.customerId || !d.date || d.date > asOn) return;
+        credits[d.customerId] = (credits[d.customerId] || 0) + (Number(d.amount) || 0);
+        if (!lastPay[d.customerId] || d.date > lastPay[d.customerId]) lastPay[d.customerId] = d.date;
+      });
+
+      const rows = [], creditRows = [];
+      custSnap.forEach(ds => {
+        const c = ds.data();
+        if (areaF && c.area !== areaF) return;
+        const id = ds.id;
+        const list = (debits[id] || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+        const opening = Number(c.openingBalance) || 0;
+        if (opening > 0) list.unshift({ date: null, amt: opening });
+        let paid = (credits[id] || 0) + (opening < 0 ? -opening : 0);
+        const buckets = [0, 0, 0, 0];
+        let total = 0;
+        for (const item of list) {
+          let left = item.amt;
+          const use = Math.min(paid, left); left -= use; paid -= use;
+          if (left <= 0.005) continue;
+          total += left;
+          const age = item.date ? daysBetween(item.date, asOn) : Infinity;
+          const bi = AGE_BUCKETS.findIndex(([, max]) => age <= max);
+          buckets[bi] += left;
+        }
+        const row = { name: c.name || '-', area: c.area || '-', phone: c.phone || '', total, buckets,
+          lastPay: lastPay[id] || '', lastSale: lastSale[id] || '' };
+        if (total > 0.5) rows.push(row);
+        else if (paid > 0.5) creditRows.push({ ...row, credit: paid });
+      });
+      rows.sort((a, b) => b.total - a.total);
+      creditRows.sort((a, b) => b.credit - a.credit);
+      lastAgeing[scope] = { asOn, area: areaF, rows, creditRows };
+
+      const sum = (i) => rows.reduce((t, r) => t + r.buckets[i], 0);
+      const grand = rows.reduce((t, r) => t + r.total, 0);
+      const cards = AGE_BUCKETS.map(([label], i) => {
+        const bg = ['#e8f5e9', '#fffde7', '#fff3e0', '#ffebee'][i], fg = ['#2e7d32', '#f57f17', '#e65100', '#c62828'][i];
+        return `<div style="background:${bg}; border-radius:10px; padding:10px; text-align:center;"><p style="font-size:11px; color:${fg}; font-weight:700;">${label} ദിവസം</p><p style="font-size:15px; font-weight:700; color:${fg};">${inr(sum(i))}</p></div>`;
+      }).join('');
+      let html = `<div style="background:#1e3c72; color:#fff; border-radius:10px; padding:12px; text-align:center; margin-bottom:10px;">
+          <p style="font-size:12px; opacity:0.85;">ആകെ Outstanding (${fmtDate(asOn)} വരെ${areaF ? ' · ' + areaF : ''}) — ${rows.length} customers</p>
+          <p style="font-size:22px; font-weight:700;">${inr(grand)}</p></div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-bottom:14px;">${cards}</div>
+        <input type="text" placeholder="🔍 Customer search..." oninput="filterAgeingRows(this, '${pre}AgeTable')" style="margin-bottom:10px;">
+        <div class="table-wrap"><table id="${pre}AgeTable">
+          <thead><tr><th>Customer</th><th>Area</th><th>Outstanding</th>${AGE_BUCKETS.map(([l]) => `<th>${l}</th>`).join('')}<th>Last Payment</th></tr></thead><tbody>` +
+        rows.map(r => `<tr><td>${escapeHtml(r.name)}${r.phone ? `<br><span style="font-size:11px; color:#777;">${escapeHtml(r.phone)}</span>` : ''}</td><td>${r.area}</td>
+          <td style="font-weight:700;">${inr(r.total)}</td>
+          ${r.buckets.map((v, i) => `<td style="${v > 0 && i === 3 ? 'color:#c62828; font-weight:700;' : ''}">${v > 0 ? inr(v) : '-'}</td>`).join('')}
+          <td style="white-space:nowrap;">${r.lastPay ? fmtDate(r.lastPay) + `<br><span style="font-size:11px; color:#777;">${daysBetween(r.lastPay, asOn)} ദിവസം മുമ്പ്</span>` : '<span style="color:#c62828;">ഇല്ല</span>'}</td></tr>`).join('') +
+        `<tr style="font-weight:700; background:#f5f7fa;"><td colspan="2">Total</td><td>${inr(grand)}</td>${AGE_BUCKETS.map((_, i) => `<td>${inr(sum(i))}</td>`).join('')}<td></td></tr>
+        </tbody></table></div>`;
+      if (creditRows.length) {
+        html += `<h4 style="color:#2e7d32; margin:16px 0 6px;">💚 Advance / Credit ഉള്ള Customers (${creditRows.length})</h4>
+          <div class="table-wrap"><table><thead><tr><th>Customer</th><th>Area</th><th>Credit</th></tr></thead><tbody>` +
+          creditRows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>${r.area}</td><td style="color:#2e7d32; font-weight:700;">${inr(r.credit)}</td></tr>`).join('') + `</tbody></table></div>`;
+      }
+      box.innerHTML = html;
     } catch (err) {
       console.error(err);
-      alert("Set ചെയ്യാൻ പറ്റിയില്ല.");
+      box.innerHTML = '<p style="color:#d32f2f;">Load ചെയ്യാൻ പറ്റിയില്ല.</p>';
     }
+  };
+
+  window.filterAgeingRows = function (inp, tableId) {
+    const term = inp.value.trim().toLowerCase();
+    document.querySelectorAll(`#${tableId} tbody tr`).forEach(tr => {
+      if (tr.textContent.startsWith('Total')) return;
+      tr.style.display = !term || tr.cells[0].textContent.toLowerCase().includes(term) ? '' : 'none';
+    });
+  };
+
+  window.exportAgeingCSV = function (scope) {
+    const r = lastAgeing[scope];
+    if (!r) { alert("ആദ്യം Generate ചെയ്യുക."); return; }
+    const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+    let csv = `Outstanding / Ageing Report - As on ${r.asOn}${r.area ? ' - ' + r.area : ''}\n\n`;
+    csv += ['Customer', 'Phone', 'Area', 'Outstanding', ...AGE_BUCKETS.map(([l]) => l + ' days'), 'Last Payment'].map(q).join(',') + '\n';
+    r.rows.forEach(x => { csv += [x.name, x.phone, x.area, x.total.toFixed(2), ...x.buckets.map(v => v.toFixed(2)), x.lastPay].map(q).join(',') + '\n'; });
+    if (r.creditRows.length) {
+      csv += '\nAdvance / Credit\n' + ['Customer', 'Area', 'Credit'].map(q).join(',') + '\n';
+      r.creditRows.forEach(x => { csv += [x.name, x.area, x.credit.toFixed(2)].map(q).join(',') + '\n'; });
+    }
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `outstanding-${r.area || 'all'}-${r.asOn}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
+  // Generic clean print window (letterhead + title + meta lines + one table).
+  function openPrintWindow(title, metaHtml, tableHtml) {
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title>
+<style>
+  body { font-family: Arial, sans-serif; color:#222; margin:24px; font-size:11px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #1e3c72; padding-bottom:8px; margin-bottom:12px; }
+  .brand { font-size:20px; font-weight:700; color:#1e3c72; } .title { font-size:14px; font-weight:700; color:#1e3c72; text-align:right; }
+  .meta { margin-bottom:12px; line-height:1.6; } .meta b { color:#1e3c72; }
+  table { width:100%; border-collapse:collapse; } th { background:#1e3c72; color:#fff; text-align:left; padding:5px; }
+  td { border-bottom:1px solid #ddd; padding:4px 5px; } tr:nth-child(even) td { background:#f6f8fb; } td.num, th.num { text-align:right; white-space:nowrap; }
+  tr.total td { font-weight:700; background:#e8edf5 !important; }
+  @page { size:A4; margin:10mm; }
+</style></head><body>
+  <div class="head"><div class="brand">Alpha &amp; Noble</div><div class="title">${title}</div></div>
+  <div class="meta">${metaHtml}</div>${tableHtml}
+  <script>window.onload = function () { window.print(); };<\/script></body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert("Popup block ചെയ്തിരിക്കുന്നു — browser-ൽ popups allow ചെയ്ത് വീണ്ടും ശ്രമിക്കുക."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
+  }
+
+  window.printAgeingReport = function (scope) {
+    const r = lastAgeing[scope];
+    if (!r) { alert("ആദ്യം Generate ചെയ്യുക."); return; }
+    const grand = r.rows.reduce((t, x) => t + x.total, 0);
+    const sum = (i) => r.rows.reduce((t, x) => t + x.buckets[i], 0);
+    const table = `<table><thead><tr><th>#</th><th>Customer</th><th>Area</th><th class="num">Outstanding</th>${AGE_BUCKETS.map(([l]) => `<th class="num">${l}</th>`).join('')}<th>Last Payment</th></tr></thead><tbody>` +
+      r.rows.map((x, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(x.name)}${x.phone ? ' (' + escapeHtml(x.phone) + ')' : ''}</td><td>${x.area}</td><td class="num">${inr(x.total)}</td>${x.buckets.map(v => `<td class="num">${v > 0 ? inr(v) : '-'}</td>`).join('')}<td>${x.lastPay ? fmtDate(x.lastPay) : '-'}</td></tr>`).join('') +
+      `<tr class="total"><td></td><td colspan="2">Total (${r.rows.length} customers)</td><td class="num">${inr(grand)}</td>${AGE_BUCKETS.map((_, i) => `<td class="num">${inr(sum(i))}</td>`).join('')}<td></td></tr></tbody></table>`;
+    openPrintWindow('OUTSTANDING / AGEING REPORT',
+      `<b>As on:</b> ${fmtDate(r.asOn)} &nbsp; · &nbsp; <b>Area:</b> ${r.area || 'All Areas'} &nbsp; · &nbsp; <b>Printed:</b> ${fmtDate(new Date().toISOString().slice(0, 10))}`, table);
+  };
+
+  // ============ AUDIT LOG VIEWER (Admin) ============
+  let auditRowsCache = [];
+  window.loadAuditLog = async function () {
+    const dateEl = document.getElementById('auditDate');
+    if (!dateEl.value) {
+      const n = new Date(); dateEl.value = new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+    const userF = document.getElementById('auditUser').value.trim().toLowerCase();
+    const colF = document.getElementById('auditCol').value;
+    const actF = document.getElementById('auditAction').value;
+    const statusEl = document.getElementById('auditStatus');
+    const tbody = document.getElementById('auditBody');
+    statusEl.textContent = 'Loading...'; tbody.innerHTML = '';
+    try {
+      const snap = await getDocs(query(collection(db, "auditLogs"), where("date", "==", dateEl.value)));
+      auditRowsCache = [];
+      snap.forEach(ds => auditRowsCache.push(ds.data()));
+      auditRowsCache.sort((a, b) => (b.ts || '').localeCompare(a.ts || ''));
+      const rows = auditRowsCache.filter(r => (!userF || (r.user || '').toLowerCase().includes(userF)) && (!colF || r.col === colF) && (!actF || r.action === actF));
+      const label = { create: '➕ Add', update: '✏️ Edit', set: '✏️ Save', delete: '🗑️ Delete', bulk: '📦 Bulk' };
+      const color = { create: '#2e7d32', update: '#1565c0', set: '#1565c0', delete: '#c62828', bulk: '#6a1b9a' };
+      tbody.innerHTML = rows.map((r) => {
+        const i = auditRowsCache.indexOf(r);
+        const more = (r.data || r.before) ? ` <a href="#" style="font-size:11px;" onclick="showAuditDetail(${i}); return false;">വിശദം</a>` : '';
+        return `<tr><td style="white-space:nowrap;">${r.time || ''}</td><td>${r.user || '-'}${r.role === 'admin' ? ' <span style="font-size:10px; color:#777;">(Admin)</span>' : ''}</td>
+          <td style="color:${color[r.action] || '#333'}; font-weight:600; white-space:nowrap;">${label[r.action] || r.action}</td><td>${r.col || '-'}</td>
+          <td style="font-size:12px;">${escapeHtml(r.summary || '')}${more}</td></tr>`;
+      }).join('') || '<tr><td colspan="5">ഈ ദിവസം entries ഒന്നും ഇല്ല.</td></tr>';
+      statusEl.textContent = `${rows.length} entries`;
+    } catch (err) {
+      console.error(err);
+      statusEl.textContent = 'Load ചെയ്യാൻ പറ്റിയില്ല (Security Rules-ൽ auditLogs read admin-ന് അനുവദിച്ചിട്ടുണ്ടോ എന്ന് നോക്കുക).';
+    }
+  };
+
+  window.showAuditDetail = function (i) {
+    const r = auditRowsCache[i];
+    if (!r) return;
+    const pretty = (t) => { try { return JSON.stringify(JSON.parse(t), null, 1); } catch (e) { return t || ''; } };
+    alert(`${r.action} · ${r.col}/${r.docId}\n${r.user} · ${r.date} ${r.time}\n\n` +
+      (r.before ? `മുമ്പ് (before):\n${pretty(r.before)}\n\n` : '') + (r.data ? `പുതിയത് / മാറ്റം:\n${pretty(r.data)}` : ''));
   };
 
   // ============ CHECKED OK (per-record) ============
@@ -3956,9 +4263,9 @@
   };
 
   window.switchEntrySubTab = function (sub) {
-    // Purchase entry is Admin-only (Admin uses switchAdminEntrySubTab) — never open it on the User side.
+    // Purchase entry is Admin-only (Admin uses switchAdminEntrySubTab).
     if (sub === 'purchase') sub = 'sale';
-    const subs = ['sale', 'purchase', 'collection', 'customers', 'vehicle'];
+    const subs = ['sale', 'collection', 'customers', 'vehicle'];
     subs.forEach(s => {
       const panel = document.getElementById('tab' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('entrySubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -3978,15 +4285,6 @@
       populateSaleVehicleDropdown();
       document.getElementById('saleDate').valueAsDate = new Date();
       loadTodaysSales();
-    } else if (sub === 'purchase') {
-      populatePurchaseProductDropdown();
-      populatePurchaseGodownDropdown();
-      populatePurchaseVehicleDropdown();
-      document.getElementById('purchaseDate').valueAsDate = new Date();
-      loadTodaysPurchases();
-      editingPurchaseId = null;
-      editingPurchaseOldQty = 0;
-      document.getElementById('addPurchaseBtn').textContent = "Save Purchase";
     } else if (sub === 'collection') {
       populateCollCustomerDropdown();
       populateCollAccountDropdown();
@@ -4025,7 +4323,8 @@
   };
 
   window.switchReportSubTab = function (sub) {
-    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet', 'targets'];
+    if (sub === 'targets') sub = 'sale'; // Targets removed from the User report
+    const subs = ['sale', 'collection', 'purchase', 'stockbook', 'tripsheet', 'statement', 'ageing', 'targets'];
     subs.forEach(s => {
       const panel = document.getElementById('repSub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('repSubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -4037,6 +4336,7 @@
         btn.style.background = '#eee'; btn.style.color = '#333';
       }
     });
+    if (sub === 'ageing' && !document.getElementById('userAgeAsOn').value) document.getElementById('userAgeAsOn').value = new Date().toISOString().slice(0, 10);
     if (sub === 'targets') {
       if (!document.getElementById('userTargetsMonth').value) {
         document.getElementById('userTargetsMonth').value = new Date().toISOString().slice(0, 7);
@@ -4197,10 +4497,6 @@
     if (!e.target.closest('#saleVehicleSearch') && !e.target.closest('#saleVehicleOptionsBox')) {
       const box3 = document.getElementById('saleVehicleOptionsBox');
       if (box3) box3.style.display = 'none';
-    }
-    if (!e.target.closest('#purchaseVehicleSearch') && !e.target.closest('#purchaseVehicleOptionsBox')) {
-      const box4 = document.getElementById('purchaseVehicleOptionsBox');
-      if (box4) box4.style.display = 'none';
     }
     if (!e.target.closest('#stmtCustSearchInput') && !e.target.closest('#stmtCustOptionsBox')) {
       const box5 = document.getElementById('stmtCustOptionsBox');
@@ -5866,6 +6162,18 @@
     }
   });
 
+  // Unit Price = Bill Amount ÷ Qty (rounded to 2 decimals). Returns 0 if either is missing.
+  function calcUnitPrice(billAmount, qty) {
+    const b = parseFloat(billAmount) || 0, q = parseFloat(qty) || 0;
+    return (b > 0 && q > 0) ? Math.round((b / q) * 100) / 100 : 0;
+  }
+  const inr = (n) => '₹' + (Number(n) || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+  window.calcAdminPurchaseRate = function () {
+    const up = calcUnitPrice(document.getElementById('adminPurchaseBillAmount').value, document.getElementById('adminPurchaseQty').value);
+    document.getElementById('adminPurchaseUnitPrice').value = up ? up.toFixed(2) : '';
+  };
+
   window.handleAdminAddPurchase = async function () {
     const area = document.getElementById('adminPurchaseArea').value;
     const product = document.getElementById('adminPurchaseProduct').value;
@@ -5874,6 +6182,8 @@
     const date = document.getElementById('adminPurchaseDate').value;
     const qty = parseFloat(document.getElementById('adminPurchaseQty').value) || 0;
     const invoiceNumber = document.getElementById('adminPurchaseInvoiceNumber').value.trim();
+    const billAmount = parseFloat(document.getElementById('adminPurchaseBillAmount').value) || 0;
+    const unitPrice = calcUnitPrice(billAmount, qty);
     const errEl = document.getElementById('adminPurchaseErrorMsg');
     const okEl = document.getElementById('adminPurchaseSuccessMsg');
     const btn = document.getElementById('addAdminPurchaseBtn');
@@ -5907,7 +6217,7 @@
 
       await addDoc(collection(db, "purchases"), {
         product: product, godown: godown, vehicle: vehicle, area: area,
-        qty: qty, remainingQty: qty, rate: 0, amount: 0, date: date, status: 'approved',
+        qty: qty, remainingQty: qty, rate: unitPrice, amount: billAmount, billAmount: billAmount, date: date, status: 'approved',
         invoiceNumber: invoiceNumber,
         enteredBy: currentUserData.username || 'admin', enteredVia: 'manual', createdAt: new Date().toISOString()
       });
@@ -5918,6 +6228,8 @@
       document.getElementById('adminPurchaseQty').value = '1';
       document.getElementById('adminPurchaseVehicleSearch').value = '';
       document.getElementById('adminPurchaseInvoiceNumber').value = '';
+      document.getElementById('adminPurchaseBillAmount').value = '';
+      document.getElementById('adminPurchaseUnitPrice').value = '';
       loadAdminPurchasesToday();
 
     } catch (err) {
@@ -5931,7 +6243,7 @@
 
   async function loadAdminPurchasesToday() {
     const tbody = document.getElementById('adminPurchaseTableBody');
-    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
       const q = query(collection(db, "purchases"), where("date", "==", todayStr));
@@ -5941,14 +6253,15 @@
         const d = docSnap.data();
         rows += `<tr>
           <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td><td>${d.qty || 0}</td><td>${d.invoiceNumber || '-'}</td>
+          <td>${d.billAmount ? inr(d.billAmount) : '-'}</td><td>${d.rate ? inr(d.rate) : '-'}</td>
           <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${docSnap.id}')">Edit</button>
               <button class="del-btn" onclick="adminDeleteRecord('purchases','${docSnap.id}')">Delete</button></td>
         </tr>`;
       });
-      tbody.innerHTML = rows || '<tr><td colspan="8">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>';
+      tbody.innerHTML = rows || '<tr><td colspan="10">ഇന്ന് purchases ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="8">Error loading.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10">Error loading.</td></tr>';
     }
   }
 
@@ -6235,236 +6548,6 @@
 
   window.closeVehiclePurchases = function () {
     document.getElementById('vehPurchOverlay').style.display = 'none';
-  };
-
-  // ---- PURCHASE ----
-  async function populatePurchaseProductDropdown() {
-    const sel = document.getElementById('purchaseProduct');
-    sel.innerHTML = '<option value="">-- Select Product --</option>';
-    try {
-      const snap = await getDocs(collection(db, "products"));
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = d.name + (d.unit ? ' (' + d.unit + ')' : '');
-        sel.appendChild(opt);
-      });
-    } catch (err) { console.error(err); }
-  }
-
-  async function populatePurchaseGodownDropdown() {
-    const sel = document.getElementById('purchaseGodown');
-    sel.innerHTML = '<option value="">-- Select Godown --</option>';
-    try {
-      const q = query(collection(db, "godowns"), where("area", "==", currentWorkingArea));
-      const snap = await getDocs(q);
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        const opt = document.createElement('option');
-        opt.value = d.name;
-        opt.textContent = d.name;
-        sel.appendChild(opt);
-      });
-    } catch (err) { console.error(err); }
-  }
-
-  let allVehiclesForPurchase = [];
-
-  async function populatePurchaseVehicleDropdown() {
-    try {
-      const q = query(collection(db, "vehicles"), where("area", "==", currentWorkingArea));
-      const snap = await getDocs(q);
-      allVehiclesForPurchase = [];
-      snap.forEach(docSnap => allVehiclesForPurchase.push(docSnap.data()));
-      allVehiclesForPurchase.sort((a, b) => (a.number || '').localeCompare(b.number || ''));
-    } catch (err) { console.error(err); }
-  }
-
-  window.renderPurchaseVehicleOptions = function () {
-    const box = document.getElementById('purchaseVehicleOptionsBox');
-    const term = normalizeVehicleNo(document.getElementById('purchaseVehicleSearch').value);
-    const matches = allVehiclesForPurchase.filter(v => !term || normalizeVehicleNo(v.number).includes(term));
-    let html = matches.map(v => `<div class="cust-opt cust-opt-own" onmousedown="selectPurchaseVehicle('${escapeHtml(v.number)}')">${v.number}${v.driver ? ' — ' + v.driver : ''}</div>`).join('');
-    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Vehicle കണ്ടെത്തിയില്ല.</div>';
-    box.innerHTML = html;
-    box.style.display = 'block';
-  };
-
-  window.selectPurchaseVehicle = function (number) {
-    document.getElementById('purchaseVehicle').value = number;
-    document.getElementById('purchaseVehicleSearch').value = number;
-    document.getElementById('purchaseVehicleOptionsBox').style.display = 'none';
-  };
-
-  window.handleAddPurchase = async function () {
-    if (currentUserData.role !== 'admin') { alert("Purchase entry ഇപ്പോൾ Admin-ന് മാത്രമേ ഉള്ളൂ."); return; }
-    const product = document.getElementById('purchaseProduct').value;
-    const date = document.getElementById('purchaseDate').value;
-    const godown = document.getElementById('purchaseGodown').value;
-    const vehicle = normalizeVehicleNo(document.getElementById('purchaseVehicleSearch').value);
-    const qty = parseFloat(document.getElementById('purchaseQty').value) || 0;
-    const invoiceNumber = document.getElementById('purchaseInvoiceNumber').value.trim();
-    const errEl = document.getElementById('purchaseErrorMsg');
-    const okEl = document.getElementById('purchaseSuccessMsg');
-    const btn = document.getElementById('addPurchaseBtn');
-
-    errEl.style.display = 'none'; okEl.style.display = 'none';
-
-    if (!product) { errEl.textContent = "Product select ചെയ്യുക"; errEl.style.display = 'block'; return; }
-    if (!godown) { errEl.textContent = "Godown select ചെയ്യുക"; errEl.style.display = 'block'; return; }
-    if (qty === 0) { errEl.textContent = "Quantity 0 ആകാൻ പാടില്ല."; errEl.style.display = 'block'; return; }
-    if (!invoiceNumber) { errEl.textContent = "Invoice Number നൽകുക."; errEl.style.display = 'block'; return; }
-    if (editingPurchaseId && !isUserEditWindowOpen(editingPurchaseOldDate)) {
-      errEl.textContent = "ഈ Purchase-ന്റെ Edit period കഴിഞ്ഞു (അടുത്ത മാസം 2-ന് ശേഷം edit ചെയ്യാൻ പറ്റില്ല).";
-      errEl.style.display = 'block';
-      return;
-    }
-
-    btn.disabled = true; btn.textContent = "Saving...";
-
-    try {
-      const dupPurchase = await findDuplicateInvoiceNumber(invoiceNumber, editingPurchaseId);
-      if (dupPurchase) {
-        errEl.textContent = `ഈ Invoice Number "${invoiceNumber}" നേരത്തെ ഒരു Purchase-ൽ ഉപയോഗിച്ചിട്ടുണ്ട് (${dupPurchase.area || '-'} — ${dupPurchase.product || '-'} — ${fmtDate(dupPurchase.date)}). Duplicate ആയിരിക്കാം, Invoice Number ഒന്ന് കൂടി check ചെയ്യുക.`;
-        errEl.style.display = 'block';
-        btn.disabled = false; btn.textContent = "Save Purchase";
-        return;
-      }
-
-      await ensureVehicleRegistered(vehicle);
-
-      if (editingPurchaseId) {
-        const qtyDelta = qty - editingPurchaseOldQty;
-        const updateData = {
-          product: product, godown: godown, vehicle: vehicle,
-          qty: qty, remainingQty: increment(qtyDelta), date: date,
-          invoiceNumber: invoiceNumber,
-          updatedAt: new Date().toISOString()
-        };
-        if (editingPurchaseOldStatus === 'approved') {
-          updateData.status = 'approved';
-          updateData.editedAfterApproval = true;
-        } else {
-          updateData.status = 'pending';
-        }
-        updateData.lastEditedBy = currentUserData.username || 'unknown';
-        updateData.lastEditedAt = new Date().toISOString();
-        await updateDoc(doc(db, "purchases", editingPurchaseId), updateData);
-        okEl.textContent = `Purchase updated: ${product} — Qty: ${qty}`;
-      } else {
-        await addDoc(collection(db, "purchases"), {
-          product: product, godown: godown, vehicle: vehicle,
-          area: currentWorkingArea, qty: qty, remainingQty: qty, date: date,
-          invoiceNumber: invoiceNumber,
-          status: 'pending',
-          enteredBy: currentUserData.username || 'unknown', enteredVia: 'manual', createdAt: new Date().toISOString()
-        });
-        okEl.textContent = `Purchase saved: ${product} — Qty: ${qty}`;
-      }
-
-      okEl.style.display = 'block';
-
-      document.getElementById('purchaseQty').value = '1';
-      document.getElementById('purchaseVehicle').value = '';
-      document.getElementById('purchaseVehicleSearch').value = '';
-      document.getElementById('purchaseInvoiceNumber').value = '';
-      editingPurchaseId = null;
-      editingPurchaseOldQty = 0;
-      btn.textContent = "Save Purchase";
-
-      loadTodaysPurchases();
-
-    } catch (err) {
-      console.error(err);
-      errEl.textContent = "Purchase save ചെയ്യാൻ പറ്റിയില്ല.";
-      errEl.style.display = 'block';
-    } finally {
-      btn.disabled = false; btn.textContent = "Save Purchase";
-    }
-  };
-
-  async function loadTodaysPurchases() {
-    const tbody = document.getElementById('purchaseTableBody');
-    tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
-    try {
-      const todayStr = new Date().toISOString().split('T')[0];
-      const q = query(collection(db, "purchases"), where("area", "==", currentWorkingArea));
-      const snap = await getDocs(q);
-
-      let docs = [];
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        if (d.date === todayStr || (d.status || 'pending') === 'pending') docs.push({ id: docSnap.id, ...d });
-      });
-      docs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-      if (docs.length === 0) { tbody.innerHTML = '<tr><td colspan="6">ഇന്ന്, അല്ലെങ്കിൽ ബാക്കി pending ആയ purchases ഒന്നും ഇല്ല.</td></tr>'; return; }
-      let rows = '';
-      let totalQty = 0;
-      docs.forEach(d => {
-        const id = d.id;
-        totalQty += (d.qty || 0);
-        const isPending = (d.status || 'pending') === 'pending';
-        const statusBadge = isPending
-          ? '<span class="role-badge role-admin">Pending</span>'
-          : '<span class="role-badge role-user">Approved</span>';
-        const canEdit = d.enteredBy === currentUserData.username && isUserEditWindowOpen(d.date);
-        const actions = canEdit
-          ? `<button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:6px;" onclick="editPurchaseRow('${id}')">Edit</button>
-             ${isPending ? `<button class="del-btn" onclick="deletePurchaseRow('${id}')">Delete</button>` : ''}`
-          : '';
-        rows += `<tr><td>${fmtDate(d.date)}</td><td>${d.product || '-'}</td><td>${d.qty || '-'}</td><td>${d.invoiceNumber || '-'}</td><td>${statusBadge}</td><td>${actions}</td></tr>`;
-      });
-      rows += `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td></td><td>${totalQty}</td><td colspan="3"></td></tr>`;
-      tbody.innerHTML = rows;
-    } catch (err) {
-      console.error(err);
-      tbody.innerHTML = '<tr><td colspan="6">Error loading purchases.</td></tr>';
-    }
-  }
-
-  window.editPurchaseRow = async function (id) {
-    if (currentUserData.role !== 'admin') { alert("Purchase entry/edit ഇപ്പോൾ Admin-ന് മാത്രമേ ഉള്ളൂ."); return; }
-    try {
-      const snap = await getDoc(doc(db, "purchases", id));
-      if (!snap.exists()) { alert("Record കണ്ടെത്തിയില്ല."); return; }
-      const d = snap.data();
-
-      switchTab('entry'); switchEntrySubTab('purchase');
-      await new Promise(r => setTimeout(r, 50));
-
-      document.getElementById('purchaseProduct').value = d.product || '';
-      document.getElementById('purchaseDate').value = d.date || '';
-      document.getElementById('purchaseGodown').value = d.godown || '';
-      document.getElementById('purchaseVehicle').value = d.vehicle || '';
-      document.getElementById('purchaseVehicleSearch').value = d.vehicle || '';
-      document.getElementById('purchaseQty').value = d.qty || 0;
-      document.getElementById('purchaseInvoiceNumber').value = d.invoiceNumber || '';
-
-      editingPurchaseId = id;
-      editingPurchaseOldQty = d.qty || 0;
-      editingPurchaseOldStatus = d.status || 'pending';
-      editingPurchaseOldDate = d.date || '';
-      document.getElementById('addPurchaseBtn').textContent = "Update Purchase";
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-
-    } catch (err) {
-      console.error(err);
-      alert("Edit ചെയ്യാൻ പറ്റിയില്ല.");
-    }
-  };
-
-  window.deletePurchaseRow = async function (id) {
-    if (currentUserData.role !== 'admin') { alert("Purchase delete ഇപ്പോൾ Admin-ന് മാത്രമേ ഉള്ളൂ."); return; }
-    if (!confirm("ഈ Purchase delete ചെയ്യണോ?")) return;
-    try {
-      await deleteDoc(doc(db, "purchases", id));
-      loadTodaysPurchases();
-    } catch (err) {
-      console.error(err);
-      alert("Delete ചെയ്യാൻ പറ്റിയില്ല.");
-    }
   };
 
   // ---- STOCK TRANSFER ----
@@ -8688,7 +8771,7 @@
 
       // Purchase — area-wise grouped
       renderAreaGrouped('adminRepPurchaseContainer', purchases,
-        ['', 'Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Invoice No.', 'Status', ''],
+        ['', 'Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty', 'Invoice No.', 'Bill Amt', 'Unit Price', 'Status', ''],
         d => {
           const badge = (d.status || 'pending') === 'pending'
             ? '<span class="role-badge role-admin">Pending</span>' : '<span class="role-badge role-user">Approved</span>';
@@ -8697,6 +8780,7 @@
             <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
             <td>${d.qty || '-'}</td>
             <td>${d.invoiceNumber || '-'}</td>
+            <td>${d.billAmount ? inr(d.billAmount) : '-'}</td><td>${d.rate ? inr(d.rate) : '-'}</td>
             <td>${badge}</td>
             <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0; margin-right:4px;" onclick="openQuickEdit('purchases','${d.id}')">Edit</button><button class="del-btn" style="background:#f3e5f5; color:#6a1b9a;" onclick="showRecordDetails('purchases','${d.id}')">ℹ️</button><button class="del-btn" onclick="adminDeleteRecord('purchases','${d.id}')">Delete</button></td>
           </tr>`;
@@ -8806,7 +8890,7 @@
     statusEl.style.color = '#555';
     statusEl.textContent = "Backup ready ആക്കുന്നു...";
 
-    const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock'];
+    const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'settings'];
     const backup = {};
 
     try {
@@ -8861,7 +8945,7 @@
       const text = await file.text();
       const backup = JSON.parse(text);
 
-      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock'];
+      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'settings'];
       let totalRestored = 0;
       let totalRecords = 0;
       collections.forEach(c => { if (Array.isArray(backup[c])) totalRecords += backup[c].length; });
@@ -9347,220 +9431,6 @@
     }
   };
 
-  // ---- ADMIN: FIND & REMOVE DUPLICATE PURCHASES (same CSV uploaded twice) ----
-  let dupExtraDocs = []; // the "extra" copies to delete — one kept per group
-
-  window.scanDuplicatePurchases = async function () {
-    const fromDate = document.getElementById('dupFromDate').value;
-    const toDate = document.getElementById('dupToDate').value;
-    const areaFilter = document.getElementById('dupArea').value;
-    const statusEl = document.getElementById('dupScanStatus');
-    const resultBox = document.getElementById('dupResultBox');
-
-    if (!fromDate || !toDate) { statusEl.textContent = "From Date, To Date രണ്ടും നൽകുക."; statusEl.style.color = '#d32f2f'; return; }
-
-    statusEl.textContent = "Scanning...";
-    statusEl.style.color = '#555';
-    resultBox.style.display = 'none';
-
-    try {
-      const [snap, salesSnap] = await Promise.all([
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "sales"))
-      ]);
-      // How much sale qty is linked to each purchase doc — a doc with linked sales must
-      // never be deleted (that would orphan those sales' links).
-      const linkedByLot = {};
-      salesSnap.forEach(ds => {
-        (ds.data().lots || []).forEach(a => { linkedByLot[a.purchaseId] = (linkedByLot[a.purchaseId] || 0) + (a.qty || 0); });
-      });
-
-      let items = [];
-      snap.forEach(docSnap => {
-        const d = docSnap.data();
-        if ((d.date || '') < fromDate || (d.date || '') > toDate) return;
-        if (areaFilter && d.area !== areaFilter) return;
-        items.push({ id: docSnap.id, ...d, linkedQty: linkedByLot[docSnap.id] || 0 });
-      });
-
-      // Group ignoring spacing/case differences (e.g. "KL71L0742 " vs "KL71L0742", "nlb" vs "NLB").
-      const groups = {};
-      items.forEach(d => {
-        const key = [(d.area || '').trim().toUpperCase(), d.date || '', normalizeName(d.product), normalizeName(d.godown),
-          normalizeVehicleNo(d.vehicle), String(parseFloat(d.qty) || 0)].join('|');
-        if (!groups[key]) groups[key] = [];
-        groups[key].push(d);
-      });
-
-      dupExtraDocs = [];
-      const dupGroups = [];
-      Object.values(groups).forEach(g => {
-        if (g.length < 2) return;
-        // Keeper = the doc with the most linked sales; tie → earliest created (the original).
-        g.sort((a, b) => (b.linkedQty - a.linkedQty) || (a.createdAt || '').localeCompare(b.createdAt || ''));
-        const extras = g.slice(1).filter(d => d.linkedQty === 0); // never delete a doc that has linked sales
-        const blocked = g.slice(1).filter(d => d.linkedQty > 0);
-        extras.forEach(d => dupExtraDocs.push(d));
-        dupGroups.push({ g, extras, blocked });
-      });
-
-      if (dupGroups.length === 0) {
-        statusEl.textContent = "ഈ range-ൽ duplicate purchases ഒന്നും കണ്ടെത്തിയില്ല.";
-        statusEl.style.color = '#2e7d32';
-        return;
-      }
-
-      statusEl.textContent = '';
-      document.getElementById('dupGroupCount').textContent = dupGroups.length;
-      document.getElementById('dupExtraCount').textContent = dupExtraDocs.length;
-
-      const rows = dupGroups.map(({ g, extras, blocked }) => {
-        const d = g[0];
-        const keepNote = `✅ നിലനിർത്തും: 1 (Linked Sales: ${d.linkedQty}, Remaining: ${(d.remainingQty !== undefined) ? d.remainingQty : d.qty})`;
-        const delNote = extras.length ? `<br>🗑️ Delete ചെയ്യും: ${extras.length} (Remaining: ${extras.map(x => (x.remainingQty !== undefined) ? x.remainingQty : x.qty).join(', ')})` : '';
-        const blockNote = blocked.length ? `<br><span style="color:#c62828;">⚠️ ${blocked.length} copy-ക്ക് കൂടി Sales link ഉള്ളതിനാൽ delete ചെയ്യില്ല — manual ആയി നോക്കുക</span>` : '';
-        return `<tr><td>${fmtDate(d.date)}</td><td>Area: ${d.area || '-'} · Godown: ${d.godown || '-'} · ${d.product || '-'} · Veh: ${d.vehicle || '-'} · Qty: ${d.qty || 0}
-          <br><span style="font-size:11px; color:#555;">${keepNote}${delNote}${blockNote}</span></td><td>${g.length} തവണ</td></tr>`;
-      }).join('');
-      document.getElementById('dupListBody').innerHTML = rows;
-      resultBox.style.display = 'block';
-
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = "Scan ചെയ്യാൻ പറ്റിയില്ല.";
-      statusEl.style.color = '#d32f2f';
-    }
-  };
-
-  window.deleteDuplicatePurchases = async function () {
-    if (dupExtraDocs.length === 0) return;
-    if (!confirm(`⚠️ ${dupExtraDocs.length} extra (duplicate) records delete ചെയ്യണോ? ഓരോ group-ലും Sales link ഉള്ള copy നിലനിൽക്കും; Sales link ഇല്ലാത്ത copies മാത്രമേ delete ആകൂ. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല.`)) return;
-
-    const statusEl = document.getElementById('dupScanStatus');
-    statusEl.textContent = "Deleting...";
-    statusEl.style.color = '#555';
-
-    try {
-      for (const d of dupExtraDocs) {
-        await deleteDoc(doc(db, "purchases", d.id));
-      }
-      statusEl.textContent = `✅ ${dupExtraDocs.length} extra duplicate records delete ചെയ്തു.`;
-      statusEl.style.color = '#2e7d32';
-      document.getElementById('dupResultBox').style.display = 'none';
-      dupExtraDocs = [];
-    } catch (err) {
-      console.error(err);
-      statusEl.textContent = "Delete ചെയ്യാൻ പറ്റിയില്ല.";
-      statusEl.style.color = '#d32f2f';
-    }
-  };
-
-  // ---- ADMIN: FIND & CLEAR ORPHANED SALE→PURCHASE LOT LINKS ----
-  // If all Purchase docs are deleted and re-uploaded, old Sales' `lots[].purchaseId`
-  // entries end up pointing at Purchase docs that no longer exist. Those Sales still
-  // look "linked" (isAdvance stays false, since lots-sum still equals the sale qty),
-  // so they never show up in the Unlinked Sales views, and the new Purchase's
-  // remainingQty never gets reduced for stock that was, in reality, already sold.
-  // This scans for exactly that mismatch and clears it (removes the dead lot entries,
-  // re-flags the sale as needing linking) so the existing "Bulk Auto-Link" tool
-  // (🔗 Old Advance tab) can then re-match them against the new Purchase lots.
-  let orphanedSalesScan = [];
-  let orphanExistingPurchaseIds = new Set();
-
-  window.scanOrphanedSaleLinks = async function () {
-    const statusEl = document.getElementById('orphanScanStatus');
-    const resultBox = document.getElementById('orphanResultBox');
-    resultBox.style.display = 'none';
-    statusEl.style.color = '#555';
-    statusEl.textContent = "Scanning (എല്ലാ Purchases, Sales)...";
-
-    try {
-      const purchSnap = await getDocs(collection(db, "purchases"));
-      orphanExistingPurchaseIds = new Set();
-      purchSnap.forEach(docSnap => orphanExistingPurchaseIds.add(docSnap.id));
-
-      const saleSnap = await getDocs(collection(db, "sales"));
-      orphanedSalesScan = [];
-      saleSnap.forEach(docSnap => {
-        const sd = docSnap.data();
-        const lots = sd.lots || [];
-        if (lots.length === 0) return;
-        const orphanQty = lots.filter(l => !orphanExistingPurchaseIds.has(l.purchaseId)).reduce((s, l) => s + (l.qty || 0), 0);
-        if (orphanQty > 0) {
-          orphanedSalesScan.push({
-            id: docSnap.id, area: sd.area || '-', date: sd.date || '', customerName: sd.customerName || '',
-            product: sd.product || '', godown: sd.godown || '', vehicle: sd.vehicle || '', qty: sd.qty || 0, orphanQty
-          });
-        }
-      });
-
-      if (orphanedSalesScan.length === 0) {
-        statusEl.style.color = '#2e7d32';
-        statusEl.textContent = "✅ Orphaned links ഒന്നും കണ്ടെത്തിയില്ല.";
-        return;
-      }
-
-      statusEl.textContent = '';
-      const totalQty = orphanedSalesScan.reduce((s, x) => s + x.orphanQty, 0);
-      const byArea = {};
-      orphanedSalesScan.forEach(x => { byArea[x.area] = (byArea[x.area] || 0) + x.orphanQty; });
-
-      document.getElementById('orphanCount').textContent = orphanedSalesScan.length;
-      document.getElementById('orphanQty').textContent = totalQty;
-      document.getElementById('orphanAreaBreakdown').textContent =
-        'Area-wise: ' + Object.entries(byArea).map(([a, q]) => `${a}: ${q}`).join(' · ');
-
-      let rows = '';
-      orphanedSalesScan.slice(0, 300).forEach(x => {
-        rows += `<tr><td>${fmtDate(x.date)}</td><td>${x.area}</td><td>${x.customerName}</td><td>${x.product}</td><td>${x.godown || '-'}</td><td>${x.vehicle || '-'}</td><td>${x.orphanQty}</td></tr>`;
-      });
-      if (orphanedSalesScan.length > 300) {
-        rows += `<tr><td colspan="7" style="text-align:center; color:#888;">...ബാക്കി ${orphanedSalesScan.length - 300} records കൂടി (Clear ചെയ്യുമ്പോൾ എല്ലാം ഉൾപ്പെടും)</td></tr>`;
-      }
-      document.getElementById('orphanListBody').innerHTML = rows;
-      resultBox.style.display = 'block';
-    } catch (err) {
-      console.error(err);
-      statusEl.style.color = '#d32f2f';
-      statusEl.textContent = "Scan പരാജയപ്പെട്ടു.";
-    }
-  };
-
-  window.clearOrphanedSaleLinks = async function () {
-    if (orphanedSalesScan.length === 0) return;
-    const totalQty = orphanedSalesScan.reduce((s, x) => s + x.orphanQty, 0);
-    if (!confirm(`${orphanedSalesScan.length} Sales-ലെ orphaned links (ആകെ ${totalQty} Qty) clear ചെയ്യാൻ പോകുന്നു. ഇവ വീണ്ടും "Advance/Unlinked" ആയി മാറും — Purchase records-നെ ഇത് ബാധിക്കില്ല. ഇത് തിരിച്ചെടുക്കാൻ പറ്റില്ല. തുടരണോ?`)) return;
-
-    const statusEl = document.getElementById('orphanScanStatus');
-    let okCount = 0, failCount = 0;
-
-    for (let i = 0; i < orphanedSalesScan.length; i++) {
-      const item = orphanedSalesScan[i];
-      statusEl.style.color = '#555';
-      statusEl.textContent = `Clearing ${i + 1} / ${orphanedSalesScan.length}...`;
-      try {
-        const saleSnap = await getDoc(doc(db, "sales", item.id));
-        if (!saleSnap.exists()) { failCount++; continue; }
-        const sd = saleSnap.data();
-        const lots = sd.lots || [];
-        const keptLots = lots.filter(l => orphanExistingPurchaseIds.has(l.purchaseId));
-        const linkedQty = keptLots.reduce((s, l) => s + (l.qty || 0), 0);
-        const stillAdvance = linkedQty < (sd.qty || 0);
-        await updateDoc(doc(db, "sales", item.id), { lots: keptLots, isAdvance: stillAdvance });
-        okCount++;
-      } catch (err) {
-        console.error(err);
-        failCount++;
-      }
-    }
-
-    statusEl.style.color = '#2e7d32';
-    statusEl.textContent = `✅ Done! ${okCount} Sales clear ചെയ്തു.` + (failCount > 0 ? ` (${failCount} failed)` : '') +
-      ` ഇനി "🔗 Old Advance" tab-ലെ "Bulk Auto-Link" ഉപയോഗിച്ച് ഇവയെ പുതിയ Purchase lots-ലേക്ക് re-link ചെയ്യുക.`;
-    document.getElementById('orphanResultBox').style.display = 'none';
-    orphanedSalesScan = [];
-  };
-
   // ---- ADMIN: FIND & FIX REMAINING QTY MISMATCHES ----
   // Recomputes each lot's "correct" remaining as Purchased Qty − (sum of qty actually
   // linked to it via sale.lots), independent of whatever remainingQty currently says —
@@ -9661,7 +9531,7 @@
 
       const orphanTotal = orphanSales.reduce((t, s) => t + s.deadQty, 0);
       const verdict = [];
-      if (orphanSales.length > 0) verdict.push(`👻 <b>${orphanSales.length} Sales (${orphanTotal} Qty)</b> delete ആയ പഴയ Purchase-ലേക്കാണ് link ചെയ്തിരിക്കുന്നത് — അതുകൊണ്ട് ഈ പുതിയ lots-ൽ നിന്ന് qty കുറഞ്ഞില്ല. <b>Fix:</b> "🔧 Purchase Reset ശേഷം Orphaned Sale-Links ശരിയാക്കുക" വഴി Clear ചെയ്ത്, "🔗 Old Advance → Bulk Auto-Link" വഴി re-link ചെയ്യുക.`);
+      if (orphanSales.length > 0) verdict.push(`👻 <b>${orphanSales.length} Sales (${orphanTotal} Qty)</b> delete ആയ പഴയ Purchase-ലേക്കാണ് link ചെയ്തിരിക്കുന്നത് — അതുകൊണ്ട് ഈ പുതിയ lots-ൽ നിന്ന് qty കുറഞ്ഞില്ല. <b>Fix:</b> ആ Sales Edit ചെയ്ത് lot വീണ്ടും select ചെയ്യുക (അല്ലെങ്കിൽ developer-നെ അറിയിക്കുക).`);
       if (overCount > 0) verdict.push(`⚖️ <b>${overCount} lot(s)</b>-ലേക്ക് അതിന്റെ Qty-യേക്കാൾ കൂടുതൽ Sales link ആയിട്ടുണ്ട് (Remaining മൈനസ്) — ഇതേ ദിവസത്തെ മറ്റ് lots വെറുതെ കിടക്കുന്നതായി തോന്നും. <b>Fix:</b> "⚖️ Over-linked Lots ശരിയാക്കുക" tool ഉപയോഗിക്കുക.`);
       if (mismatchCount > 0) verdict.push(`🔴 <b>${mismatchCount} lot(s)</b>-ന്റെ saved Remaining, അതിലേക്ക് link ആയ Sales-മായി ചേരുന്നില്ല (ചുവപ്പ് rows). <b>Fix:</b> "🔍 Remaining Qty Mismatch" tool ഓടിച്ച് ശരിയാക്കുക.`);
       if (verdict.length === 0) verdict.push(`✅ Links-ഉം Remaining-ഉം ഒത്തുപോകുന്നു. ഈ lots-ൽ ഇപ്പോഴും ബാക്കി കാണിക്കുന്നത് യഥാർത്ഥത്തിൽ ഇതുവരെ ഒരു Sale-ഉം link ചെയ്യാത്ത qty ആണ്.`);
@@ -10440,9 +10310,9 @@
       // (so the order in the file doesn't matter and can't silently shift values into the wrong field).
       // Falls back to the fixed position order (Date,Area,Product,Godown,Vehicle,Qty,Status,InvoiceNumber)
       // only when no header row is present.
-      const headerNameMap = { date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty', status: 'status', invoicenumber: 'invoiceNumber', invoiceno: 'invoiceNumber', invoice: 'invoiceNumber' };
+      const headerNameMap = { date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty', status: 'status', invoicenumber: 'invoiceNumber', invoiceno: 'invoiceNumber', invoice: 'invoiceNumber', billamount: 'billAmount', billamt: 'billAmount', amount: 'billAmount', bill: 'billAmount' };
       const firstCols = parseCsvLine(lines[0]).map(c => c.trim().toLowerCase().replace(/[^a-z]/g, ''));
-      let colIdx = { date: 0, area: 1, product: 2, godown: 3, vehicle: 4, qty: 5, status: 6, invoiceNumber: 7 };
+      let colIdx = { date: 0, area: 1, product: 2, godown: 3, vehicle: 4, qty: 5, status: 6, invoiceNumber: 7, billAmount: 8 };
       let hasHeader = false;
       if (firstCols[0] && firstCols[0].includes('date')) {
         hasHeader = true;
@@ -10450,7 +10320,7 @@
         firstCols.forEach((h, idx) => { if (headerNameMap[h]) mapped[headerNameMap[h]] = idx; });
         // Only trust the header mapping if it found the essential columns; else keep fixed-position fallback.
         if (mapped.date !== undefined && mapped.area !== undefined && mapped.product !== undefined && mapped.qty !== undefined) {
-          colIdx = { date: mapped.date, area: mapped.area, product: mapped.product, godown: mapped.godown, vehicle: mapped.vehicle, qty: mapped.qty, status: mapped.status, invoiceNumber: mapped.invoiceNumber };
+          colIdx = { date: mapped.date, area: mapped.area, product: mapped.product, godown: mapped.godown, vehicle: mapped.vehicle, qty: mapped.qty, status: mapped.status, invoiceNumber: mapped.invoiceNumber, billAmount: mapped.billAmount };
         }
         lines = lines.slice(1);
       }
@@ -10494,6 +10364,7 @@
         const statusRaw = colIdx.status !== undefined ? (cols[colIdx.status] || '').trim().toLowerCase() : '';
         const status = statusRaw === 'pending' ? 'pending' : 'approved';
         const invoiceNumber = colIdx.invoiceNumber !== undefined ? (cols[colIdx.invoiceNumber] || '').trim() : '';
+        const billAmount = colIdx.billAmount !== undefined ? parseNum(cols[colIdx.billAmount]) : 0;
 
         if (!date || !area || !product || qty === 0) {
           failCount++;
@@ -10529,6 +10400,7 @@
             enteredBy: currentUserData.username || 'unknown', enteredVia: 'bulk-csv', createdAt: new Date().toISOString()
           };
           if (invoiceNumber) payload.invoiceNumber = invoiceNumber;
+          if (billAmount > 0) { payload.billAmount = billAmount; payload.amount = billAmount; payload.rate = calcUnitPrice(billAmount, qty); }
           await addDoc(collection(db, "purchases"), payload);
           successCount++;
           existingComboKeys.add(comboKey);
@@ -10665,6 +10537,8 @@
   // ---- ADMIN: APPROVALS ----
   let lastApprovalsData = null;
 
+  // exposed on window so the Approvals filter dropdowns' onchange can reach it
+  window.loadApprovals = loadApprovals;
   async function loadApprovals() {
     const salesBody = document.getElementById('apprSalesBody');
     const purchaseBody = document.getElementById('apprPurchaseBody');
@@ -10904,9 +10778,15 @@
   // ---- ADMIN: OLD ADVANCE SALES (up to go-live cutoff) ----
   let oldAdvanceSalesCache = [];
 
+  // Data is fetched once when the tab opens (and after any link), but nothing is rendered
+  // until the admin actually searches — the full list (thousands of rows) was too heavy.
+  let oldAdvSearchActive = false;
+  const OLD_ADV_MAX_ROWS = 300;
+
   async function loadAdminOldAdvanceSales() {
-    const tbody = document.getElementById('adminOldAdvanceBody');
-    tbody.innerHTML = '<tr><td colspan="8">Loading...</td></tr>';
+    const head = document.getElementById('oldAdvHeading');
+    if (head) head.textContent = `🔗 Old Advance Sales (${fmtDate(ADVANCE_SALE_USER_CUTOFF)} വരെ) — Admin only`;
+    const summary = document.getElementById('oldAdvSummary');
     try {
       const q = query(collection(db, "sales"), where("isAdvance", "==", true));
       const snap = await getDocs(q);
@@ -10917,23 +10797,44 @@
         if (areaCmp !== 0) return areaCmp;
         return (a.date || '').localeCompare(b.date || '');
       });
-      renderOldAdvanceSalesList();
+      if (oldAdvSearchActive) renderOldAdvanceSalesList();
+      else if (summary) {
+        const pending = oldAdvanceSalesCache.filter(d => (d.date || '') <= ADVANCE_SALE_USER_CUTOFF &&
+          (d.qty || 0) - (d.lots || []).reduce((t, l) => t + (l.qty || 0), 0) > 0).length;
+        summary.textContent = `ആകെ ${pending} old advance sales link ചെയ്യാൻ ബാക്കി. Filter കൊടുത്ത് Search ചെയ്യുക.`;
+      }
     } catch (err) {
       console.error(err);
-      tbody.innerHTML = '<tr><td colspan="7">Error loading.</td></tr>';
+      document.getElementById('adminOldAdvanceBody').innerHTML = '<tr><td colspan="8">Error loading.</td></tr>';
     }
   }
 
-  // Filters the already-fetched cache instantly — no network call per keystroke, so no
-  // race condition between overlapping async fetches when typing fast.
+  window.searchOldAdvanceSales = function () {
+    const any = document.getElementById('oldAdvFilterArea').value || document.getElementById('oldAdvFilterFrom').value ||
+      document.getElementById('oldAdvFilterTo').value || document.getElementById('oldAdvFilterCustomer').value.trim();
+    if (!any) { alert("Area, Date അല്ലെങ്കിൽ Customer — ഒരെണ്ണമെങ്കിലും കൊടുക്കുക."); return; }
+    oldAdvSearchActive = true;
+    renderOldAdvanceSalesList();
+  };
+
+  window.clearOldAdvanceSearch = function () {
+    ['oldAdvFilterArea', 'oldAdvFilterFrom', 'oldAdvFilterTo', 'oldAdvFilterCustomer'].forEach(id => document.getElementById(id).value = '');
+    oldAdvSearchActive = false;
+    document.getElementById('adminOldAdvanceBody').innerHTML = '<tr><td colspan="8" style="color:#888;">Area / Date / Customer കൊടുത്ത് 🔍 Search അമർത്തുക.</td></tr>';
+    loadAdminOldAdvanceSales();
+  };
+
+  // Filters the already-fetched cache — no network call per search.
   window.renderOldAdvanceSalesList = function () {
+    if (!oldAdvSearchActive) return;
     const tbody = document.getElementById('adminOldAdvanceBody');
-    let rows = '';
     const fromFilter = document.getElementById('oldAdvFilterFrom').value;
     const toFilter = document.getElementById('oldAdvFilterTo').value;
     const custFilter = document.getElementById('oldAdvFilterCustomer').value.trim().toLowerCase();
     const areaFilter = document.getElementById('oldAdvFilterArea').value;
 
+    const list = [];
+    let totalRemaining = 0;
     oldAdvanceSalesCache.forEach(d => {
       if ((d.date || '') > ADVANCE_SALE_USER_CUTOFF) return; // new ones — users handle these themselves
       if (areaFilter && d.area !== areaFilter) return;
@@ -10943,13 +10844,17 @@
       const linkedQty = (d.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
       const remaining = (d.qty || 0) - linkedQty;
       if (remaining <= 0) return;
-      rows += `<tr>
+      totalRemaining += remaining;
+      list.push({ d, remaining });
+    });
+    const rows = list.slice(0, OLD_ADV_MAX_ROWS).map(({ d, remaining }) => `<tr>
         <td>${fmtDate(d.date)}</td><td>${d.area || '-'}</td><td>${d.customerName || '-'}</td><td>${d.product || '-'}</td><td>${d.godown || '-'}</td><td>${d.vehicle || '-'}</td>
         <td>${remaining}</td>
         <td><button class="del-btn" style="background:#e3f2fd; color:#1565c0;" onclick="openLinkAdvance('${d.id}')">Link</button></td>
-      </tr>`;
-    });
-    tbody.innerHTML = rows || '<tr><td colspan="8">Old advance sales ഒന്നും ഇല്ല.</td></tr>';
+      </tr>`).join('');
+    document.getElementById('oldAdvSummary').textContent = `${list.length} sales കണ്ടെത്തി · ആകെ Remaining Qty: ${totalRemaining}` +
+      (list.length > OLD_ADV_MAX_ROWS ? ` — ആദ്യത്തെ ${OLD_ADV_MAX_ROWS} മാത്രം കാണിക്കുന്നു, filter ചുരുക്കുക.` : '');
+    tbody.innerHTML = rows || '<tr><td colspan="8">ഈ filter-ൽ old advance sales ഒന്നും ഇല്ല.</td></tr>';
   };
 
   // ============ BULK AUTO-LINK (Old Sales <-> Purchases) ============
@@ -11515,6 +11420,16 @@
           <p style="font-size:11px; color:#777; margin-bottom:10px;">ഇത് ആ lot-ൽ ഇപ്പോൾ sell ചെയ്യാൻ ബാക്കിയുള്ള qty ആണ് — Bulk upload/status പ്രശ്നം കൊണ്ട് 0 ആയി വന്നാൽ ഇവിടെ ശരിയാക്കാം.</p>
           <label>Invoice Number ${d.invoiceNumber ? '<span style="color:#c62828;">*</span>' : '<span style="color:#999; font-weight:400;">(പഴയ record — ഇല്ലെങ്കിൽ ശൂന്യമായി വിടാം)</span>'}</label>
           <input type="text" id="qeInvoiceNumber" value="${d.invoiceNumber || ''}" placeholder="e.g. INV-1234" style="margin-bottom:14px;">
+          <div class="form-grid">
+            <div>
+              <label>Bill Amount (₹)</label>
+              <input type="number" id="qeBillAmount" value="${d.billAmount || d.amount || ''}" placeholder="0" oninput="document.getElementById('qeUnitPrice').value = (parseFloat(this.value) > 0 && parseFloat(document.getElementById('qeQty').value) > 0) ? (parseFloat(this.value) / parseFloat(document.getElementById('qeQty').value)).toFixed(2) : ''">
+            </div>
+            <div>
+              <label>Unit Price (₹) — auto</label>
+              <input type="text" id="qeUnitPrice" readonly value="${d.rate ? Number(d.rate).toFixed(2) : ''}" style="background:#f0f0f0;">
+            </div>
+          </div>
         `;
 
       } else {
@@ -11602,6 +11517,7 @@
         const qty = parseFloat(document.getElementById('qeQty').value) || 0;
         const remainingQty = parseFloat(document.getElementById('qeRemainingQty').value) || 0;
         const invoiceNumber = document.getElementById('qeInvoiceNumber').value.trim();
+        const billAmount = parseFloat(document.getElementById('qeBillAmount').value) || 0;
         // Old records may not have an Invoice Number yet — only enforce/duplicate-check
         // when one is actually being entered, so leaving it blank on an old record is fine.
         if (invoiceNumber) {
@@ -11620,6 +11536,7 @@
           status: document.getElementById('qeStatus').value,
           qty: qty, remainingQty: remainingQty,
           invoiceNumber: invoiceNumber,
+          billAmount: billAmount, amount: billAmount, rate: calcUnitPrice(billAmount, qty),
           lastEditedBy: currentUserData.username || 'admin', lastEditedAt: new Date().toISOString()
         });
       } else {
@@ -11770,6 +11687,65 @@
         null, currentUserData.role === 'admin', 'confirmStmtCheckedOk()', 'unlockStmtCheckedOk()'
       );
     } catch (err) { console.error(err); alert("Unlock ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // Clean printable statement in its own window — letterhead, customer, period, balances and
+  // the transaction table only (the ✅ Checked column and all buttons are left out).
+  window.printCustomerStatement = function () {
+    if (document.getElementById('stmtResultBox').style.display === 'none' || !document.getElementById('stmtCustomer').value) {
+      alert("ആദ്യം Customer select ചെയ്ത് 'Generate Statement' അമർത്തുക."); return;
+    }
+    const custId = document.getElementById('stmtCustomer').value;
+    const cust = allCustomers.find(c => c.id === custId) || {};
+    const custName = cust.name || document.getElementById('stmtCustSearchInput').value || '';
+    const from = document.getElementById('reportFrom').value;
+    const to = document.getElementById('reportTo').value;
+    const rows = Array.from(document.querySelectorAll('#stmtTableBody tr')).map(tr => {
+      const tds = Array.from(tr.querySelectorAll('td'));
+      if (tds.length < 7) return `<tr><td colspan="7" style="text-align:center; color:#777;">${tr.textContent.trim()}</td></tr>`;
+      return '<tr>' + tds.slice(0, 7).map((td, i) => `<td${i >= 4 ? ' class="num"' : ''}>${td.textContent.trim()}</td>`).join('') + '</tr>';
+    }).join('');
+    const esc = (t) => String(t || '').replace(/[&<>]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[ch]));
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Statement - ${esc(custName)}</title>
+<style>
+  body { font-family: Arial, sans-serif; color:#222; margin:24px; font-size:12px; }
+  .head { display:flex; justify-content:space-between; align-items:flex-end; border-bottom:3px solid #1e3c72; padding-bottom:10px; margin-bottom:14px; }
+  .brand { font-size:22px; font-weight:700; color:#1e3c72; }
+  .title { font-size:15px; font-weight:700; color:#1e3c72; text-align:right; }
+  .meta { display:grid; grid-template-columns:1fr 1fr; gap:4px 20px; margin-bottom:14px; }
+  .meta b { color:#1e3c72; }
+  .bal { display:flex; gap:12px; margin-bottom:14px; }
+  .bal div { flex:1; border:1px solid #ccd; border-radius:6px; padding:8px 10px; }
+  .bal span { display:block; font-size:10px; color:#666; text-transform:uppercase; }
+  .bal strong { font-size:15px; color:#1e3c72; }
+  table { width:100%; border-collapse:collapse; }
+  th { background:#1e3c72; color:#fff; text-align:left; padding:6px; font-size:11px; }
+  td { border-bottom:1px solid #ddd; padding:5px 6px; }
+  td.num, th.num { text-align:right; white-space:nowrap; }
+  tr:nth-child(even) td { background:#f6f8fb; }
+  .foot { margin-top:30px; display:flex; justify-content:space-between; font-size:11px; color:#555; }
+  .sign { border-top:1px solid #555; padding-top:4px; width:180px; text-align:center; }
+  @page { size:A4; margin:12mm; }
+</style></head><body>
+  <div class="head"><div class="brand">Alpha &amp; Noble</div><div class="title">CUSTOMER STATEMENT</div></div>
+  <div class="meta">
+    <div><b>Customer:</b> ${esc(custName)}</div>
+    <div><b>Period:</b> ${fmtDate(from)} to ${fmtDate(to)}</div>
+    <div><b>Phone:</b> ${esc(cust.phone || '-')}</div>
+    <div><b>Printed on:</b> ${fmtDate(new Date().toISOString().slice(0, 10))}</div>
+  </div>
+  <div class="bal">
+    <div><span>Opening Balance</span><strong>${document.getElementById('stmtOpening').textContent}</strong></div>
+    <div><span>Closing Balance</span><strong>${document.getElementById('stmtClosing').textContent}</strong></div>
+  </div>
+  <table><thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Details</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead>
+  <tbody>${rows}</tbody></table>
+  <div class="foot"><div>Generated from Alpha &amp; Noble Sales Manager</div><div class="sign">Authorised Signature</div></div>
+  <script>window.onload = function () { window.print(); };<\/script>
+</body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) { alert("Popup block ചെയ്തിരിക്കുന്നു — browser-ൽ popups allow ചെയ്ത് വീണ്ടും ശ്രമിക്കുക."); return; }
+    w.document.open(); w.document.write(html); w.document.close();
   };
 
   window.exportStatementCSV = function () {
@@ -12140,6 +12116,23 @@
   document.getElementById('pin').addEventListener('keyup', function(e) {
     if (e.key === 'Enter') window.handleLogin();
   });
+
+  // Bulk tools: log one summary audit entry per run instead of one per write.
+  window.handleDataRestore = auditBulkWrap('Backup restore', window.handleDataRestore);
+  window.deleteSelectedReport = auditBulkWrap('Report: selected records delete', window.deleteSelectedReport);
+  window.handleTargetCsvUpload = auditBulkWrap('Targets CSV upload', window.handleTargetCsvUpload);
+  window.handleSapCodeBulkUpload = auditBulkWrap('SAP code bulk assign', window.handleSapCodeBulkUpload);
+  window.mergeCustomerGroup = auditBulkWrap('Merge duplicate customers', window.mergeCustomerGroup);
+  window.fixAllRemainingMismatch = auditBulkWrap('Remaining Qty mismatch fix', window.fixAllRemainingMismatch);
+  window.applyOverLinkedFix = auditBulkWrap('Over-linked lots fix', window.applyOverLinkedFix);
+  window.handleBulkDelete = auditBulkWrap('Bulk data delete', window.handleBulkDelete);
+  window.handleCustomerCsvUploadAdmin = auditBulkWrap('Customers CSV upload', window.handleCustomerCsvUploadAdmin);
+  window.handleSalesCsvUpload = auditBulkWrap('Sales CSV upload', window.handleSalesCsvUpload);
+  window.handleCollectionCsvUpload = auditBulkWrap('Collections CSV upload', window.handleCollectionCsvUpload);
+  window.handlePurchaseCsvUpload = auditBulkWrap('Purchases CSV upload', window.handlePurchaseCsvUpload);
+  window.applyBulkOldLinks = auditBulkWrap('Bulk Auto-Link apply', window.applyBulkOldLinks);
+  window.applyAllBadDateFixes = auditBulkWrap('Bad date format fix', window.applyAllBadDateFixes);
+  window.deleteAllBadDateRecords = auditBulkWrap('Bad date records delete', window.deleteAllBadDateRecords);
 </script>
 
 <script>
@@ -12154,7 +12147,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-23d</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-25b</div>
 
 </body>
 </html>
