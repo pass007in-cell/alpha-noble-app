@@ -612,7 +612,7 @@
       <span style="color:#1565c0; font-size:13px;">Linking tab-ൽ →</span>
     </div>
 
-    <details style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
+    <details id="userStockDetails" style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;" ontoggle="if (this.open) loadUserStockDetails()">
       <summary style="color:#1565c0; font-size:15px; font-weight:700; cursor:pointer;">📊 Stock Details</summary>
       <div class="table-wrap" style="margin-top:10px;">
         <table>
@@ -2305,7 +2305,7 @@
   <div id="tabAdminReports">
     <div id="adminBackupWarn" style="display:none; background:#ffebee; color:#c62828; border-radius:10px; padding:10px 14px; margin-bottom:12px; font-size:13px;"></div>
 
-    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+    <details id="adminHomeAlertBox" style="display:none; background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" ontoggle="if (this.open) loadAdminHomeAdvanceList()">
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">🔗 Unlinked Sales (All Areas) — <span id="adminHomeAdvanceSaleCount">0</span></summary>
 
       <h4 style="font-size:13px; color:#e65100; margin:12px 0 6px;">Area-wise Count</h4>
@@ -2328,7 +2328,7 @@
       </div>
     </details>
 
-    <details style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;">
+    <details id="adminHomeLotsDetails" style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px;" ontoggle="if (this.open) loadAdminHomeLots()">
       <summary style="color:#e65100; font-size:15px; font-weight:700; cursor:pointer;">📦 Pending Lots (All Areas) — click ചെയ്ത് link ചെയ്യാം</summary>
 
       <h4 style="font-size:13px; color:#e65100; margin:12px 0 6px;">Area-wise Count</h4>
@@ -2347,7 +2347,7 @@
       </div>
     </details>
 
-    <details style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;">
+    <details id="adminHomeStockDetails" style="background:#e3f2fd; border-radius:10px; padding:14px; margin-bottom:20px;" ontoggle="if (this.open) loadAdminHomeStock()">
       <summary style="color:#1565c0; font-size:15px; font-weight:700; cursor:pointer;">📊 Stock Details (All Areas)</summary>
       <div class="table-wrap" style="margin-top:10px;">
         <table>
@@ -2661,7 +2661,8 @@
     where,
     orderBy,
     limit,
-    writeBatch
+    writeBatch,
+    getCountFromServer
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2677,6 +2678,36 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // ============ READ CACHE (keeps Firestore reads low) ============
+  // Firestore bills every document read. Many screens used to re-read whole collections on
+  // every open/click. getDocsCached() keeps a query's result for a short time (default 2 min);
+  // any write this app makes to a collection (through the wrappers below) drops the cached
+  // results for that collection, so your own changes always show immediately. Other users'
+  // changes appear after the cache time runs out.
+  const readCache = new Map(); // key -> { t, docs:[{id,data}], cols:[...] }
+  function snapLike(docs) {
+    const wrapped = docs.map(d => ({ id: d.id, data: () => ({ ...d.data }), exists: () => true }));
+    return { docs: wrapped, size: wrapped.length, empty: wrapped.length === 0, forEach: (fn) => wrapped.forEach(fn) };
+  }
+  async function getDocsCached(key, cols, q, ttlMs = 120000) {
+    const hit = readCache.get(key);
+    if (hit && Date.now() - hit.t < ttlMs) return snapLike(hit.docs);
+    const snap = await getDocs(q);
+    const docs = [];
+    snap.forEach(ds => docs.push({ id: ds.id, data: ds.data() }));
+    readCache.set(key, { t: Date.now(), docs, cols });
+    return snapLike(docs);
+  }
+  function invalidateReadCache(col) {
+    for (const [k, v] of readCache) if (v.cols.indexOf(col) !== -1) readCache.delete(k);
+  }
+  // Common scoped queries
+  const qDateRange = (col, from, to) => query(collection(db, col), where("date", ">=", from), where("date", "<=", to));
+  const qOpenLots = (col) => query(collection(db, col), where("remainingQty", ">", 0));
+  function addDaysIso(dateStr, n) {
+    const dt = new Date(dateStr + 'T00:00:00'); dt.setDate(dt.getDate() + n); return dt.toISOString().slice(0, 10);
+  }
 
   // ============ AUDIT LOG ============
   // Every Firestore write in the app goes through these four wrappers (same names as the
@@ -2748,24 +2779,28 @@
 
   async function addDoc(colRef, data) {
     const res = await _fsAddDoc(colRef, data);
+    invalidateReadCache(String(colRef.path).split('/')[0]);
     auditRecord('create', colRef.path, res.id, data, null);
     return res;
   }
   async function updateDoc(ref, data) {
     const before = await auditBefore(ref);
     const res = await _fsUpdateDoc(ref, data);
+    invalidateReadCache(ref.path.split('/')[0]);
     auditRecord('update', ref.path, ref.id, data, before);
     return res;
   }
   async function setDoc(ref, data, opts) {
     const before = await auditBefore(ref);
     const res = opts ? await _fsSetDoc(ref, data, opts) : await _fsSetDoc(ref, data);
+    invalidateReadCache(ref.path.split('/')[0]);
     auditRecord(before ? 'update' : 'set', ref.path, ref.id, data, before);
     return res;
   }
   async function deleteDoc(ref) {
     const before = await auditBefore(ref);
     const res = await _fsDeleteDoc(ref);
+    invalidateReadCache(ref.path.split('/')[0]);
     auditRecord('delete', ref.path, ref.id, null, before);
     return res;
   }
@@ -3002,8 +3037,6 @@
     // Re-run whichever User tab is currently visible so it reflects the new working area.
     if (document.getElementById('tabReports').style.display !== 'none') {
       loadTopReportSummary();
-      loadAdvanceSales();
-      loadHomePendingLots();
       generateHomeDayView();
     } else if (document.getElementById('tabEntry').style.display !== 'none') {
       refreshAvailableLots();
@@ -3171,10 +3204,12 @@
     });
     if (sub === 'users') loadUsersList();
     else if (sub === 'customers') {
+      // Not generated automatically any more (it reads every sale & collection) — press Generate.
       const todayStr = new Date().toISOString().split('T')[0];
       if (!document.getElementById('adminCustFrom').value) document.getElementById('adminCustFrom').value = todayStr;
       if (!document.getElementById('adminCustTo').value) document.getElementById('adminCustTo').value = todayStr;
-      generateAdminCustomerReport();
+      const box = document.getElementById('adminCustContainer');
+      if (box && /Loading/.test(box.textContent)) box.innerHTML = '<p style="color:#888; font-size:13px;">Date range / Customer select ചെയ്ത് "Generate Report" അമർത്തുക.</p>';
     }
     else if (sub === 'vehicles') loadAdminVehicles();
     else if (sub === 'godown') { loadAdminGodowns(); populateAdminTransferDropdowns(); }
@@ -3403,7 +3438,7 @@
     tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
 
       allCustomers = [];
       snap.forEach((docSnap) => {
@@ -3420,30 +3455,44 @@
         return (a.name || '').localeCompare(b.name || '');
       });
 
-      // Aggregate sales & collections for ALL customers (across all areas — a customer may have
-      // been sold to or collected from in a different area than their own)
-      custSalesTotals = {};
-      custCollTotals = {};
-      const [salesSnap, collSnap] = await Promise.all([
-        getDocs(collection(db, "sales")),
-        getDocs(collection(db, "collections"))
-      ]);
-      salesSnap.forEach(d => {
-        const s = d.data();
-        custSalesTotals[s.customerId] = (custSalesTotals[s.customerId] || 0) + (s.amount || 0);
-      });
-      collSnap.forEach(d => {
-        const c = d.data();
-        custCollTotals[c.customerId] = (custCollTotals[c.customerId] || 0) + (c.amount || 0);
-      });
-
-      // Customers tab shows only this user's own area
+      // Customers tab shows only this user's own area. Balances (which need every sale &
+      // collection of these customers) are loaded only when the Customers tab is actually
+      // open — not at every login — to keep database reads low.
       const ownAreaCustomers = allCustomers.filter(c => c.area === myArea);
       renderCustomers(ownAreaCustomers);
+      const custTab = document.getElementById('tabCustomers');
+      if (custTab && custTab.style.display !== 'none') loadCustomerBalances();
     } catch (err) {
       console.error(err);
       tbody.innerHTML = '<tr><td colspan="4">Error loading customers.</td></tr>';
     }
+  }
+
+  // Balances for the own-area customers only: sales & collections fetched by customerId
+  // in batches of 30 (Firestore 'in' limit), so only these customers' records are read.
+  let custBalancesKey = '';
+  async function loadCustomerBalances() {
+    const own = allCustomers.filter(c => c.area === currentWorkingArea);
+    const ids = own.map(c => c.id);
+    const key = currentWorkingArea + ':' + ids.length;
+    const mark = readCache.get('custbal:' + key);
+    const fresh = custBalancesKey === key && mark && Date.now() - mark.t < 300000;
+    if (fresh) return;
+    const salesTot = {}, collTot = {};
+    const chunks = [];
+    for (let i = 0; i < ids.length; i += 30) chunks.push(ids.slice(i, i + 30));
+    await Promise.all(chunks.map(async (ch, i) => {
+      const [sSnap, cSnap] = await Promise.all([
+        getDocsCached(`custbal:s:${currentWorkingArea}:${i}`, ['sales'], query(collection(db, "sales"), where("customerId", "in", ch)), 300000),
+        getDocsCached(`custbal:c:${currentWorkingArea}:${i}`, ['collections'], query(collection(db, "collections"), where("customerId", "in", ch)), 300000)
+      ]);
+      sSnap.forEach(d => { const x = d.data(); salesTot[x.customerId] = (salesTot[x.customerId] || 0) + (x.amount || 0); });
+      cSnap.forEach(d => { const x = d.data(); collTot[x.customerId] = (collTot[x.customerId] || 0) + (x.amount || 0); });
+    }));
+    custSalesTotals = salesTot; custCollTotals = collTot;
+    readCache.set('custbal:' + key, { t: Date.now(), docs: [], cols: ['sales', 'collections'] });
+    custBalancesKey = key;
+    filterCustomers();
   }
 
   function renderCustomers(list) {
@@ -3461,11 +3510,12 @@
       const sales = custSalesTotals[c.id] || 0;
       const colls = custCollTotals[c.id] || 0;
       const bal = opening + sales - colls;
-      const balColor = bal > 0 ? '#c62828' : (bal < 0 ? '#2e7d32' : '#333');
+      const balReady = custBalancesKey.startsWith(currentWorkingArea + ':');
+      const balColor = !balReady ? '#999' : bal > 0 ? '#c62828' : (bal < 0 ? '#2e7d32' : '#333');
       rows += `<tr>
         <td style="cursor:pointer; color:#1e3c72; font-weight:600;" onclick="openLedger('${c.id}')">${c.name || '-'}</td>
         <td>${c.phone || '-'}</td>
-        <td style="color:${balColor}; font-weight:600;">₹${bal.toLocaleString('en-IN')}</td>
+        <td style="color:${balColor}; font-weight:600;">${balReady ? '₹' + bal.toLocaleString('en-IN') : '…'}</td>
         <td><button class="del-btn" onclick="handleDeleteCustomer('${c.id}')">Remove</button></td>
       </tr>`;
     });
@@ -3722,7 +3772,7 @@
       if (ix.bill === undefined) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Header-ൽ 'Bill Amount' column കണ്ടില്ല."; return; }
 
       statusEl.textContent = "Purchases load ചെയ്യുന്നു...";
-      const snap = await getDocs(collection(db, "purchases"));
+      const snap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
       const all = []; snap.forEach(ds => all.push({ id: ds.id, ...ds.data() }));
       const byInv = {};
       all.forEach(p => { if (p.invoiceNumber) { const k = String(p.invoiceNumber).trim().toLowerCase(); (byInv[k] = byInv[k] || []).push(p); } });
@@ -3837,7 +3887,9 @@
     box.innerHTML = 'Loading...';
     try {
       const [custSnap, salesSnap, collSnap] = await Promise.all([
-        getDocs(collection(db, "customers")), getDocs(collection(db, "sales")), getDocs(collection(db, "collections"))
+        getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000),
+        getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000),
+        getDocsCached('all:collections', ['collections'], collection(db, "collections"), 600000)
       ]);
       const debits = {}, credits = {}, lastPay = {}, lastSale = {};
       salesSnap.forEach(ds => {
@@ -4238,7 +4290,6 @@
       switchLinkingSubTab('unlinked');
     } else if (tab === 'reports') {
       loadTopReportSummary();
-      loadHomePendingLots();
       if (!document.getElementById('homeDayDate').value) {
         document.getElementById('homeDayDate').valueAsDate = new Date();
       }
@@ -4742,8 +4793,14 @@
 
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const q = query(collection(db, "sales"), where("area", "==", currentWorkingArea));
-      const snap = await getDocs(q);
+      // Only today's entries + still-pending ones (two small equality queries), instead of
+      // every sale the area ever made.
+      const [tSnap, pSnap] = await Promise.all([
+        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea), where("date", "==", todayStr))),
+        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea), where("status", "==", "pending")))
+      ]);
+      const seen = new Set();
+      const snap = { forEach: (fn) => [tSnap, pSnap].forEach(sn => sn.forEach(ds => { if (!seen.has(ds.id)) { seen.add(ds.id); fn(ds); } })) };
 
       // Show today's entries AND any still-pending entries from earlier days — otherwise
       // a pending sale from yesterday (not yet approved) would be invisible here and the
@@ -4939,12 +4996,7 @@
     const tbody = document.getElementById('advanceSaleTableBody');
     tbody.innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
     try {
-      const q = query(
-        collection(db, "sales"),
-        where("area", "==", currentWorkingArea),
-        where("isAdvance", "==", true)
-      );
-      const snap = await getDocs(q);
+      const snap = await getAreaAdvanceSales(currentWorkingArea);
       if (snap.empty) {
         tbody.innerHTML = '<tr><td colspan="9">Advance sales ഒന്നും ഇല്ല.</td></tr>';
         return;
@@ -5532,7 +5584,7 @@
 
     // Customers (own area first, then others)
     try {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       adminSaleAllCustomers = [];
       snap.forEach(ds => adminSaleAllCustomers.push({ id: ds.id, ...ds.data() }));
       adminSaleAllCustomers.sort((a, b) => {
@@ -5910,7 +5962,7 @@
   window.onAdminCollAreaChange = async function () {
     const area = document.getElementById('adminCollArea').value;
     try {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       adminCollAllCustomers = [];
       snap.forEach(ds => adminCollAllCustomers.push({ id: ds.id, ...ds.data() }));
       adminCollAllCustomers.sort((a, b) => {
@@ -6462,7 +6514,7 @@
     try {
       const [vehSnap, purchSnap] = await Promise.all([
         getDocs(collection(db, "vehicles")),
-        getDocs(collection(db, "purchases"))
+        getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000)
       ]);
       const groups = {};
       const getGroup = (raw) => {
@@ -7037,8 +7089,14 @@
     tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
     try {
       const todayStr = new Date().toISOString().split('T')[0];
-      const q = query(collection(db, "collections"), where("area", "==", currentWorkingArea));
-      const snap = await getDocs(q);
+      // Only today's entries + still-pending ones (two small equality queries), instead of
+      // every collection the area ever made.
+      const [tSnap, pSnap] = await Promise.all([
+        getDocs(query(collection(db, "collections"), where("area", "==", currentWorkingArea), where("date", "==", todayStr))),
+        getDocs(query(collection(db, "collections"), where("area", "==", currentWorkingArea), where("status", "==", "pending")))
+      ]);
+      const seen = new Set();
+      const snap = { forEach: (fn) => [tSnap, pSnap].forEach(sn => sn.forEach(ds => { if (!seen.has(ds.id)) { seen.add(ds.id); fn(ds); } })) };
 
       let docs = [];
       snap.forEach(docSnap => {
@@ -7212,16 +7270,19 @@
   };
 
   // ---- REPORTS ----
+  // Shared, cached Advance-sale queries (Home count, Linking tab, Admin Home, Old Advance).
+  function getAreaAdvanceSales(area) {
+    return getDocsCached('adv:' + area, ['sales'], query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true)));
+  }
+  function getAllAdvanceSales() {
+    return getDocsCached('adv:ALL', ['sales'], query(collection(db, "sales"), where("isAdvance", "==", true)));
+  }
+
   // ---- REPORTS: Top-of-page quick summary (Pending Advance Sales + Current Stock) ----
   async function loadTopReportSummary() {
     // Unlinked Sales — just a count + link to the Linking tab (full list lives there now)
     try {
-      const q = query(
-        collection(db, "sales"),
-        where("area", "==", currentWorkingArea),
-        where("isAdvance", "==", true)
-      );
-      const snap = await getDocs(q);
+      const snap = await getAreaAdvanceSales(currentWorkingArea);
       let count = 0;
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -7237,13 +7298,21 @@
       console.error(err);
     }
 
-    // Stock Details — simple item-wise Total Purchase − Total Sale (own area).
-    // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
-    // to a lot would otherwise be missing from the subtraction, overstating stock.
+    // Stock Details are heavy (every purchase & sale of the area) — loaded only when that
+    // section is opened (see loadUserStockDetails), not on every Home visit.
+    const det = document.getElementById('userStockDetails');
+    if (det && det.open) loadUserStockDetails();
+  }
+
+  // Stock Details — simple item-wise Total Purchase − Total Sale (own area).
+  // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
+  // to a lot would otherwise be missing from the subtraction, overstating stock.
+  window.loadUserStockDetails = async function () {
+    document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     try {
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea))),
-        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea)))
+        getDocsCached('stock:p:' + currentWorkingArea, ['purchases'], query(collection(db, "purchases"), where("area", "==", currentWorkingArea)), 600000),
+        getDocsCached('stock:s:' + currentWorkingArea, ['sales'], query(collection(db, "sales"), where("area", "==", currentWorkingArea)), 600000)
       ]);
       const purchByProduct = {};
       purchSnap.forEach(docSnap => {
@@ -7278,13 +7347,15 @@
     tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     homeLotDetailCache = {};
     try {
+      // Only lots that still have stock (remainingQty > 0) — then keep this area's.
       const [purchaseSnap, vsSnap] = await Promise.all([
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea))),
-        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentWorkingArea)))
+        getDocsCached('open:purchases', ['purchases'], qOpenLots('purchases')),
+        getDocsCached('open:vehicleStock', ['vehicleStock'], qOpenLots('vehicleStock'))
       ]);
       const lotMap = {};
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
+        if (d.area !== currentWorkingArea) return;
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
@@ -7296,6 +7367,7 @@
       });
       vsSnap.forEach(docSnap => {
         const d = docSnap.data();
+        if (d.area !== currentWorkingArea) return;
         if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
@@ -7455,9 +7527,12 @@
     container.innerHTML = 'Loading...';
 
     try {
+      // Lots of the selected range + sales from 60 days before the range onward (a lot's sales
+      // happen on/after it arrives; advance sales linked later are at most a few weeks older).
+      const salesFrom = addDaysIso(from, -60);
       const [purchaseSnap, salesSnap] = await Promise.all([
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "sales"))
+        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
+        getDocsCached(`since:sales:${salesFrom}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom)))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -7741,20 +7816,23 @@
     document.getElementById('repLotBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
 
     try {
+      // Only the selected date range is read (all areas, then filtered to own area locally —
+      // an area+date query would need a composite index), plus lots that still have stock.
       const [salesSnap, purchaseSnap, collSnap, vsSnap, allPurchaseSnap] = await Promise.all([
-        getDocs(query(collection(db, "sales"), where("area", "==", currentWorkingArea))),
-        getDocs(query(collection(db, "purchases"), where("area", "==", currentWorkingArea))),
-        getDocs(query(collection(db, "collections"), where("area", "==", currentWorkingArea))),
-        getDocs(query(collection(db, "vehicleStock"), where("area", "==", currentWorkingArea))),
-        getDocs(collection(db, "purchases"))
+        getDocsCached(`range:sales:${from}:${to}`, ['sales'], qDateRange('sales', from, to)),
+        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
+        getDocsCached(`range:collections:${from}:${to}`, ['collections'], qDateRange('collections', from, to)),
+        getDocsCached('open:vehicleStock', ['vehicleStock'], qOpenLots('vehicleStock')),
+        getDocsCached('open:purchases', ['purchases'], qOpenLots('purchases'))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
+      const mine = (d) => d.area === currentWorkingArea;
 
       let sales = [], purchases = [], colls = [];
-      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) sales.push({ ...d, id: docSnap.id }); });
-      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) purchases.push({ ...d, id: docSnap.id }); });
-      collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date)) colls.push({ ...d, id: docSnap.id }); });
+      salesSnap.forEach(docSnap => { const d = docSnap.data(); if (mine(d) && inRange(d.date)) sales.push({ ...d, id: docSnap.id }); });
+      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (mine(d) && inRange(d.date)) purchases.push({ ...d, id: docSnap.id }); });
+      collSnap.forEach(docSnap => { const d = docSnap.data(); if (mine(d) && inRange(d.date)) colls.push({ ...d, id: docSnap.id }); });
 
       sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
       purchases.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -7842,6 +7920,7 @@
       });
       vsSnap.forEach(docSnap => {
         const d = docSnap.data();
+        if (d.area !== currentWorkingArea) return;
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           const key = (d.product || '-') + '|-|' + (d.vehicle || '-');
@@ -7929,8 +8008,7 @@
 
     tbody.innerHTML = '<tr><td colspan="7">Loading...</td></tr>';
     try {
-      const q = query(collection(db, "sales"), where("isAdvance", "==", true));
-      const snap = await getDocs(q);
+      const snap = await getAllAdvanceSales();
       let items = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -7970,9 +8048,12 @@
     container.innerHTML = 'Loading...';
 
     try {
+      // Lots of the selected range + sales from 60 days before the range onward (a lot's sales
+      // happen on/after it arrives; advance sales linked later are at most a few weeks older).
+      const salesFrom = addDaysIso(from, -60);
       const [purchaseSnap, salesSnap] = await Promise.all([
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "sales"))
+        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
+        getDocsCached(`since:sales:${salesFrom}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom)))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -8121,8 +8202,8 @@
     try {
       const [targetsSnap, custSnap, salesSnap] = await Promise.all([
         getDocs(query(collection(db, "monthlyTargets"), where("month", "==", month))),
-        getDocs(collection(db, "customers")),
-        getDocs(collection(db, "sales"))
+        getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000),
+        getDocsCached(`range:sales:${month}-01:${month}-31`, ['sales'], qDateRange('sales', month + '-01', month + '-31'))
       ]);
 
       // A single SAP Code can be shared by more than one of our own Customer records
@@ -8259,7 +8340,7 @@
     const box = document.getElementById('targetManualCustOptionsBox');
     const term = document.getElementById('targetManualCustSearch').value.trim().toLowerCase();
     if (targetManualAllCustomers.length === 0) {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       snap.forEach(docSnap => { const c = docSnap.data(); if (c.sapCode) targetManualAllCustomers.push({ id: docSnap.id, ...c }); });
     }
     const matches = targetManualAllCustomers.filter(c => !term || (c.name || '').toLowerCase().includes(term));
@@ -8492,11 +8573,39 @@
     alertBox.style.display = adminHomeAdvanceSaleCache.length > 0 ? 'block' : 'none';
   };
 
+  // Admin Home. The three sections are collapsed by default; only their headline counts
+  // are fetched up front (Firestore "count" queries cost ~1 read per 1000 records). The
+  // heavy lists load only when a section is actually opened.
   async function loadAdminHomeSummary() {
-    // Unlinked Sales (all areas) — cached, then rendered via renderAdminHomeAdvanceSaleList()
+    const alertBox = document.getElementById('adminHomeAlertBox');
     try {
-      const q = query(collection(db, "sales"), where("isAdvance", "==", true));
-      const snap = await getDocs(q);
+      const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
+      const base = collection(db, "sales");
+      const results = await Promise.all([
+        getCountFromServer(query(base, where("isAdvance", "==", true))),
+        ...areas.map(a => getCountFromServer(query(base, where("isAdvance", "==", true), where("area", "==", a))))
+      ]);
+      const total = results[0].data().count;
+      document.getElementById('adminHomeAdvanceSaleCount').textContent = total;
+      document.getElementById('adminHomeAdvanceAreaCountBody').innerHTML =
+        areas.map((a, i) => results[i + 1].data().count ? `<tr><td>${a}</td><td>${results[i + 1].data().count}</td></tr>` : '').join('') ||
+        '<tr><td colspan="2">ഒന്നും ബാക്കി ഇല്ല.</td></tr>';
+      alertBox.style.display = total > 0 ? 'block' : 'none';
+    } catch (err) {
+      console.error('Count query failed, loading list instead', err);
+      await loadAdminHomeAdvanceList();
+    }
+    if (alertBox.open) await loadAdminHomeAdvanceList();
+    const lotsDet = document.getElementById('adminHomeLotsDetails');
+    if (lotsDet && lotsDet.open) await loadAdminHomeLots();
+    const stockDet = document.getElementById('adminHomeStockDetails');
+    if (stockDet && stockDet.open) await loadAdminHomeStock();
+  }
+
+  // Unlinked Sales list (all areas) — cached, then rendered via renderAdminHomeAdvanceSaleList()
+  window.loadAdminHomeAdvanceList = async function () {
+    try {
+      const snap = await getAllAdvanceSales();
       adminHomeAdvanceSaleCache = [];
       snap.forEach(docSnap => {
         const d = docSnap.data();
@@ -8516,12 +8625,16 @@
 
       renderAdminHomeAdvanceSaleList();
     } catch (err) { console.error(err); }
+  };
 
-    // Pending Lots (all areas) — Area+Product+Godown+Vehicle, remainingQty > 0
+  // Pending Lots (all areas) — Area+Product+Godown+Vehicle. Reads only lots that still have
+  // stock (remainingQty > 0), not every purchase ever made.
+  window.loadAdminHomeLots = async function () {
+    document.getElementById('adminHomeLotBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
     try {
       const [purchaseSnap, vsSnap] = await Promise.all([
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "vehicleStock"))
+        getDocsCached('open:purchases', ['purchases'], qOpenLots('purchases')),
+        getDocsCached('open:vehicleStock', ['vehicleStock'], qOpenLots('vehicleStock'))
       ]);
       const lotMap = {};
       adminHomeLotDetailCache = {};
@@ -8570,6 +8683,18 @@
       });
       document.getElementById('adminHomeLotAreaCountBody').innerHTML = lotAreaCountRows || '<tr><td colspan="2">Stock ഒന്നും ഇല്ല.</td></tr>';
 
+    } catch (err) {
+      console.error(err);
+      document.getElementById('adminHomeLotBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
+      document.getElementById('adminHomeLotAreaCountBody').innerHTML = '<tr><td colspan="2">Error loading.</td></tr>';
+    }
+  };
+
+  // Stock Details (all areas, all history) — heavy, so only when opened, cached 10 min.
+  window.loadAdminHomeStock = async function () {
+    document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    try {
+      const purchaseSnap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
       // Stock Details — simple Area+Product-wise Total Purchase − Total Sale.
       // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
       // to a lot would otherwise be missing from the subtraction, overstating stock.
@@ -8580,7 +8705,7 @@
         purchTotalMap[k] = (purchTotalMap[k] || 0) + (d.qty || 0);
       });
       const saleTotalMap = {};
-      const allSalesSnap = await getDocs(collection(db, "sales"));
+      const allSalesSnap = await getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000);
       allSalesSnap.forEach(docSnap => {
         const d = docSnap.data();
         const k = (d.area || '-') + '|' + (d.product || '-');
@@ -8596,11 +8721,9 @@
       document.getElementById('adminHomeStockBody').innerHTML = rows3 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
-      document.getElementById('adminHomeLotBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
-      document.getElementById('adminHomeLotAreaCountBody').innerHTML = '<tr><td colspan="2">Error loading.</td></tr>';
       document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
     }
-  }
+  };
 
   let adminHomeLotDetailCache = {};
 
@@ -8702,11 +8825,13 @@
     document.getElementById('adminRepLotContainer').innerHTML = 'Loading...';
 
     try {
-      const [salesSnap, purchaseSnap, collSnap, vsSnap] = await Promise.all([
-        getDocs(collection(db, "sales")),
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "collections")),
-        getDocs(collection(db, "vehicleStock"))
+      // Date-range reads only, plus open lots (remainingQty > 0) for the Lot Balance section.
+      const [salesSnap, purchaseRangeSnap, collSnap, vsSnap, purchaseSnap] = await Promise.all([
+        getDocsCached(`range:sales:${from}:${to}`, ['sales'], qDateRange('sales', from, to)),
+        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
+        getDocsCached(`range:collections:${from}:${to}`, ['collections'], qDateRange('collections', from, to)),
+        getDocsCached('open:vehicleStock', ['vehicleStock'], qOpenLots('vehicleStock')),
+        getDocsCached('open:purchases', ['purchases'], qOpenLots('purchases'))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -8714,7 +8839,7 @@
 
       let sales = [], purchases = [], colls = [];
       salesSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) sales.push({ id: docSnap.id, ...d }); });
-      purchaseSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) purchases.push({ id: docSnap.id, ...d }); });
+      purchaseRangeSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) purchases.push({ id: docSnap.id, ...d }); });
       collSnap.forEach(docSnap => { const d = docSnap.data(); if (inRange(d.date) && (!areaFilter || d.area === areaFilter)) colls.push({ id: docSnap.id, ...d }); });
 
       sales.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -9000,7 +9125,7 @@
       const lines = text.split('\n').map(l => l.trim()).filter(l => l);
       lines.shift(); // drop header
 
-      const custSnap = await getDocs(collection(db, "customers"));
+      const custSnap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       sapAllCustomers = [];
       custSnap.forEach(docSnap => sapAllCustomers.push({ id: docSnap.id, ...docSnap.data() }));
 
@@ -9109,7 +9234,7 @@
     const box = document.getElementById('sapManualCustOptionsBox');
     const term = document.getElementById('sapManualCustSearch').value.trim().toLowerCase();
     if (sapManualAllCustomers.length === 0) {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       snap.forEach(docSnap => sapManualAllCustomers.push({ id: docSnap.id, ...docSnap.data() }));
     }
     const matches = sapManualAllCustomers.filter(c => !term || (c.name || '').toLowerCase().includes(term));
@@ -9161,7 +9286,7 @@
     const tbody = document.getElementById('sapCodeListBody');
     tbody.innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
     try {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       let rows = [];
       snap.forEach(docSnap => {
         const c = docSnap.data();
@@ -9197,7 +9322,7 @@
     container.innerHTML = '';
 
     try {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       const groups = {};
       snap.forEach(docSnap => {
         const c = docSnap.data();
@@ -9447,15 +9572,22 @@
       return;
     }
 
-    statusEl.textContent = "Scanning ALL purchases (no filters applied)...";
+    statusEl.textContent = "Scanning...";
     statusEl.style.color = '#555';
     resultBox.style.display = 'none';
 
     try {
-      const [snap, salesSnap] = await Promise.all([
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "sales"))
-      ]);
+      // With a Product given, read only that product's purchases & sales (much cheaper).
+      // Exact match is done on the server, so the product name must be typed exactly.
+      const [snap, salesSnap] = product
+        ? await Promise.all([
+            getDocsCached('prod:purchases:' + product, ['purchases'], query(collection(db, "purchases"), where("product", "==", product))),
+            getDocsCached('prod:sales:' + product, ['sales'], query(collection(db, "sales"), where("product", "==", product)))
+          ])
+        : await Promise.all([
+            getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000),
+            getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000)
+          ]);
       const matchesFilter = (d) => {
         if (product && (d.product || '').toLowerCase() !== product.toLowerCase()) return false;
         if (godown && (d.godown || '').toLowerCase() !== godown.toLowerCase()) return false;
@@ -9552,8 +9684,8 @@
 
     try {
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocs(collection(db, "purchases")),
-        getDocs(collection(db, "sales"))
+        getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000),
+        getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000)
       ]);
 
       // Sum of qty actually linked to each purchase lot, from the sales' own lots[] arrays
@@ -9645,7 +9777,10 @@
     statusEl.textContent = "Scanning...";
     overLinkPlan = null;
     try {
-      const [purchSnap, salesSnap] = await Promise.all([getDocs(collection(db, "purchases")), getDocs(collection(db, "sales"))]);
+      const [purchSnap, salesSnap] = await Promise.all([
+        getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000),
+        getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000)
+      ]);
       const lots = {};
       purchSnap.forEach(ds => { lots[ds.id] = { id: ds.id, ...ds.data() }; });
       const allocsByLot = {}; // lotId -> [{saleId, qty, saleDate}]
@@ -10084,7 +10219,7 @@
       // Preload all customers for name-based matching (name only — a customer's
       // transactions can happen under a different Area than their own home area,
       // so matching by name+area would wrongly create duplicate customer records).
-      const custSnap = await getDocs(collection(db, "customers"));
+      const custSnap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       const custMap = {};
       custSnap.forEach(d => {
         const c = d.data();
@@ -10214,7 +10349,7 @@
       if (lines.length === 0) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Data rows ഇല്ല."; return; }
 
       // Preload all customers for name-based matching (name only — see note in Sales CSV upload)
-      const custSnap = await getDocs(collection(db, "customers"));
+      const custSnap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       const custMap = {};
       custSnap.forEach(d => {
         const c = d.data();
@@ -10335,7 +10470,7 @@
 
       // Pre-fetch existing purchases once, to duplicate-check locally instead of a query per row.
       statusEl.textContent = "Existing purchases duplicate-check ന് വേണ്ടി load ചെയ്യുന്നു...";
-      const existingSnap = await getDocs(collection(db, "purchases"));
+      const existingSnap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
       const existingComboKeys = new Set();
       const existingInvoiceKeys = new Set();
       existingSnap.forEach(docSnap => {
@@ -10783,8 +10918,7 @@
     if (head) head.textContent = `🔗 Old Advance Sales (${fmtDate(ADVANCE_SALE_USER_CUTOFF)} വരെ) — Admin only`;
     const summary = document.getElementById('oldAdvSummary');
     try {
-      const q = query(collection(db, "sales"), where("isAdvance", "==", true));
-      const snap = await getDocs(q);
+      const snap = await getAllAdvanceSales();
       oldAdvanceSalesCache = [];
       snap.forEach(docSnap => oldAdvanceSalesCache.push({ id: docSnap.id, ...docSnap.data() }));
       oldAdvanceSalesCache.sort((a, b) => {
@@ -10882,10 +11016,14 @@
       const toDate = toF || ADVANCE_SALE_USER_CUTOFF;
 
       // ---- Fetch old purchases for this area ----
-      const purchSnap = await getDocs(query(collection(db, "purchases"), where("area", "==", area)));
+      // With a From date: read only that date range (all areas, filtered below); otherwise this area's history.
+      const purchSnap = fromF
+        ? await getDocsCached(`range:purchases:${fromF}:${toDate}`, ['purchases'], qDateRange('purchases', fromF, toDate))
+        : await getDocs(query(collection(db, "purchases"), where("area", "==", area)));
       let purchases = [];
       purchSnap.forEach(docSnap => {
         const pd = docSnap.data();
+        if (pd.area !== area) return;
         if ((pd.date || '') > toDate) return;
         if (fromF && (pd.date || '') < fromF) return;
         const avail = (pd.remainingQty !== undefined) ? pd.remainingQty : pd.qty;
@@ -10894,10 +11032,13 @@
       });
 
       // ---- Fetch old sales for this area (only ones with unlinked qty remaining) ----
-      const saleSnap = await getDocs(query(collection(db, "sales"), where("area", "==", area)));
+      const saleSnap = fromF
+        ? await getDocsCached(`range:sales:${fromF}:${toDate}`, ['sales'], qDateRange('sales', fromF, toDate))
+        : await getDocs(query(collection(db, "sales"), where("area", "==", area)));
       let sales = [];
       saleSnap.forEach(docSnap => {
         const sd = docSnap.data();
+        if (sd.area !== area) return;
         if ((sd.date || '') > toDate) return;
         if (fromF && (sd.date || '') < fromF) return;
         const linkedQty = (sd.lots || []).reduce((s, l) => s + (l.qty || 0), 0);
@@ -11790,9 +11931,9 @@
         collSnap = cSnap;
       } else {
         const [cSnap2, sSnap2, colSnap2] = await Promise.all([
-          getDocs(collection(db, "customers")),
-          getDocs(collection(db, "sales")),
-          getDocs(collection(db, "collections"))
+          getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000),
+          getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000),
+          getDocsCached('all:collections', ['collections'], collection(db, "collections"), 600000)
         ]);
         custSnap = cSnap2;
         salesSnap = sSnap2;
@@ -11940,7 +12081,7 @@
   async function ensureAdminCustomerPickerLoaded() {
     if (adminAllCustomersForPicker.length > 0) return;
     try {
-      const snap = await getDocs(collection(db, "customers"));
+      const snap = await getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000);
       adminAllCustomersForPicker = [];
       snap.forEach(docSnap => {
         const c = docSnap.data();
@@ -12142,7 +12283,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-25c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-25d</div>
 
 </body>
 </html>
