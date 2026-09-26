@@ -1841,8 +1841,21 @@
       <p style="font-size:12px; color:#777; margin-bottom:10px;">
         ആദ്യ row header ആയി വേണം. Columns: <b>Invoice Number, Bill Amount</b> — ഇത് മാത്രം മതി (Invoice No. വെച്ച് match ചെയ്യും).<br>
         Invoice No. ഇല്ലാത്ത പഴയ records-ന് കൂടി: <b>Date, Area, Product, Godown, Vehicle, Qty</b> columns ചേർക്കുക (അവ വെച്ച് match ചെയ്യും).<br>
+        ① ൽ നിന്ന് download ചെയ്ത CSV ആണെങ്കിൽ <b>ID</b> column വെച്ച് നേരിട്ട് match ആകും.<br>
         ആദ്യം Preview കാണിക്കും — "Apply" അമർത്തുമ്പോൾ മാത്രമേ save ആകൂ.
       </p>
+      <div style="background:#fff; border:1px dashed #9fa8da; border-radius:10px; padding:10px; margin-bottom:12px;">
+        <div style="font-size:13px; font-weight:bold; color:#283593; margin-bottom:6px;">① Bill Amount ഇല്ലാത്ത Purchases കണ്ടെത്തുക</div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:6px;">
+          <select id="billMissArea" style="flex:1; min-width:110px;"><option value="">എല്ലാ Area</option><option>MKD</option><option>PKD</option><option>MLT</option><option>NLB</option></select>
+          <input type="date" id="billMissFrom" title="From (ഒഴിച്ചിട്ടാൽ ആദ്യം മുതൽ)" style="flex:1; min-width:120px;">
+          <input type="date" id="billMissTo" title="To (ഒഴിച്ചിട്ടാൽ ഇന്ന് വരെ)" style="flex:1; min-width:120px;">
+        </div>
+        <button class="full-btn" style="background:#5c6bc0;" onclick="findMissingBills()">🔎 കണ്ടെത്തുക</button>
+        <div id="billMissResult" style="margin-top:10px; font-size:13px;"></div>
+        <div style="font-size:11px; color:#777; margin-top:6px;">⬇️ CSV download ചെയ്ത് "Bill Amount" column പൂരിപ്പിച്ച് താഴെ ② ൽ upload ചെയ്താൽ മതി (ID column വെച്ച് കൃത്യമായി match ആകും). Stock Transfer records ഉൾപ്പെടുത്തില്ല (അവക്ക് bill ഇല്ല).</div>
+      </div>
+      <div style="font-size:13px; font-weight:bold; color:#283593; margin-bottom:6px;">② CSV Upload</div>
       <input type="file" id="billBulkCsvFile" accept=".csv" style="margin-bottom:10px;">
       <button class="full-btn" style="background:#283593;" onclick="previewBillBulk()">🔍 Preview</button>
       <div id="billBulkStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
@@ -3793,6 +3806,59 @@
   // ============ Bulk update old Purchases: Bill Amount (+ Invoice No. if missing) ============
   let billBulkMatches = []; // [{ purchase, billAmount, invoiceNumber, row }]
 
+  // ---- Find purchases that still have no Bill Amount (excludes internal stock transfers) ----
+  let billMissingList = [];
+  const isBillMissing = (p) => !(parseFloat(p.billAmount) > 0) && p.enteredVia !== 'stock-transfer' && !p.transferredFrom;
+
+  window.findMissingBills = async function () {
+    const box = document.getElementById('billMissResult');
+    const area = document.getElementById('billMissArea').value;
+    const from = document.getElementById('billMissFrom').value;
+    const to = document.getElementById('billMissTo').value;
+    box.style.color = '#555'; box.textContent = 'Purchases load ചെയ്യുന്നു...';
+    try {
+      const snap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
+      const list = [];
+      snap.forEach(ds => {
+        const p = { id: ds.id, ...ds.data() };
+        if (!isBillMissing(p)) return;
+        if (area && (p.area || '').toUpperCase() !== area) return;
+        if (from && (p.date || '') < from) return;
+        if (to && (p.date || '') > to) return;
+        list.push(p);
+      });
+      list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.area || '').localeCompare(b.area || ''));
+      billMissingList = list;
+      if (!list.length) { box.style.color = '#2e7d32'; box.innerHTML = '✅ എല്ലാ Purchases-നും Bill Amount ഉണ്ട്.'; return; }
+      const perArea = {};
+      list.forEach(p => { const a = p.area || '-'; perArea[a] = (perArea[a] || 0) + 1; });
+      box.style.color = '#333';
+      box.innerHTML = `<p style="margin-bottom:6px;">⚠️ Bill Amount ഇല്ലാത്തവ: <b style="color:#c62828;">${list.length}</b> &nbsp;(${Object.entries(perArea).map(([a, n]) => `${a}: ${n}`).join(' · ')})</p>
+        <button class="full-btn" style="background:#2e7d32; margin-bottom:8px;" onclick="downloadMissingBills()">⬇️ CSV Download (Bill Amount പൂരിപ്പിക്കാൻ)</button>
+        <div class="table-wrap" style="max-height:300px; overflow-y:auto;"><table>
+        <thead><tr><th>Date</th><th>Area</th><th>Invoice No.</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th></tr></thead><tbody>` +
+        list.slice(0, 500).map(p => `<tr><td>${fmtDate(p.date)}</td><td>${p.area || '-'}</td><td>${p.invoiceNumber || '<span style="color:#999;">-</span>'}</td><td>${p.product || '-'}</td><td>${p.godown || '-'}</td><td>${p.vehicle || '-'}</td><td>${p.qty || 0}</td></tr>`).join('') +
+        `</tbody></table></div>` + (list.length > 500 ? `<p style="font-size:11px; color:#777;">ആദ്യ 500 മാത്രം കാണിക്കുന്നു — മുഴുവനും CSV-യിൽ ഉണ്ട്.</p>` : '');
+    } catch (err) {
+      console.error(err);
+      box.style.color = '#d32f2f'; box.textContent = 'Load പരാജയപ്പെട്ടു: ' + (err.message || err);
+    }
+  };
+
+  window.downloadMissingBills = function () {
+    if (!billMissingList.length) return;
+    const q = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    let csv = ['ID', 'Invoice Number', 'Bill Amount', 'Date', 'Area', 'Product', 'Godown', 'Vehicle', 'Qty'].map(q).join(',') + '\n';
+    billMissingList.forEach(p => {
+      csv += [p.id, p.invoiceNumber || '', '', p.date || '', p.area || '', p.product || '', p.godown || '', p.vehicle || '', p.qty || 0].map(q).join(',') + '\n';
+    });
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `bill-amount-missing-${new Date().toLocaleDateString('en-CA')}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+
   window.previewBillBulk = async function () {
     const file = document.getElementById('billBulkCsvFile').files[0];
     const statusEl = document.getElementById('billBulkStatus');
@@ -3805,7 +3871,8 @@
       if (lines.length < 2) { statusEl.textContent = "Header + data rows വേണം."; return; }
       const hdr = parseCsvLine(lines[0]).map(c => c.trim().toLowerCase().replace(/[^a-z]/g, ''));
       const map = { invoicenumber: 'inv', invoiceno: 'inv', invoice: 'inv', billamount: 'bill', billamt: 'bill', amount: 'bill', bill: 'bill',
-        date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty' };
+        date: 'date', area: 'area', product: 'product', godown: 'godown', vehicle: 'vehicle', qty: 'qty', quantity: 'qty',
+        id: 'pid', purchaseid: 'pid', recordid: 'pid' };
       const ix = {}; hdr.forEach((h, i) => { if (map[h] !== undefined && ix[map[h]] === undefined) ix[map[h]] = i; });
       if (ix.bill === undefined) { statusEl.style.color = '#d32f2f'; statusEl.textContent = "Header-ൽ 'Bill Amount' column കണ്ടില്ല."; return; }
 
@@ -3825,8 +3892,10 @@
         const bill = parseNum(get('bill'));
         const inv = get('inv');
         if (!(bill > 0)) { notFound.push({ row: i + 1, raw: lines[i], why: 'Bill Amount ഇല്ല / 0' }); continue; }
-        let cands = inv ? (byInv[inv.toLowerCase()] || []) : [];
-        let via = 'Invoice No.';
+        const pid = get('pid');
+        const byIdHit = pid ? all.find(p => p.id === pid) : null;
+        let cands = byIdHit ? [byIdHit] : (inv ? (byInv[inv.toLowerCase()] || []) : []);
+        let via = byIdHit ? 'ID' : 'Invoice No.';
         if (cands.length === 0 && get('date') && get('product')) {
           cands = byKey[keyOf(get('date'), get('product'), get('godown'), get('vehicle'), get('qty'))] || [];
           const area = get('area').toUpperCase();
@@ -12492,7 +12561,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-26a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-26b</div>
 
 </body>
 </html>
