@@ -2300,6 +2300,44 @@
       <button class="full-btn" style="background:#f9a825;" onclick="scanBulkOldLinks()">🔍 Scan (Preview മാത്രം — ഒന്നും save ആകില്ല)</button>
       <div id="bulkLinkResults" style="margin-top:16px;"></div>
     </div>
+
+    <div style="background:#e8f5e9; border:2px solid #2e7d32; border-radius:10px; padding:14px; margin-top:24px;">
+      <h3 style="color:#1b5e20; margin-bottom:6px;">🏬 ബാക്കി പഴയ Stock → Godown, പിന്നെ Unlinked Sales-ലേക്ക് Link</h3>
+      <p style="font-size:12px; color:#555; margin-bottom:10px;">
+        Bulk Auto-Link കഴിഞ്ഞും ബാക്കി വന്ന പഴയ lots (ഏത് vehicle / godown ആയാലും) ഒരു Area-യുടെ ഒരു Godown-ലേക്ക് Product തിരിച്ച് ഒന്നാക്കി മാറ്റും. എന്നിട്ട് ആ Area-യിലെ link ചെയ്യാൻ ബാക്കിയുള്ള പഴയ Sales-നെ ആ Godown stock-ലേക്ക് ഏറ്റവും പഴയ Sale ആദ്യം (FIFO) എന്ന ക്രമത്തിൽ link ചെയ്യും.<br>
+        ആദ്യം <b>Preview</b> — ഒന്നും save ആകില്ല. "Apply" അമർത്തുമ്പോൾ മാത്രം മാറ്റും. തുടങ്ങുന്നതിന് മുമ്പ് Data Tools-ൽ നിന്ന് ഒരു Backup എടുക്കുക.
+      </p>
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div>
+          <label style="font-size:12px;">Area (നിർബന്ധം)</label>
+          <select id="gmArea" onchange="onGmAreaChange()">
+            <option value="">-- Area select ചെയ്യുക --</option>
+            <option value="MKD">MKD - Mannarkkad</option>
+            <option value="PKD">PKD - Palakkad</option>
+            <option value="MLT">MLT - Melattur</option>
+            <option value="NLB">NLB - Nilambur</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:12px;">ഏത് Godown-ലേക്ക്</label>
+          <select id="gmGodown"><option value="">-- ആദ്യം Area --</option></select>
+        </div>
+        <div>
+          <label style="font-size:12px;">ഈ Date വരെയുള്ളവ (lots-ഉം sales-ഉം)</label>
+          <input type="date" id="gmUpTo">
+        </div>
+        <div>
+          <label style="font-size:12px;">Product (optional)</label>
+          <select id="gmProduct"><option value="">-- എല്ലാ Products --</option></select>
+        </div>
+      </div>
+      <label style="display:flex; align-items:center; gap:8px; font-weight:400; font-size:13px; margin-bottom:10px;">
+        <input type="checkbox" id="gmDoLink" checked style="width:auto; margin:0;"> Godown-ലേക്ക് മാറ്റിയ ശേഷം Unlinked Sales-ലേക്ക് link-ഉം ചെയ്യുക
+      </label>
+      <button class="full-btn" style="background:#2e7d32;" onclick="scanGodownMove()">🔍 Preview (ഒന്നും save ആകില്ല)</button>
+      <div id="gmStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      <div id="gmResult" style="margin-top:12px;"></div>
+    </div>
   </div>
 
   <div id="tabAdminReports">
@@ -10986,6 +11024,177 @@
     tbody.innerHTML = rows || '<tr><td colspan="8">ഈ filter-ൽ old advance sales ഒന്നും ഇല്ല.</td></tr>';
   };
 
+  // ============ OLD LEFTOVER STOCK → ONE GODOWN → LINK UNLINKED SALES ============
+  // For one Area: every old lot (date ≤ "up to") that still has stock and is NOT already in the
+  // chosen godown is emptied into ONE new lot per Product in that godown (Stock Transfer, dated
+  // the "up to" date so it stays in the old/Admin-only period). Then the Area's old unlinked
+  // (Advance) sales of that Product are linked oldest-first: first to lots already in that
+  // godown, then to the new consolidated lot. Preview first; nothing is saved until Apply.
+  let gmPlan = null;
+
+  window.onGmAreaChange = async function () {
+    const area = document.getElementById('gmArea').value;
+    const gSel = document.getElementById('gmGodown');
+    const pSel = document.getElementById('gmProduct');
+    if (!document.getElementById('gmUpTo').value) document.getElementById('gmUpTo').value = ADVANCE_SALE_USER_CUTOFF;
+    gSel.innerHTML = '<option value="">Loading...</option>';
+    try {
+      const [gSnap, pSnap] = await Promise.all([
+        getDocs(query(collection(db, "godowns"), where("area", "==", area))),
+        getDocsCached('products:all', ['products'], collection(db, "products"), 600000)
+      ]);
+      let g = '<option value="">-- Godown select ചെയ്യുക --</option>';
+      gSnap.forEach(ds => { const d = ds.data(); g += `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`; });
+      gSel.innerHTML = g;
+      let p = '<option value="">-- എല്ലാ Products --</option>';
+      pSnap.forEach(ds => { const d = ds.data(); p += `<option value="${escapeHtml(d.name)}">${escapeHtml(d.name)}</option>`; });
+      pSel.innerHTML = p;
+    } catch (err) { console.error(err); gSel.innerHTML = '<option value="">Load ചെയ്യാൻ പറ്റിയില്ല</option>'; }
+  };
+
+  window.scanGodownMove = async function () {
+    const area = document.getElementById('gmArea').value;
+    const target = document.getElementById('gmGodown').value;
+    const upTo = document.getElementById('gmUpTo').value || ADVANCE_SALE_USER_CUTOFF;
+    const prodF = document.getElementById('gmProduct').value;
+    const doLink = document.getElementById('gmDoLink').checked;
+    const statusEl = document.getElementById('gmStatus');
+    const box = document.getElementById('gmResult');
+    box.innerHTML = ''; gmPlan = null;
+    if (!area || !target) { alert("Area-യും Godown-ഉം select ചെയ്യുക."); return; }
+    statusEl.style.color = '#555'; statusEl.textContent = 'Scanning...';
+    try {
+      const [lotSnap, advSnap] = await Promise.all([
+        getDocsCached('open:purchases', ['purchases'], qOpenLots('purchases')),
+        getAreaAdvanceSales(area)
+      ]);
+      const groups = {};
+      const grp = (p) => (groups[p] = groups[p] || { product: p, move: [], inGodown: [], sales: [] });
+      lotSnap.forEach(ds => {
+        const d = ds.data();
+        if (d.area !== area || !d.product || (d.date || '') > upTo) return;
+        if (prodF && d.product !== prodF) return;
+        const rem = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+        if (!(rem > 0)) return;
+        const lot = { id: ds.id, date: d.date || '', godown: d.godown || '', vehicle: d.vehicle || '', rem, rate: d.rate || 0, createdAt: d.createdAt || '' };
+        if (normalizeName(d.godown) === normalizeName(target)) grp(d.product).inGodown.push(lot);
+        else grp(d.product).move.push(lot);
+      });
+      if (doLink) advSnap.forEach(ds => {
+        const d = ds.data();
+        if (!d.product || (d.date || '') > upTo) return;
+        if (prodF && d.product !== prodF) return;
+        const need = (d.qty || 0) - (d.lots || []).reduce((t, l) => t + (l.qty || 0), 0);
+        if (need > 0) grp(d.product).sales.push({ id: ds.id, date: d.date || '', customerName: d.customerName || '', need });
+      });
+      const list = Object.values(groups).filter(g => g.move.length || g.sales.length).sort((a, b) => a.product.localeCompare(b.product));
+      list.forEach(g => {
+        g.moveQty = g.move.reduce((t, l) => t + l.rem, 0);
+        g.godownQty = g.inGodown.reduce((t, l) => t + l.rem, 0);
+        g.needQty = g.sales.reduce((t, x) => t + x.need, 0);
+        g.linkQty = Math.min(g.moveQty + g.godownQty, g.needQty);
+      });
+      statusEl.textContent = '';
+      if (!list.length) { box.innerHTML = '<p style="color:#888;">മാറ്റാനോ link ചെയ്യാനോ ഒന്നും ഇല്ല.</p>'; return; }
+      gmPlan = { area, target, upTo, doLink, list };
+      const sum = (k) => list.reduce((t, g) => t + g[k], 0);
+      let html = `<div class="table-wrap" style="margin-bottom:10px;"><table>
+        <thead><tr><th>Product</th><th>മാറ്റുന്ന lots</th><th>മാറ്റുന്ന Qty</th><th>ഇപ്പോൾ Godown-ൽ</th><th>Unlinked Sales</th><th>Link ആകുന്ന Qty</th><th>ശേഷം Godown ബാക്കി</th><th>ശേഷം Unlinked</th></tr></thead><tbody>` +
+        list.map(g => `<tr><td><b>${escapeHtml(g.product)}</b></td><td>${g.move.length}</td><td>${g.moveQty}</td><td>${g.godownQty}</td>
+          <td>${g.sales.length} (${g.needQty})</td><td style="color:#2e7d32; font-weight:700;">${g.linkQty}</td>
+          <td>${g.moveQty + g.godownQty - g.linkQty}</td><td style="color:${g.needQty - g.linkQty > 0 ? '#c62828' : '#2e7d32'};">${g.needQty - g.linkQty}</td></tr>`).join('') +
+        `<tr style="font-weight:700; background:#f5f7fa;"><td>Total</td><td>${sum('move') ? '' : ''}${list.reduce((t, g) => t + g.move.length, 0)}</td><td>${sum('moveQty')}</td><td>${sum('godownQty')}</td>
+          <td>${list.reduce((t, g) => t + g.sales.length, 0)} (${sum('needQty')})</td><td>${sum('linkQty')}</td><td>${sum('moveQty') + sum('godownQty') - sum('linkQty')}</td><td>${sum('needQty') - sum('linkQty')}</td></tr>
+        </tbody></table></div>
+        <details style="margin-bottom:10px;"><summary style="cursor:pointer; font-size:13px; color:#1565c0;">മാറ്റുന്ന lots-ന്റെ list കാണുക</summary>
+        <div class="table-wrap" style="max-height:300px; overflow-y:auto;"><table><thead><tr><th>Date</th><th>Product</th><th>Godown</th><th>Vehicle</th><th>Qty</th></tr></thead><tbody>` +
+        list.flatMap(g => g.move.map(l => `<tr><td>${fmtDate(l.date)}</td><td>${escapeHtml(g.product)}</td><td>${escapeHtml(l.godown)}</td><td>${escapeHtml(l.vehicle || '-')}</td><td>${l.rem}</td></tr>`)).join('') +
+        `</tbody></table></div></details>
+        <p style="font-size:12px; color:#555; margin-bottom:8px;">Godown-ലേക്ക് മാറ്റുന്ന stock <b>${escapeHtml(target)}</b>-ൽ <b>${fmtDate(upTo)}</b> date-ൽ ഒരു പുതിയ lot ആയി വരും (Product ഒന്നിന് ഒന്ന്).</p>
+        <button class="full-btn" style="background:#1b5e20;" onclick="applyGodownMove()">✅ Apply — Godown-ലേക്ക് മാറ്റുക${doLink ? ' + Link ചെയ്യുക' : ''}</button>`;
+      box.innerHTML = html;
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f'; statusEl.textContent = 'Scan പരാജയപ്പെട്ടു.';
+    }
+  };
+
+  window.applyGodownMove = async function () {
+    if (!gmPlan) return;
+    const { area, target, upTo, doLink, list } = gmPlan;
+    const moveTotal = list.reduce((t, g) => t + g.moveQty, 0);
+    if (!confirm(`${area}: ${moveTotal} Qty stock "${target}"-ലേക്ക് മാറ്റി${doLink ? ', Unlinked Sales link' : ''} ചെയ്യണോ? ഇത് തിരിച്ചെടുക്കാൻ എളുപ്പമല്ല — Backup എടുത്തിട്ടുണ്ടോ?`)) return;
+    const statusEl = document.getElementById('gmStatus');
+    statusEl.style.color = '#555';
+    let movedQty = 0, linkedQty = 0, linkedSales = 0, skipped = 0;
+    try {
+      await withBulkAudit(`Old stock → ${target} (${area}) + link`, async () => {
+        for (const g of list) {
+          statusEl.textContent = `${g.product}: stock മാറ്റുന്നു...`;
+          // 1) Empty each source lot (re-read so a lot changed meanwhile isn't over-reduced).
+          let qty = 0, value = 0; const fromIds = [];
+          for (const l of g.move) {
+            const snap = await getDoc(doc(db, "purchases", l.id));
+            if (!snap.exists()) { skipped++; continue; }
+            const d = snap.data();
+            const rem = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
+            if (!(rem > 0)) { skipped++; continue; }
+            await updateDoc(doc(db, "purchases", l.id), { remainingQty: increment(-rem) });
+            qty += rem; value += rem * (d.rate || 0); fromIds.push(l.id);
+          }
+          // 2) One new consolidated lot in the target godown.
+          const sources = g.inGodown.slice().sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
+            .map(l => ({ id: l.id, avail: l.rem, used: 0 }));
+          if (qty > 0) {
+            const res = await addDoc(collection(db, "purchases"), {
+              product: g.product, godown: target, vehicle: '', area: area,
+              qty: qty, remainingQty: qty, rate: qty ? Math.round((value / qty) * 100) / 100 : 0, amount: 0,
+              date: upTo, status: 'approved',
+              transferredFrom: 'bulk-old-stock', transferredFromIds: fromIds,
+              enteredBy: currentUserData.username || 'admin', enteredVia: 'stock-transfer', createdAt: new Date().toISOString()
+            });
+            sources.push({ id: res.id, avail: qty, used: 0 });
+            movedQty += qty;
+          }
+          if (!doLink) continue;
+          // 3) Link the oldest unlinked sales first (re-read each sale for its current need).
+          const sales = g.sales.slice().sort((a, b) => a.date.localeCompare(b.date));
+          for (let i = 0; i < sales.length; i++) {
+            if (!sources.some(s => s.avail - s.used > 0)) break;
+            statusEl.textContent = `${g.product}: Sales link ചെയ്യുന്നു ${i + 1} / ${sales.length}...`;
+            const snap = await getDoc(doc(db, "sales", sales[i].id));
+            if (!snap.exists()) continue;
+            const sd = snap.data();
+            let need = (sd.qty || 0) - (sd.lots || []).reduce((t, l) => t + (l.qty || 0), 0);
+            if (!(need > 0)) continue;
+            const newLots = [...(sd.lots || [])];
+            for (const src of sources) {
+              if (need <= 0) break;
+              const take = Math.min(need, src.avail - src.used);
+              if (take <= 0) continue;
+              newLots.push({ purchaseId: src.id, qty: take, source: 'godown' });
+              src.used += take; need -= take; linkedQty += take;
+            }
+            const total = newLots.reduce((t, l) => t + (l.qty || 0), 0);
+            await updateDoc(doc(db, "sales", sales[i].id), { lots: newLots, isAdvance: total < (sd.qty || 0), godown: target });
+            linkedSales++;
+          }
+          for (const src of sources) if (src.used > 0) await updateDoc(doc(db, "purchases", src.id), { remainingQty: increment(-src.used) });
+        }
+        return `moved ${movedQty}, linked ${linkedQty} qty to ${linkedSales} sales`;
+      });
+      statusEl.style.color = '#2e7d32';
+      statusEl.textContent = `✅ ${movedQty} Qty "${target}"-ലേക്ക് മാറ്റി` + (doLink ? `, ${linkedSales} Sales-ലേക്ക് ${linkedQty} Qty link ചെയ്തു.` : '.') + (skipped ? ` (${skipped} lots ഇതിനിടയിൽ മാറിയതിനാൽ skip ചെയ്തു)` : '');
+      document.getElementById('gmResult').innerHTML = '';
+      gmPlan = null;
+      loadAdminOldAdvanceSales();
+    } catch (err) {
+      console.error(err);
+      statusEl.style.color = '#d32f2f';
+      statusEl.textContent = 'ഇടയ്ക്ക് പിശക് വന്നു — ചെയ്തത് വരെ save ആയിട്ടുണ്ട്. വീണ്ടും Preview ചെയ്ത് നോക്കുക.';
+    }
+  };
+
   // ============ BULK AUTO-LINK (Old Sales <-> Purchases) ============
   // Everything here is a pure client-side PREVIEW/MATCH computation. No Firestore
   // write happens until the admin reviews the proposed list and explicitly clicks
@@ -12283,7 +12492,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-25d</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-26a</div>
 
 </body>
 </html>
