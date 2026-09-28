@@ -1685,6 +1685,11 @@
       </p>
       <button class="full-btn" style="background:#2e7d32;" onclick="handleDataBackup()">⬇️ Download Full Backup (JSON)</button>
       <div id="backupStatus" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+      <hr style="margin:18px 0; border:none; border-top:1px solid #c8e6c9;">
+      <h4 style="color:#1565c0; margin-bottom:6px;">📊 Read Usage (ഏത് ഭാഗം എത്ര reads എടുക്കുന്നു)</h4>
+      <input type="date" id="readUsageDate" style="margin-bottom:10px;">
+      <button class="full-btn" style="background:#1565c0;" onclick="showReadUsage()">Usage കാണിക്കുക</button>
+      <div id="readUsageBox" style="font-size:13px; color:#333; margin-top:10px; line-height:1.6;"></div>
       </div>
     </details>
 
@@ -2706,14 +2711,16 @@
     increment,
     deleteDoc as _fsDeleteDoc,
     collection,
-    getDocs,
+    getDocs as _fsGetDocs,
     addDoc as _fsAddDoc,
     query,
     where,
     orderBy,
     limit,
     writeBatch,
-    getCountFromServer
+    getCountFromServer,
+    getAggregateFromServer,
+    sum
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -2729,6 +2736,75 @@
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db = getFirestore(app);
+
+  // ============ READ USAGE TRACKER ============
+  // Counts how many documents each screen/function reads and saves the totals once a minute to
+  // usageStats/<date> (Admin: Settings -> Data Backup -> "Read Usage"). Helps find heavy screens.
+  const usageBuf = {};
+  function usageCollectionName(q) {
+    try { if (q.path) return String(q.path).split('/')[0]; return q._query.path.canonicalString().split('/')[0]; } catch (e) { return '?'; }
+  }
+  function usageCaller() {
+    try {
+      const lines = (new Error().stack || '').split('\n').slice(2);
+      for (const l of lines) {
+        const m = l.match(/at (?:async )?([A-Za-z_$][\w$.]*)/);
+        if (m && !/^(getDocs|getDocsCached|Promise|Object|snapLike|Array)/.test(m[1])) return m[1].replace(/^window\./, '').replace(/\./g, '_');
+      }
+    } catch (e) { }
+    return 'unknown';
+  }
+  async function getDocs(q) {
+    const label = usageCaller() + '@' + usageCollectionName(q);
+    const snap = await _fsGetDocs(q);
+    usageBuf[label] = (usageBuf[label] || 0) + snap.size;
+    return snap;
+  }
+  function localDayStr() { const n = new Date(); return new Date(n.getTime() - n.getTimezoneOffset() * 60000).toISOString().slice(0, 10); }
+  async function flushUsage() {
+    const keys = Object.keys(usageBuf);
+    if (!keys.length || typeof currentUserData === 'undefined' || !currentUserData) return;
+    const byFn = {}; let total = 0;
+    keys.forEach(k => { byFn[k] = increment(usageBuf[k]); total += usageBuf[k]; delete usageBuf[k]; });
+    try {
+      await _fsSetDoc(doc(db, "usageStats", localDayStr()), {
+        total: increment(total), byFn, byUser: { [currentUserData.username || '?']: increment(total) }
+      }, { merge: true });
+    } catch (e) { console.warn('usage flush failed', e); }
+  }
+  setInterval(flushUsage, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushUsage(); });
+
+  window.showReadUsage = async function () {
+    const box = document.getElementById('readUsageBox');
+    const day = document.getElementById('readUsageDate').value || localDayStr();
+    box.textContent = 'Loading...';
+    try {
+      await flushUsage();
+      const snap = await getDoc(doc(db, "usageStats", day));
+      if (!snap.exists()) { box.textContent = 'ഈ ദിവസത്തെ data ഇല്ല.'; return; }
+      const d = snap.data();
+      const fns = Object.entries(d.byFn || {}).sort((a, b) => b[1] - a[1]).slice(0, 20);
+      const users = Object.entries(d.byUser || {}).sort((a, b) => b[1] - a[1]);
+      box.innerHTML = `<b>ആകെ reads (app): ${d.total || 0}</b><br><br><b>User-wise</b><br>` +
+        users.map(([u, n]) => `${u}: ${n}`).join('<br>') +
+        `<br><br><b>ഏറ്റവും കൂടുതൽ എടുത്തവ (function@collection)</b><br>` +
+        fns.map(([k, n]) => `${k}: <b>${n}</b>`).join('<br>');
+    } catch (e) { console.error(e); box.textContent = 'Load ചെയ്യാൻ പറ്റിയില്ല.'; }
+  };
+
+  function showRepHint(containerId) {
+    const c = document.getElementById(containerId);
+    if (!c || document.getElementById('repLoadHint_' + containerId)) return;
+    const p = document.createElement('p');
+    p.id = 'repLoadHint_' + containerId; p.className = 'repLoadHint';
+    p.style.cssText = 'background:#fff8e1; color:#8d6e00; padding:10px; border-radius:8px; font-size:13px;';
+    p.textContent = 'From/To date നൽകി "Generate" അമർത്തുമ്പോൾ മാത്രം data load ആകും.';
+    c.insertBefore(p, c.firstChild);
+  }
+  function hideRepHints() { document.querySelectorAll('.repLoadHint').forEach(e => e.remove()); }
+  // true only when the element is on screen (its tab/panel is open) — used to skip refreshes of hidden tabs
+  function isShown(id) { const e = document.getElementById(id); return !!(e && e.offsetParent !== null); }
 
   // ============ READ CACHE (keeps Firestore reads low) ============
   // Firestore bills every document read. Many screens used to re-read whole collections on
@@ -3161,8 +3237,7 @@
         document.getElementById('adminReportFrom').value = weekAgo.toISOString().split('T')[0];
       }
       if (!document.getElementById('adminReportTo').value) document.getElementById('adminReportTo').value = todayStr;
-      generateAdminReport();
-      generateTripSheet();
+      showRepHint('adminRepSubSale');
       populateAdminDsbProductDropdown();
       switchAdminReportSubTab('sale');
     }
@@ -4197,10 +4272,10 @@
   // Admin Today's lists) is immediately visible everywhere else too — same record, same
   // underlying `checkedOk` field, one source of truth.
   function refreshEntryAndReportCheckedOkViews() {
-    if (document.getElementById('saleTableBody')) loadTodaysSales();
-    if (document.getElementById('collTableBody')) loadTodaysCollections();
-    if (document.getElementById('adminSaleTableBody')) loadAdminSalesToday();
-    if (document.getElementById('adminCollTableBody')) loadAdminCollectionsToday();
+    if (isShown('saleTableBody')) loadTodaysSales();
+    if (isShown('collTableBody')) loadTodaysCollections();
+    if (isShown('adminSaleTableBody')) loadAdminSalesToday();
+    if (isShown('adminCollTableBody')) loadAdminCollectionsToday();
     if (document.getElementById('tabReport') && document.getElementById('tabReport').style.display !== 'none'
         && document.getElementById('reportFrom').value) generateReport();
     if (document.getElementById('tabAdminReport') && document.getElementById('tabAdminReport').style.display !== 'none'
@@ -4408,8 +4483,7 @@
         document.getElementById('reportFrom').value = weekAgo.toISOString().split('T')[0];
       }
       if (!document.getElementById('reportTo').value) document.getElementById('reportTo').value = todayStr;
-      generateReport();
-      generateUserTripSheet();
+      showRepHint('repSubSale');
       populateDsbProductDropdown();
       switchReportSubTab('sale');
     }
@@ -5359,10 +5433,10 @@
       });
 
       closeTripLinkModal();
-      if (document.getElementById('tripSheetContainer')) generateTripSheet();
-      if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
-      if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
-      if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+      if (isShown('tripSheetContainer')) generateTripSheet();
+      if (isShown('userTripSheetContainer')) generateUserTripSheet();
+      if (isShown('advanceSaleTableBody')) loadAdvanceSales();
+      if (isShown('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
 
     } catch (err) {
       console.error(err);
@@ -5421,10 +5495,10 @@
   }
 
   function refreshAfterUnlink() {
-    if (document.getElementById('tripSheetContainer')) generateTripSheet();
-    if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
-    if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
-    if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+    if (isShown('tripSheetContainer')) generateTripSheet();
+    if (isShown('userTripSheetContainer')) generateUserTripSheet();
+    if (isShown('advanceSaleTableBody')) loadAdvanceSales();
+    if (isShown('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
   }
 
   window.unlinkTripSheetSale = async function (saleId, purchaseId, qty) {
@@ -5560,8 +5634,8 @@
       }
 
       closeTripTransferModal();
-      if (document.getElementById('tripSheetContainer')) generateTripSheet();
-      if (document.getElementById('userTripSheetContainer')) generateUserTripSheet();
+      if (isShown('tripSheetContainer')) generateTripSheet();
+      if (isShown('userTripSheetContainer')) generateUserTripSheet();
 
     } catch (err) {
       console.error(err);
@@ -5603,11 +5677,11 @@
       });
 
       closeLinkAdvance();
-      if (document.getElementById('advanceSaleTableBody')) loadAdvanceSales();
-      if (document.getElementById('saleTableBody')) loadTodaysSales();
-      if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
-      if (document.getElementById('tripUnlinkedSalesBody')) loadTripSheetUnlinkedSales();
-      if (document.getElementById('tripSheetContainer') && lastTripSheetData) generateTripSheet();
+      if (isShown('advanceSaleTableBody')) loadAdvanceSales();
+      if (isShown('saleTableBody')) loadTodaysSales();
+      if (isShown('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+      if (isShown('tripUnlinkedSalesBody')) loadTripSheetUnlinkedSales();
+      if (isShown('tripSheetContainer') && lastTripSheetData) generateTripSheet();
       if (document.getElementById('adminHomeAlertBox')) loadAdminHomeSummary();
 
     } catch (err) {
@@ -7909,6 +7983,7 @@
   };
 
   window.generateReport = async function () {
+    hideRepHints();
     const from = document.getElementById('reportFrom').value;
     const to = document.getElementById('reportTo').value;
 
@@ -8797,11 +8872,32 @@
     }
   };
 
+  // Totals computed by Firestore itself (sum of qty per Area+Product) — costs ~1 read per 1000 docs
+  // instead of one read per document. Needs 2 composite indexes (see README); returns null if missing.
+  async function stockTotalsByAggregate() {
+    try {
+      const prodSnap = await getDocsCached('products:all', ['products'], collection(db, "products"), 600000);
+      const prods = []; prodSnap.forEach(ds => { const n = ds.data().name; if (n) prods.push(n); });
+      const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
+      const out = { p: {}, s: {} }; const jobs = [];
+      areas.forEach(a => prods.forEach(pr => {
+        [['purchases', 'p'], ['sales', 's']].forEach(([col, key]) => {
+          jobs.push(getAggregateFromServer(query(collection(db, col), where("area", "==", a), where("product", "==", pr)), { t: sum("qty") })
+            .then(r => { const v = r.data().t || 0; if (v) out[key][a + '|' + pr] = v; }));
+        });
+      }));
+      await Promise.all(jobs);
+      return out;
+    } catch (e) { console.warn('Aggregate stock failed, using full read', e); return null; }
+  }
+
   // Stock Details (all areas, all history) — heavy, so only when opened, cached 10 min.
   window.loadAdminHomeStock = async function () {
     document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
     try {
-      const purchaseSnap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
+      const agg = await stockTotalsByAggregate(); // null => index missing, falls back to the old full read
+      const emptySnap = { forEach() { } };
+      const purchaseSnap = agg ? emptySnap : await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
       // Stock Details — simple Area+Product-wise Total Purchase − Total Sale.
       // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
       // to a lot would otherwise be missing from the subtraction, overstating stock.
@@ -8812,12 +8908,13 @@
         purchTotalMap[k] = (purchTotalMap[k] || 0) + (d.qty || 0);
       });
       const saleTotalMap = {};
-      const allSalesSnap = await getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000);
+      const allSalesSnap = agg ? emptySnap : await getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000);
       allSalesSnap.forEach(docSnap => {
         const d = docSnap.data();
         const k = (d.area || '-') + '|' + (d.product || '-');
         saleTotalMap[k] = (saleTotalMap[k] || 0) + (d.qty || 0);
       });
+      if (agg) { Object.assign(purchTotalMap, agg.p); Object.assign(saleTotalMap, agg.s); }
       const allKeys = Array.from(new Set([...Object.keys(purchTotalMap), ...Object.keys(saleTotalMap)])).sort();
       const rows3 = allKeys.map(key => {
         const [area, product] = key.split('|');
@@ -8917,6 +9014,7 @@
   };
 
   window.generateAdminReport = async function () {
+    hideRepHints();
     const from = document.getElementById('adminReportFrom').value;
     const to = document.getElementById('adminReportTo').value;
 
@@ -11607,7 +11705,7 @@
     }
 
     alert(`${okCount} links apply ചെയ്തു.${failCount > 0 ? ' ' + failCount + ' എണ്ണം skip ആയി (already linked/changed ആയിരിക്കാം).' : ''}`);
-    if (document.getElementById('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
+    if (isShown('adminOldAdvanceBody')) loadAdminOldAdvanceSales();
     if (document.getElementById('adminHomeAlertBox')) loadAdminHomeSummary();
     scanBulkOldLinks(); // re-scan to reflect new state
   };
@@ -12561,7 +12659,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-26b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-28a</div>
 
 </body>
 </html>
