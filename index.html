@@ -7455,9 +7455,14 @@
   function getAreaAdvanceSales(area) {
     return getDocsCached('adv:' + area, ['sales'], query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true)));
   }
+  // Reads every unlinked-advance-sale doc across all areas (2000+ records) — expensive, so it
+  // gets a long 20-min cache that a sale/collection/purchase save does NOT invalidate. The list
+  // doesn't need to be second-by-second live; refreshAdvanceSalesNow() below forces a fresh read
+  // when the person actually wants the latest (e.g. right after linking one from this same list).
   function getAllAdvanceSales() {
-    return getDocsCached('adv:ALL', ['sales'], query(collection(db, "sales"), where("isAdvance", "==", true)));
+    return getDocsCached('adv:ALL', ['__advSalesOnly'], query(collection(db, "sales"), where("isAdvance", "==", true)), 1200000);
   }
+  function refreshAdvanceSalesNow() { readCache.delete('adv:ALL'); return getAllAdvanceSales(); }
 
   // ---- REPORTS: Top-of-page quick summary (Pending Advance Sales + Current Stock) ----
   async function loadTopReportSummary() {
@@ -12659,7 +12664,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-28a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-29a</div>
 
 </body>
 </html>
