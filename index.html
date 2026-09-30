@@ -8949,6 +8949,7 @@
         }
       });
       const lotEntries = Object.entries(lotMap).sort((a, b) => a[0].localeCompare(b[0]));
+      window.lastAdminLotEntries = lotEntries;
       const areas = ['MKD', 'PKD', 'MLT', 'NLB'];
       let lotHtml = '';
       areas.forEach(area => {
@@ -9262,7 +9263,7 @@
       document.getElementById('adminRepStockBookBody').innerHTML = stockBookRows ||
         '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
 
-      lastAdminReport = { sales, purchases, colls, lotEntries, areas, from, to };
+      lastAdminReport = { sales, purchases, colls, areas, from, to };
 
     } catch (err) {
       console.error(err);
@@ -10895,7 +10896,9 @@
     }
     try {
       const XLSX = await import("https://cdn.sheetjs.com/xlsx-latest/package/xlsx.mjs");
-      const { sales, purchases, colls, lotEntries, areas } = lastAdminReport;
+      const { sales, purchases, colls, areas } = lastAdminReport;
+      const lotEntries = window.lastAdminLotEntries || [];
+      if (!lotEntries.length) alert("Excel-ൽ Lot Balance ഷീറ്റ് ശരിയായി വരാൻ, Export ചെയ്യുന്നതിന് മുമ്പ് 📦 Lot Balance ഭാഗം ഒരു തവണ തുറക്കുക. ബാക്കി എല്ലാ ഷീറ്റുകളും ഇപ്പോൾ export ആകും.");
 
       const wb = XLSX.utils.book_new();
 
@@ -12721,7 +12724,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-29c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-30a</div>
 
 </body>
 </html>
