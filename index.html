@@ -7741,12 +7741,15 @@
     container.innerHTML = 'Loading...';
 
     try {
-      // Lots of the selected range + sales from 60 days before the range onward (a lot's sales
-      // happen on/after it arrives; advance sales linked later are at most a few weeks older).
+      // Lots of the selected range + sales from 60 days before the range to 120 days after it
+      // (a lot's sales happen on/after it arrives; advance sales linked later can be weeks or a
+      // few months older). Capped at +120 days — NOT open-ended — so an old date range (say,
+      // from August) doesn't re-read every sale between then and today on every report.
       const salesFrom = addDaysIso(from, -60);
+      const salesTo = addDaysIso(to, 120);
       const [purchaseSnap, salesSnap] = await Promise.all([
         getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
-        getDocsCached(`since:sales:${salesFrom}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom)))
+        getDocsCached(`since:sales:${salesFrom}:${salesTo}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -7926,9 +7929,13 @@
     container.innerHTML = 'Loading...';
 
     try {
+      // Reads every purchase/sale for this product, all areas & all time, because the area tab
+      // can be switched without changing product — cached 10 min so switching tabs or re-opening
+      // doesn't keep re-reading the same data (still as broad per fetch; a real fix would need
+      // an area+product composite index, same as the Stock Details aggregate).
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocs(query(collection(db, "purchases"), where("product", "==", product))),
-        getDocs(query(collection(db, "sales"), where("product", "==", product)))
+        getDocsCached('dsb:purch:' + product, ['purchases'], query(collection(db, "purchases"), where("product", "==", product)), 600000),
+        getDocsCached('dsb:sale:' + product, ['sales'], query(collection(db, "sales"), where("product", "==", product)), 600000)
       ]);
 
       // Strictly own-area purchases (not pooling IGST- shared godown purchases from the paired area)
@@ -8279,12 +8286,15 @@
     container.innerHTML = 'Loading...';
 
     try {
-      // Lots of the selected range + sales from 60 days before the range onward (a lot's sales
-      // happen on/after it arrives; advance sales linked later are at most a few weeks older).
+      // Lots of the selected range + sales from 60 days before the range to 120 days after it
+      // (a lot's sales happen on/after it arrives; advance sales linked later can be weeks or a
+      // few months older). Capped at +120 days — NOT open-ended — so an old date range (say,
+      // from August) doesn't re-read every sale between then and today on every report.
       const salesFrom = addDaysIso(from, -60);
+      const salesTo = addDaysIso(to, 120);
       const [purchaseSnap, salesSnap] = await Promise.all([
         getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
-        getDocsCached(`since:sales:${salesFrom}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom)))
+        getDocsCached(`since:sales:${salesFrom}:${salesTo}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -8739,9 +8749,13 @@
     container.innerHTML = 'Loading...';
 
     try {
+      // Reads every purchase/sale for this product, all areas & all time, because the area tab
+      // can be switched without changing product — cached 10 min so switching tabs or re-opening
+      // doesn't keep re-reading the same data (still as broad per fetch; a real fix would need
+      // an area+product composite index, same as the Stock Details aggregate).
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocs(query(collection(db, "purchases"), where("product", "==", product))),
-        getDocs(query(collection(db, "sales"), where("product", "==", product)))
+        getDocsCached('dsb:purch:' + product, ['purchases'], query(collection(db, "purchases"), where("product", "==", product)), 600000),
+        getDocsCached('dsb:sale:' + product, ['sales'], query(collection(db, "sales"), where("product", "==", product)), 600000)
       ]);
 
       const purchByDate = {};
@@ -12724,7 +12738,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-30a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-30b</div>
 
 </body>
 </html>
