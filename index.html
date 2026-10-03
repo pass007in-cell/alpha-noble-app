@@ -1956,6 +1956,14 @@
       <p style="font-size:13px; color:#777; margin-bottom:14px;">
         ഒരു Lot-ന്റെ Remaining Qty, ആ lot-ൽ നിന്ന് യഥാർത്ഥത്തിൽ link ചെയ്ത Sales-ന്റെ ആകെ Qty-മായി match ആകാതെ വന്നാൽ (ഉദാ: Purchased 260, Sold 260, പക്ഷെ Remaining ഇപ്പോഴും 260 കാണിക്കുന്നു) — ഇത് സാധാരണ Purchase Edit-ൽ Remaining Qty manual ആയി മാറ്റിയത് കൊണ്ടോ, മറ്റ് ചെറിയ പ്രശ്നങ്ങൾ കൊണ്ടോ സംഭവിക്കാം. ഇവിടെ കണ്ടെത്തി, യഥാർത്ഥ link ചെയ്ത Sales-ന്റെ അടിസ്ഥാനത്തിൽ ശരിയാക്കാം.
       </p>
+      <label>Area (optional — ഇട്ടാൽ വളരെ കുറച്ച് data മാത്രം read ചെയ്യും)</label>
+      <select id="mismatchArea" style="margin-bottom:14px;">
+        <option value="">-- All Areas --</option>
+        <option value="MKD">MKD - Mannarkkad</option>
+        <option value="PKD">PKD - Palakkad</option>
+        <option value="MLT">MLT - Melattur</option>
+        <option value="NLB">NLB - Nilambur</option>
+      </select>
       <div class="form-grid">
         <div>
           <label>From Date (optional)</label>
@@ -7481,8 +7489,11 @@
   // ---- REPORTS ----
   // Shared, cached Advance-sale queries (Home count, Linking tab, Admin Home, Old Advance).
   function getAreaAdvanceSales(area) {
-    return getDocsCached('adv:' + area, ['sales'], query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true)));
+    // Same exemption as getAllAdvanceSales below: tagged with a virtual collection name so a
+    // sale/collection/purchase save does NOT invalidate it — only its own 20-min TTL does.
+    return getDocsCached('adv:' + area, ['__advSalesOnly'], query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true)), 1200000);
   }
+  function refreshAreaAdvanceSalesNow(area) { readCache.delete('adv:' + area); return getAreaAdvanceSales(area); }
   // Reads every unlinked-advance-sale doc across all areas (2000+ records) — expensive, so it
   // gets a long 20-min cache that a sale/collection/purchase save does NOT invalidate. The list
   // doesn't need to be second-by-second live; refreshAdvanceSalesNow() below forces a fresh read
@@ -9988,6 +9999,7 @@
   };
 
   window.scanRemainingMismatch = async function () {
+    const area = document.getElementById('mismatchArea').value;
     const fromDate = document.getElementById('mismatchFromDate').value;
     const toDate = document.getElementById('mismatchToDate').value;
     const statusEl = document.getElementById('mismatchScanStatus');
@@ -9998,9 +10010,11 @@
     resultBox.style.display = 'none';
 
     try {
+      const purchQuery = area ? query(collection(db, "purchases"), where("area", "==", area)) : collection(db, "purchases");
+      const salesQuery = area ? query(collection(db, "sales"), where("area", "==", area)) : collection(db, "sales");
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000),
-        getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000)
+        getDocsCached('all:purchases:' + (area || 'ALL'), ['purchases'], purchQuery, 600000),
+        getDocsCached('all:sales:' + (area || 'ALL'), ['sales'], salesQuery, 600000)
       ]);
 
       // Sum of qty actually linked to each purchase lot, from the sales' own lots[] arrays
@@ -10092,9 +10106,11 @@
     statusEl.textContent = "Scanning...";
     overLinkPlan = null;
     try {
+      const purchQuery = area ? query(collection(db, "purchases"), where("area", "==", area)) : collection(db, "purchases");
+      const salesQuery = area ? query(collection(db, "sales"), where("area", "==", area)) : collection(db, "sales");
       const [purchSnap, salesSnap] = await Promise.all([
-        getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000),
-        getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000)
+        getDocsCached('all:purchases:' + (area || 'ALL'), ['purchases'], purchQuery, 600000),
+        getDocsCached('all:sales:' + (area || 'ALL'), ['sales'], salesQuery, 600000)
       ]);
       const lots = {};
       purchSnap.forEach(ds => { lots[ds.id] = { id: ds.id, ...ds.data() }; });
@@ -12771,7 +12787,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-03a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-03b</div>
 
 </body>
 </html>
