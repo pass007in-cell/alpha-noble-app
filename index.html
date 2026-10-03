@@ -7747,10 +7747,24 @@
       // from August) doesn't re-read every sale between then and today on every report.
       const salesFrom = addDaysIso(from, -60);
       const salesTo = addDaysIso(to, 120);
-      const [purchaseSnap, salesSnap] = await Promise.all([
-        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
-        getDocsCached(`since:sales:${salesFrom}:${salesTo}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
-      ]);
+      // Always a single known area here — filter both queries by it directly instead of
+      // reading all 4 areas and discarding 3/4 of it client-side. Needs one composite index
+      // each on sales(area,date) and purchases(area,date); falls back if not ready yet.
+      let purchaseSnap, salesSnap;
+      try {
+        [purchaseSnap, salesSnap] = await Promise.all([
+          getDocsCached(`range:purchases:${currentWorkingArea}:${from}:${to}`, ['purchases'],
+            query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("date", ">=", from), where("date", "<=", to))),
+          getDocsCached(`since:sales:${currentWorkingArea}:${salesFrom}:${salesTo}`, ['sales'],
+            query(collection(db, "sales"), where("area", "==", currentWorkingArea), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
+        ]);
+      } catch (idxErr) {
+        console.warn('Area-filtered Trip Sheet query failed (index missing?) — falling back to all-areas read', idxErr);
+        [purchaseSnap, salesSnap] = await Promise.all([
+          getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
+          getDocsCached(`since:sales:${salesFrom}:${salesTo}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
+        ]);
+      }
 
       const inRange = (d) => d && d >= from && d <= to;
 
@@ -8292,15 +8306,34 @@
       // from August) doesn't re-read every sale between then and today on every report.
       const salesFrom = addDaysIso(from, -60);
       const salesTo = addDaysIso(to, 120);
-      const [purchaseSnap, salesSnap] = await Promise.all([
-        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
-        getDocsCached(`since:sales:${salesFrom}:${salesTo}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
-      ]);
+      // When a single area is selected, filter BOTH queries by area directly — working one
+      // area (e.g. NLB) no longer pays to also read the other 3 areas' sales/purchases for the
+      // same window. Needs one composite index each on sales(area,date) and purchases(area,date);
+      // falls back to the old all-areas read if that index isn't ready yet.
+      const purchQuery = areaFilter
+        ? query(collection(db, "purchases"), where("area", "==", areaFilter), where("date", ">=", from), where("date", "<=", to))
+        : qDateRange('purchases', from, to);
+      const salesQuery = areaFilter
+        ? query(collection(db, "sales"), where("area", "==", areaFilter), where("date", ">=", salesFrom), where("date", "<=", salesTo))
+        : query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo));
+      let purchaseSnap, salesSnap;
+      try {
+        [purchaseSnap, salesSnap] = await Promise.all([
+          getDocsCached(`range:purchases:${areaFilter || 'ALL'}:${from}:${to}`, ['purchases'], purchQuery),
+          getDocsCached(`since:sales:${areaFilter || 'ALL'}:${salesFrom}:${salesTo}`, ['sales'], salesQuery)
+        ]);
+      } catch (idxErr) {
+        console.warn('Area-filtered Trip Sheet query failed (index missing?) — falling back to all-areas read', idxErr);
+        [purchaseSnap, salesSnap] = await Promise.all([
+          getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
+          getDocsCached(`since:sales:${salesFrom}:${salesTo}`, ['sales'], query(collection(db, "sales"), where("date", ">=", salesFrom), where("date", "<=", salesTo)))
+        ]);
+      }
 
       const inRange = (d) => d && d >= from && d <= to;
 
-      // Purchases (Lots) within range, optional area filter, excluding transfer-created "child" lots
-      // (transferredFrom set) is NOT excluded — transfers are still real lots worth showing.
+      // Purchases (Lots) within range, optional area filter (now applied at the query level
+      // above too when possible — this stays as a safety net for the no-index fallback path).
       let lots = [];
       purchaseSnap.forEach(docSnap => {
         const d = docSnap.data();
@@ -12738,7 +12771,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-09-30c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-03a</div>
 
 </body>
 </html>
