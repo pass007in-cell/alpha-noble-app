@@ -176,6 +176,16 @@
 
       <div class="error-msg" id="errorMsg"></div>
 
+      <div id="fpUnlockBox" style="display:none; margin-bottom:14px;">
+        <button id="fpUnlockBtn" class="full-btn" style="background:#1565c0;" onclick="handleFingerprintUnlock()">👆 <span id="fpUnlockLabel">Fingerprint വെച്ച് Unlock ചെയ്യുക</span></button>
+        <div style="text-align:center; margin-top:8px; font-size:12px; color:#888;">
+          <a href="#" onclick="document.getElementById('fpUnlockBox').style.display='none'; return false;" style="color:#888;">Username/PIN ഉപയോഗിച്ച് login ചെയ്യുക</a>
+          &nbsp;·&nbsp;
+          <a href="#" onclick="fpRemoveFromDevice(); return false;" style="color:#c62828;">നീക്കം ചെയ്യുക</a>
+        </div>
+        <div style="text-align:center; border-top:1px solid #eee; margin-top:14px; padding-top:10px; color:#aaa; font-size:12px;">— അല്ലെങ്കിൽ —</div>
+      </div>
+
       <label for="areaSelect">Area</label>
       <select id="areaSelect" onchange="onAreaChange()">
         <option value="MKD">MKD - Mannarkkad</option>
@@ -3050,6 +3060,110 @@
 
   onAreaChange();
 
+  // ============ FINGERPRINT / FACE UNLOCK (convenience shortcut only — plain Username+PIN ============
+  // login above always keeps working as a fallback). WebAuthn's biometric prompt is used purely
+  // as a LOCAL GATE on this device ("same person who set this up, same phone") — there is no
+  // server-side verification of it, so the actual PIN (lightly obfuscated, not strong encryption)
+  // is kept in this browser's localStorage and is only ever used to re-run the normal login above.
+  const FP_KEY = 'fpUnlockV1';
+  const FP_DECLINED_KEY = 'fpUnlockDeclined';
+  function fpSupported() {
+    return !!(window.PublicKeyCredential && navigator.credentials && window.isSecureContext);
+  }
+  function fpSaved() {
+    try { return JSON.parse(localStorage.getItem(FP_KEY) || 'null'); } catch (e) { return null; }
+  }
+  function fpClear() {
+    try { localStorage.removeItem(FP_KEY); } catch (e) { }
+    document.getElementById('fpUnlockBox').style.display = 'none';
+  }
+  window.fpRemoveFromDevice = function () {
+    if (!confirm('ഈ ഡിവൈസിൽ നിന്ന് Fingerprint Unlock നീക്കം ചെയ്യണോ? പിന്നീട് Username/PIN വേണ്ടി വരും.')) return;
+    fpClear();
+  };
+  function fpShowButtonIfSaved() {
+    const saved = fpSaved();
+    const box = document.getElementById('fpUnlockBox');
+    if (saved && fpSupported()) {
+      document.getElementById('fpUnlockLabel').textContent = `Fingerprint വെച്ച് Unlock ചെയ്യുക (${saved.username})`;
+      box.style.display = 'block';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+  fpShowButtonIfSaved();
+
+  // Registers a platform-authenticator credential on THIS device and stores the identity
+  // (username, area, lightly-obfuscated PIN) so handleFingerprintUnlock() can replay the login.
+  async function fpRegister(area, username, pin) {
+    try {
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+      const userId = new Uint8Array(16);
+      crypto.getRandomValues(userId);
+      await navigator.credentials.create({
+        publicKey: {
+          challenge, rp: { name: 'Alpha & Noble' },
+          user: { id: userId, name: username, displayName: username },
+          pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          timeout: 60000
+        }
+      });
+      localStorage.setItem(FP_KEY, JSON.stringify({ area, username, pin: btoa(pin) }));
+      localStorage.removeItem(FP_DECLINED_KEY);
+      fpShowButtonIfSaved();
+      return true;
+    } catch (err) {
+      console.warn('Fingerprint registration failed/cancelled', err);
+      return false;
+    }
+  }
+
+  // After a successful manual login, offer to set up (or update) the fingerprint shortcut —
+  // only when this device supports it and hasn't already been set up for this same identity,
+  // and the person hasn't previously said no on this device.
+  async function fpMaybeOfferSetup(area, username, pin) {
+    if (!fpSupported()) return;
+    const saved = fpSaved();
+    if (saved && saved.username === username && saved.area === area) return; // already set up
+    if (!saved && localStorage.getItem(FP_DECLINED_KEY)) return; // asked before, said no
+    const msg = saved
+      ? `ഈ ഡിവൈസിൽ നിലവിൽ "${saved.username}" എന്ന user-ന് വേണ്ടി Fingerprint Unlock സെറ്റ് ആയിട്ടുണ്ട്. ഇത് "${username}" ആയി മാറ്റണോ?`
+      : `ഈ ഡിവൈസിൽ ഇനി Username/PIN ടൈപ്പ് ചെയ്യാതെ Fingerprint/Face വെച്ച് വേഗം login ചെയ്യാൻ സൗകര്യം ഉണ്ടാക്കണോ?`;
+    if (!confirm(msg)) { if (!saved) localStorage.setItem(FP_DECLINED_KEY, '1'); return; }
+    const ok = await fpRegister(area, username, pin);
+    if (!ok) alert('Fingerprint സെറ്റ് ചെയ്യാൻ പറ്റിയില്ല — ഈ device/browser അത് support ചെയ്യുന്നില്ലായിരിക്കാം. Username/PIN ഉപയോഗിച്ച് login തുടരാം.');
+  }
+
+  window.handleFingerprintUnlock = async function () {
+    const saved = fpSaved();
+    if (!saved) return;
+    const btn = document.getElementById('fpUnlockBtn');
+    const errorMsg = document.getElementById('errorMsg');
+    errorMsg.style.display = 'none';
+    btn.disabled = true;
+    try {
+      const challenge = new Uint8Array(32);
+      crypto.getRandomValues(challenge);
+      await navigator.credentials.get({
+        publicKey: { challenge, userVerification: 'required', timeout: 60000 }
+      });
+      // Biometric check passed — replay the normal login with the stored identity.
+      document.getElementById('areaSelect').value = saved.area;
+      await onAreaChange();
+      document.getElementById('username').value = saved.username;
+      document.getElementById('pin').value = atob(saved.pin);
+      await handleLogin();
+    } catch (err) {
+      console.warn('Fingerprint unlock failed/cancelled', err);
+      errorMsg.textContent = "Fingerprint പരാജയപ്പെട്ടു — വീണ്ടും ശ്രമിക്കുക, അല്ലെങ്കിൽ Username/PIN ഉപയോഗിക്കുക.";
+      errorMsg.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
   window.handleLogin = async function () {
     const area = document.getElementById('areaSelect').value;
     const username = document.getElementById('username').value.trim();
@@ -3084,6 +3198,7 @@
       }
 
       await loadAdvSaleCutoffSetting();
+      fpMaybeOfferSetup(area, username, pin); // fire-and-forget; never blocks login
 
       if (userData.role === 'admin') {
         showAdminPanel(userData);
@@ -3113,6 +3228,7 @@
     document.getElementById('adminBox').style.display = 'none';
     document.getElementById('userBox').style.display = 'none';
     document.getElementById('loginSection').style.display = 'block';
+    fpShowButtonIfSaved();
     document.getElementById('username').value = '';
     document.getElementById('pin').value = '';
   };
@@ -12787,7 +12903,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-03b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-04a</div>
 
 </body>
 </html>
