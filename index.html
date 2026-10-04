@@ -3082,7 +3082,11 @@
     fpClear();
   };
   function fpShowButtonIfSaved() {
-    const saved = fpSaved();
+    let saved = fpSaved();
+    // A credential saved before credId was stored (older app version) can never be found by
+    // allowCredentials — clear it so the person is cleanly offered a fresh registration instead
+    // of seeing a button that will always fail with "No passkeys available".
+    if (saved && !saved.credId) { fpClear(); saved = null; }
     const box = document.getElementById('fpUnlockBox');
     if (saved && fpSupported()) {
       document.getElementById('fpUnlockLabel').textContent = `Fingerprint വെച്ച് Unlock ചെയ്യുക (${saved.username})`;
@@ -3093,24 +3097,31 @@
   }
   fpShowButtonIfSaved();
 
+  function fpBufToB64(buf) { return btoa(Array.from(new Uint8Array(buf)).map(b => String.fromCharCode(b)).join('')); }
+  function fpB64ToBuf(b64) { const bin = atob(b64); const arr = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i); return arr; }
+
   // Registers a platform-authenticator credential on THIS device and stores the identity
-  // (username, area, lightly-obfuscated PIN) so handleFingerprintUnlock() can replay the login.
+  // (username, area, lightly-obfuscated PIN) + the credential's own ID, so
+  // handleFingerprintUnlock() can ask for that EXACT credential back (via allowCredentials)
+  // instead of relying on it being saved as a discoverable "passkey", which needs an extra
+  // residentKey setting we weren't passing — that mismatch is what caused the
+  // "No passkeys available" error.
   async function fpRegister(area, username, pin) {
     try {
       const challenge = new Uint8Array(32);
       crypto.getRandomValues(challenge);
       const userId = new Uint8Array(16);
       crypto.getRandomValues(userId);
-      await navigator.credentials.create({
+      const cred = await navigator.credentials.create({
         publicKey: {
           challenge, rp: { name: 'Alpha & Noble' },
           user: { id: userId, name: username, displayName: username },
           pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
-          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+          authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
           timeout: 60000
         }
       });
-      localStorage.setItem(FP_KEY, JSON.stringify({ area, username, pin: btoa(pin) }));
+      localStorage.setItem(FP_KEY, JSON.stringify({ area, username, pin: btoa(pin), credId: fpBufToB64(cred.rawId) }));
       localStorage.removeItem(FP_DECLINED_KEY);
       fpShowButtonIfSaved();
       return true;
@@ -3146,8 +3157,9 @@
     try {
       const challenge = new Uint8Array(32);
       crypto.getRandomValues(challenge);
+      const allowCredentials = saved.credId ? [{ id: fpB64ToBuf(saved.credId), type: 'public-key' }] : [];
       await navigator.credentials.get({
-        publicKey: { challenge, userVerification: 'required', timeout: 60000 }
+        publicKey: { challenge, userVerification: 'required', timeout: 60000, allowCredentials }
       });
       // Biometric check passed — replay the normal login with the stored identity.
       document.getElementById('areaSelect').value = saved.area;
@@ -12903,7 +12915,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-04a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-04b</div>
 
 </body>
 </html>
