@@ -2791,11 +2791,18 @@
   async function flushUsage() {
     const keys = Object.keys(usageBuf);
     if (!keys.length || typeof currentUserData === 'undefined' || !currentUserData) return;
-    const byFn = {}; let total = 0;
-    keys.forEach(k => { byFn[k] = increment(usageBuf[k]); total += usageBuf[k]; delete usageBuf[k]; });
+    const username = currentUserData.username || '?';
+    // byFn = all-users total per function@collection (unchanged, for the overall ranking).
+    // byUserFn.<username> = the SAME breakdown but scoped to just this one user, so the
+    // "which section is THIS user's usage coming from" question can be answered too — a
+    // separate increment() map (not the same object reused at two field paths) to keep each
+    // transform independent.
+    const byFn = {}; const byFnForUser = {}; let total = 0;
+    keys.forEach(k => { byFn[k] = increment(usageBuf[k]); byFnForUser[k] = increment(usageBuf[k]); total += usageBuf[k]; delete usageBuf[k]; });
     try {
       await _fsSetDoc(doc(db, "usageStats", localDayStr()), {
-        total: increment(total), byFn, byUser: { [currentUserData.username || '?']: increment(total) }
+        total: increment(total), byFn, byUser: { [username]: increment(total) },
+        byUserFn: { [username]: byFnForUser }
       }, { merge: true });
     } catch (e) { console.warn('usage flush failed', e); }
   }
@@ -2817,10 +2824,22 @@
       const d = snap.data();
       const fns = Object.entries(d.byFn || {}).sort((a, b) => b[1] - a[1]).slice(0, 20);
       const users = Object.entries(d.byUser || {}).sort((a, b) => b[1] - a[1]);
+      const byUserFn = d.byUserFn || {};
+      // Per-user section breakdown — only available for days recorded after this feature
+      // shipped; older days simply show a note instead of a (misleadingly empty) list.
+      const userSections = users.map(([u, total]) => {
+        const fnList = Object.entries(byUserFn[u] || {}).sort((a, b) => b[1] - a[1]).slice(0, 10);
+        const fnHtml = fnList.length
+          ? fnList.map(([k, n]) => `&nbsp;&nbsp;${k}: <b>${n}</b>`).join('<br>')
+          : '&nbsp;&nbsp;<span style="color:#999;">(ഈ ദിവസത്തേക്ക് section-wise detail ഇല്ല — പുതിയ update മുതൽ മാത്രം ഇത് കിട്ടും)</span>';
+        return `<b>${u}</b> (ആകെ: ${total})<br>${fnHtml}`;
+      }).join('<br><br>');
       box.innerHTML = `<b>ആകെ reads (app): ${d.total || 0}</b><br><br><b>User-wise</b><br>` +
         users.map(([u, n]) => `${u}: ${n}`).join('<br>') +
         `<br><br><b>ഏറ്റവും കൂടുതൽ എടുത്തവ (function@collection)</b><br>` +
-        fns.map(([k, n]) => `${k}: <b>${n}</b>`).join('<br>');
+        fns.map(([k, n]) => `${k}: <b>${n}</b>`).join('<br>') +
+        `<br><br><b>User × Section (ഓരോ User ഉം ഏത് ഭാഗത്ത് നിന്ന് reads എടുക്കുന്നു)</b><br>` +
+        userSections;
     } catch (e) { console.error(e); box.textContent = 'Load ചെയ്യാൻ പറ്റിയില്ല.'; }
   };
 
@@ -12915,7 +12934,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-04b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-06a</div>
 
 </body>
 </html>
