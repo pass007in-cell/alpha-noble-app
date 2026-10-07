@@ -179,32 +179,48 @@
       <div id="fpUnlockBox" style="display:none; margin-bottom:14px;">
         <button id="fpUnlockBtn" class="full-btn" style="background:#1565c0;" onclick="handleFingerprintUnlock()">👆 <span id="fpUnlockLabel">Fingerprint വെച്ച് Unlock ചെയ്യുക</span></button>
         <div style="text-align:center; margin-top:8px; font-size:12px; color:#888;">
-          <a href="#" onclick="document.getElementById('fpUnlockBox').style.display='none'; return false;" style="color:#888;">Username/PIN ഉപയോഗിച്ച് login ചെയ്യുക</a>
+          <a href="#" onclick="fpShowFormInstead(); return false;" style="color:#888;">Username/PIN ഉപയോഗിച്ച് login ചെയ്യുക</a>
           &nbsp;·&nbsp;
           <a href="#" onclick="fpRemoveFromDevice(); return false;" style="color:#c62828;">നീക്കം ചെയ്യുക</a>
         </div>
-        <div style="text-align:center; border-top:1px solid #eee; margin-top:14px; padding-top:10px; color:#aaa; font-size:12px;">— അല്ലെങ്കിൽ —</div>
       </div>
 
-      <label for="areaSelect">Area</label>
-      <select id="areaSelect" onchange="onAreaChange()">
-        <option value="MKD">MKD - Mannarkkad</option>
-        <option value="PKD">PKD - Palakkad</option>
-        <option value="MLT">MLT - Melattur</option>
-        <option value="NLB">NLB - Nilambur</option>
-        <option value="ALL">🌐 Multi-Area User</option>
-        <option value="ADMIN">Admin</option>
-      </select>
+      <div id="loginFormFields">
+        <label for="areaSelect">Area</label>
+        <select id="areaSelect" onchange="onAreaChange()">
+          <option value="MKD">MKD - Mannarkkad</option>
+          <option value="PKD">PKD - Palakkad</option>
+          <option value="MLT">MLT - Melattur</option>
+          <option value="NLB">NLB - Nilambur</option>
+          <option value="ALL">🌐 Multi-Area User</option>
+          <option value="ADMIN">Admin</option>
+        </select>
 
-      <label for="username">Username</label>
-      <select id="username">
-        <option value="">-- Select Username --</option>
-      </select>
+        <label for="username">Username</label>
+        <select id="username">
+          <option value="">-- Select Username --</option>
+        </select>
 
-      <label for="pin">PIN</label>
-      <input type="password" id="pin" placeholder="4-6 characters" autocomplete="off">
+        <label for="pin">PIN</label>
+        <input type="password" id="pin" placeholder="4-6 characters" autocomplete="off">
 
-      <button id="loginBtn" class="full-btn" onclick="handleLogin()">Login</button>
+        <button id="loginBtn" class="full-btn" onclick="handleLogin()">Login</button>
+      </div>
+      <script>
+        // Runs immediately (before the main module script loads) so that on a device with
+        // Fingerprint Unlock already set up, the Area/Username/PIN form never flashes on
+        // screen even briefly — it's hidden from the very first paint. The module script
+        // below still does the real check (fpShowButtonIfSaved) and reveals the fingerprint
+        // button itself; this is just the "don't show the form first" half of that.
+        (function () {
+          try {
+            var saved = JSON.parse(localStorage.getItem('fpUnlockV1') || 'null');
+            if (saved && saved.credId && window.PublicKeyCredential) {
+              document.getElementById('loginFormFields').style.display = 'none';
+            }
+          } catch (e) { }
+        })();
+      </script>
       <div class="status-msg" id="statusMsg">Connecting to server...</div>
     </div>
 
@@ -3095,11 +3111,23 @@
   function fpClear() {
     try { localStorage.removeItem(FP_KEY); } catch (e) { }
     document.getElementById('fpUnlockBox').style.display = 'none';
+    const fields = document.getElementById('loginFormFields');
+    if (fields) fields.style.display = 'block';
   }
   window.fpRemoveFromDevice = function () {
     if (!confirm('ഈ ഡിവൈസിൽ നിന്ന് Fingerprint Unlock നീക്കം ചെയ്യണോ? പിന്നീട് Username/PIN വേണ്ടി വരും.')) return;
     fpClear();
   };
+  // "Username/PIN ഉപയോഗിച്ച് login ചെയ്യുക" link — switches the screen over to the normal form
+  // WITHOUT removing the saved fingerprint (fpClear() would delete it); just hides the
+  // fingerprint box for this one visit and shows the Area/Username/PIN fields instead.
+  window.fpShowFormInstead = function () {
+    document.getElementById('fpUnlockBox').style.display = 'none';
+    document.getElementById('loginFormFields').style.display = 'block';
+  };
+  // When a fingerprint credential is saved on this device, that button is the FIRST and ONLY
+  // thing shown on open (Area/Username/PIN stay hidden) — a single, uncluttered choice instead
+  // of showing both at once. No saved credential → straight to the normal form, as before.
   function fpShowButtonIfSaved() {
     let saved = fpSaved();
     // A credential saved before credId was stored (older app version) can never be found by
@@ -3107,11 +3135,14 @@
     // of seeing a button that will always fail with "No passkeys available".
     if (saved && !saved.credId) { fpClear(); saved = null; }
     const box = document.getElementById('fpUnlockBox');
+    const fields = document.getElementById('loginFormFields');
     if (saved && fpSupported()) {
       document.getElementById('fpUnlockLabel').textContent = `Fingerprint വെച്ച് Unlock ചെയ്യുക (${saved.username})`;
       box.style.display = 'block';
+      if (fields) fields.style.display = 'none';
     } else {
       box.style.display = 'none';
+      if (fields) fields.style.display = 'block';
     }
   }
   fpShowButtonIfSaved();
@@ -12934,7 +12965,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-06a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-07a</div>
 
 </body>
 </html>
