@@ -2897,7 +2897,24 @@
   }
   // Common scoped queries
   const qDateRange = (col, from, to) => query(collection(db, col), where("date", ">=", from), where("date", "<=", to));
+  const qDateRangeArea = (col, area, from, to) => query(collection(db, col), where("area", "==", area), where("date", ">=", from), where("date", "<=", to));
   const qOpenLots = (col) => query(collection(db, col), where("remainingQty", ">", 0));
+
+  // Area-scoped date-range read, with an automatic fallback to the old all-areas query if the
+  // area+date composite index for that collection doesn't exist yet (Firestore throws
+  // failed-precondition in that case) — so Report tab never breaks for a User, it just reads
+  // 4x more until the matching index (area ASC, date ASC) is created in Firebase Console. Sales
+  // and Purchases already have this index (made earlier for Trip Sheet); Collections doesn't
+  // yet, so it quietly uses the fallback until one is added.
+  async function getDocsCachedAreaRange(col, area, from, to) {
+    const key = `range:${col}:${area}:${from}:${to}`;
+    try {
+      return await getDocsCached(key, [col], qDateRangeArea(col, area, from, to));
+    } catch (err) {
+      console.warn(col + ': area+date index missing, falling back to all-areas read', err);
+      return await getDocsCached(`range:${col}:${from}:${to}`, [col], qDateRange(col, from, to));
+    }
+  }
 
   // True "available to sell" stock = all-time Purchase Qty − all-time Sale Qty, per Area+Product.
   // Deliberately NOT the sum of purchase-lot remainingQty (that only drops once a sale is
@@ -8282,13 +8299,15 @@
     document.getElementById('repCollBody').innerHTML = '<tr><td colspan="9">Loading...</td></tr>';
 
     try {
-      // Only the selected date range is read (all areas, then filtered to own area locally —
-      // an area+date query would need a composite index). Lot Balance loads separately, on
-      // demand, when that section is opened.
+      // Reads only this User's own Area now (via the area+date composite index — same one
+      // already created for Trip Sheet), instead of all 4 areas' data for the date range and
+      // throwing 3/4 of it away client-side. mine()/inRange() below are kept as a safety net
+      // in case a collection falls back to the old all-areas read (see
+      // getDocsCachedAreaRange) — harmless no-ops once the area filter is already applied.
       const [salesSnap, purchaseSnap, collSnap] = await Promise.all([
-        getDocsCached(`range:sales:${from}:${to}`, ['sales'], qDateRange('sales', from, to)),
-        getDocsCached(`range:purchases:${from}:${to}`, ['purchases'], qDateRange('purchases', from, to)),
-        getDocsCached(`range:collections:${from}:${to}`, ['collections'], qDateRange('collections', from, to))
+        getDocsCachedAreaRange('sales', currentWorkingArea, from, to),
+        getDocsCachedAreaRange('purchases', currentWorkingArea, from, to),
+        getDocsCachedAreaRange('collections', currentWorkingArea, from, to)
       ]);
 
       const inRange = (d) => d && d >= from && d <= to;
@@ -12372,11 +12391,18 @@
 
       // Refresh whichever section the admin is actually viewing — Edit happens in-place
       // (this is an overlay, not a page navigation), so the fix is to make sure the data
-      // underneath is fresh, not just the modal that closes on top of it.
-      loadApprovals();
-      loadAdminSalesToday();
-      loadAdminCollectionsToday();
-      loadAdminPurchasesToday();
+      // underneath is fresh, not just the modal that closes on top of it. These 4 used to run
+      // UNCONDITIONALLY on every single Quick Edit save, regardless of which tab was open —
+      // e.g. editing a Sale from the Customer Report screen was silently also re-reading
+      // today's Sales/Collections/Purchases AND the Approvals queue in the background, every
+      // time, for no reason (those screens weren't even open). Gated the same way the Report/
+      // Reports/Customers refreshes below already were, so only the tab actually on screen
+      // gets refreshed.
+      const onPurchaseTab = document.getElementById('tabAdminPurchase').style.display !== 'none';
+      if (document.getElementById('tabAdminApprovals').style.display !== 'none') loadApprovals();
+      if (onPurchaseTab && document.getElementById('adminEntrySubSale').style.display !== 'none') loadAdminSalesToday();
+      if (onPurchaseTab && document.getElementById('adminEntrySubCollection').style.display !== 'none') loadAdminCollectionsToday();
+      if (onPurchaseTab && document.getElementById('adminEntrySubPurchase').style.display !== 'none') loadAdminPurchasesToday();
       if (document.getElementById('tabAdminReport').style.display !== 'none') generateAdminReport();
       if (document.getElementById('tabAdminReports').style.display !== 'none') {
         loadAdminHomeSummary();
@@ -12965,7 +12991,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-07a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-08b</div>
 
 </body>
 </html>
