@@ -11035,19 +11035,15 @@
         }
       }
 
-      // Pre-fetch existing purchases once, to duplicate-check locally instead of a query per row.
-      statusEl.textContent = "Existing purchases duplicate-check ന് വേണ്ടി load ചെയ്യുന്നു...";
-      const existingSnap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
-      const existingComboKeys = new Set();
-      const existingInvoiceKeys = new Set();
-      existingSnap.forEach(docSnap => {
-        const p = docSnap.data();
-        existingComboKeys.add([p.area || '', p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeVehicleNo(p.vehicle), String(p.qty || 0)].join('|'));
-        if (p.invoiceNumber && String(p.invoiceNumber).trim()) existingInvoiceKeys.add(String(p.invoiceNumber).trim().toLowerCase());
-      });
-
+      // Parse + validate every row FIRST (no Firestore calls yet), so we know which Areas the
+      // CSV actually touches before deciding what to pre-fetch for duplicate-checking. A CSV
+      // is normally just one Area's purchases, so this turns "read the whole purchases
+      // collection, every time, however small the file" into "read only the Area(s) in THIS
+      // file" — a 4x (or more, as history grows) reduction for a typical single-area upload.
       let successCount = 0, failCount = 0, dupCount = 0;
       let failedRows = [];
+      const parsedRows = [];
+      const areasInCsv = new Set();
 
       for (let i = 0; i < lines.length; i++) {
         const cols = parseCsvLine(lines[i]);
@@ -11074,21 +11070,48 @@
           continue;
         }
 
+        areasInCsv.add(area);
+        parsedRows.push({ rowNum, raw: lines[i], date, area, product, godown, vehicle, qty, status, invoiceNumber, billAmount });
+      }
+
+      // Pre-fetch existing purchases ONLY for the Area(s) this CSV uses, to duplicate-check
+      // locally instead of a query per row. 'in' supports up to 10 values — this business only
+      // has 4 Areas, so a mixed-area file is still a single cheap query, never a full scan.
+      let existingSnap = { forEach: () => { } };
+      if (areasInCsv.size > 0) {
+        statusEl.textContent = "Existing purchases duplicate-check ന് വേണ്ടി load ചെയ്യുന്നു...";
+        const areaList = Array.from(areasInCsv);
+        const cacheKey = 'dupcheck:purchases:' + areaList.slice().sort().join(',');
+        existingSnap = areaList.length <= 10
+          ? await getDocsCached(cacheKey, ['purchases'], query(collection(db, "purchases"), where("area", "in", areaList)), 600000)
+          : await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
+      }
+      const existingComboKeys = new Set();
+      const existingInvoiceKeys = new Set();
+      existingSnap.forEach(docSnap => {
+        const p = docSnap.data();
+        existingComboKeys.add([p.area || '', p.date || '', normalizeName(p.product), normalizeName(p.godown), normalizeVehicleNo(p.vehicle), String(p.qty || 0)].join('|'));
+        if (p.invoiceNumber && String(p.invoiceNumber).trim()) existingInvoiceKeys.add(String(p.invoiceNumber).trim().toLowerCase());
+      });
+
+      for (let i = 0; i < parsedRows.length; i++) {
+        const { rowNum, raw, date, area, product, godown, vehicle, qty, status, invoiceNumber, billAmount } = parsedRows[i];
+
         // Duplicate check: by Invoice Number if given, else by Date+Area+Product+Godown+Vehicle+Qty combo.
         const comboKey = [area, date, normalizeName(product), normalizeName(godown), normalizeVehicleNo(vehicle), String(qty)].join('|');
         const invKey = invoiceNumber ? invoiceNumber.toLowerCase() : '';
         if (invKey && existingInvoiceKeys.has(invKey)) {
           dupCount++;
-          failedRows.push({ row: rowNum, raw: lines[i], reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
+          failedRows.push({ row: rowNum, raw, reason: `Duplicate — Invoice Number "${invoiceNumber}" നിലവിൽ ഒരു Purchase-ൽ ഉണ്ട്. Skip ചെയ്തു.` });
           continue;
         }
         if (!invKey && existingComboKeys.has(comboKey)) {
           dupCount++;
-          failedRows.push({ row: rowNum, raw: lines[i], reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
+          failedRows.push({ row: rowNum, raw, reason: `Duplicate — ഇതേ Date+Area+Product+Godown+Vehicle+Qty ഉള്ള Purchase നിലവിൽ ഉണ്ട്. Skip ചെയ്തു (Invoice Number കൊടുത്താൽ ഇത് കൃത്യമായി തിരിച്ചറിയാം).` });
           continue;
         }
 
-        statusEl.textContent = `Processing ${i + 1} / ${lines.length}...`;
+        statusEl.textContent = `Processing ${i + 1} / ${parsedRows.length}...`;
 
         try {
           const payload = {
@@ -11104,7 +11127,7 @@
           if (invKey) existingInvoiceKeys.add(invKey);
         } catch (e) {
           failCount++;
-          failedRows.push({ row: rowNum, raw: lines[i], reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
+          failedRows.push({ row: rowNum, raw, reason: 'Database save പരാജയപ്പെട്ടു: ' + (e.message || 'Unknown error') });
         }
       }
 
@@ -13030,7 +13053,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-09a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-09b</div>
 
 </body>
 </html>
