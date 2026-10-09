@@ -2915,6 +2915,17 @@
       return await getDocsCached(`range:${col}:${from}:${to}`, [col], qDateRange(col, from, to));
     }
   }
+  // General version of the same safe-fallback pattern: try a narrower (cheaper) query that
+  // needs a composite index that may not exist yet; if Firestore rejects it (failed-precondition,
+  // no index), fall back to a wider query that needs no new index, under a separate cache key.
+  async function getDocsCachedSafe(key, cols, primaryQuery, fallbackQuery, ttlMs = 120000) {
+    try {
+      return await getDocsCached(key, cols, primaryQuery, ttlMs);
+    } catch (err) {
+      console.warn(key + ': index missing, falling back to wider read', err);
+      return await getDocsCached(key + ':fallback', cols, fallbackQuery, ttlMs);
+    }
+  }
 
   // True "available to sell" stock = all-time Purchase Qty − all-time Sale Qty, per Area+Product.
   // Deliberately NOT the sum of purchase-lot remainingQty (that only drops once a sale is
@@ -7608,11 +7619,26 @@
     if (!product || !godown) return;
 
     try {
-      const q = query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("product", "==", product), where("godown", "==", godown));
-      const snap = await getDocs(q);
+      // Old lots (date <= cutoff) are always discarded below anyway ("Admin only handles
+      // these"), but the query used to fetch the FULL purchase history for this Area+Product+
+      // Godown combo every single time — years of old, already-used-up lots, just to throw
+      // them away client-side. Now the date cutoff is pushed into the query itself (needs a
+      // new composite index: purchases — area, product, godown, date), so only the lots that
+      // could actually still be shown come back. Falls back to the old full-history query if
+      // that index isn't created yet, so this never breaks — just stays at the old cost until
+      // the index is added.
+      let snap;
+      try {
+        const qNew = query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("product", "==", product), where("godown", "==", godown), where("date", ">", ADVANCE_SALE_USER_CUTOFF));
+        snap = await getDocs(qNew);
+      } catch (idxErr) {
+        console.warn('purchases area+product+godown+date index missing, falling back to full history', idxErr);
+        const qOld = query(collection(db, "purchases"), where("area", "==", currentWorkingArea), where("product", "==", product), where("godown", "==", godown));
+        snap = await getDocs(qOld);
+      }
       snap.forEach(docSnap => {
         const d = docSnap.data();
-        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these
+        if ((d.date || '') <= ADVANCE_SALE_USER_CUTOFF) return; // old lots — Admin only handles these (safety net for the fallback path)
         const remaining = (d.remainingQty !== undefined) ? d.remainingQty : d.qty;
         if (remaining > 0) {
           availableLots.push({ id: docSnap.id, date: d.date, remainingQty: remaining, vehicle: d.vehicle, source: 'godown' });
@@ -7683,12 +7709,25 @@
 
   // ---- REPORTS ----
   // Shared, cached Advance-sale queries (Home count, Linking tab, Admin Home, Old Advance).
+  // This one backs USER-facing screens only, which already throw away anything older than
+  // ADVANCE_SALE_USER_CUTOFF client-side ("old ones — Admin handles these") — but used to fetch
+  // every isAdvance=true Sale this Area has EVER had, however old, just to discard most of it.
+  // The date cutoff is now pushed into the query (needs a new composite index: sales — area,
+  // isAdvance, date), so only the still-relevant window comes back; falls back to the old
+  // unbounded query if that index isn't created yet, so nothing breaks either way. Admin's
+  // separate "Old Advance Sales" screen below (getAllAdvanceSales) deliberately keeps reading
+  // full history — that screen's whole purpose is finding the old ones — so it isn't touched.
   function getAreaAdvanceSales(area) {
     // Same exemption as getAllAdvanceSales below: tagged with a virtual collection name so a
     // sale/collection/purchase save does NOT invalidate it — only its own 20-min TTL does.
-    return getDocsCached('adv:' + area, ['__advSalesOnly'], query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true)), 1200000);
+    const qNew = query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true), where("date", ">", ADVANCE_SALE_USER_CUTOFF));
+    const qOld = query(collection(db, "sales"), where("area", "==", area), where("isAdvance", "==", true));
+    return getDocsCachedSafe('adv:' + area, ['__advSalesOnly'], qNew, qOld, 1200000);
   }
-  function refreshAreaAdvanceSalesNow(area) { readCache.delete('adv:' + area); return getAreaAdvanceSales(area); }
+  function refreshAreaAdvanceSalesNow(area) {
+    readCache.delete('adv:' + area); readCache.delete('adv:' + area + ':fallback');
+    return getAreaAdvanceSales(area);
+  }
   // Reads every unlinked-advance-sale doc across all areas (2000+ records) — expensive, so it
   // gets a long 20-min cache that a sale/collection/purchase save does NOT invalidate. The list
   // doesn't need to be second-by-second live; refreshAdvanceSalesNow() below forces a fresh read
@@ -12991,7 +13030,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-08b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-09a</div>
 
 </body>
 </html>
