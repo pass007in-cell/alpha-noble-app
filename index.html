@@ -11074,17 +11074,28 @@
         parsedRows.push({ rowNum, raw: lines[i], date, area, product, godown, vehicle, qty, status, invoiceNumber, billAmount });
       }
 
-      // Pre-fetch existing purchases ONLY for the Area(s) this CSV uses, to duplicate-check
-      // locally instead of a query per row. 'in' supports up to 10 values — this business only
-      // has 4 Areas, so a mixed-area file is still a single cheap query, never a full scan.
+      // Pre-fetch existing purchases ONLY for the Area(s) AND roughly the date window this CSV
+      // touches, to duplicate-check locally instead of a query per row. A CSV normally repeats
+      // or corrects RECENT entries, not purchases from years back, so bounding by date avoids
+      // re-reading an area's entire purchase history (which keeps growing every month) for a
+      // small/recent upload. 'in' supports up to 10 values — this business only has 4 Areas, so
+      // a mixed-area file is still a single cheap query. Falls back to the old unbounded-date
+      // (still area-scoped) query if the needed composite index (area,date) isn't live yet.
       let existingSnap = { forEach: () => { } };
       if (areasInCsv.size > 0) {
         statusEl.textContent = "Existing purchases duplicate-check ന് വേണ്ടി load ചെയ്യുന്നു...";
         const areaList = Array.from(areasInCsv);
-        const cacheKey = 'dupcheck:purchases:' + areaList.slice().sort().join(',');
-        existingSnap = areaList.length <= 10
-          ? await getDocsCached(cacheKey, ['purchases'], query(collection(db, "purchases"), where("area", "in", areaList)), 600000)
-          : await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
+        const sortedAreaKey = areaList.slice().sort().join(',');
+        if (areaList.length <= 10) {
+          const csvDates = parsedRows.map(r => r.date).filter(Boolean).sort();
+          const dateFrom = addDaysIso(csvDates[0], -30);
+          const dateTo = addDaysIso(csvDates[csvDates.length - 1], 30);
+          const qNew = query(collection(db, "purchases"), where("area", "in", areaList), where("date", ">=", dateFrom), where("date", "<=", dateTo));
+          const qOld = query(collection(db, "purchases"), where("area", "in", areaList));
+          existingSnap = await getDocsCachedSafe('dupcheck:purchases:' + sortedAreaKey + ':' + dateFrom + ':' + dateTo, ['purchases'], qNew, qOld, 600000);
+        } else {
+          existingSnap = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
+        }
       }
       const existingComboKeys = new Set();
       const existingInvoiceKeys = new Set();
@@ -13053,7 +13064,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-09b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-10a</div>
 
 </body>
 </html>
