@@ -11629,9 +11629,13 @@
     if (!area || !target) { alert("Area-യും Godown-ഉം select ചെയ്യുക."); return; }
     statusEl.style.color = '#555'; statusEl.textContent = 'Scanning...';
     try {
+      // Unlinked sales for THIS tool must include old ones too (this screen's whole purpose is
+      // old pre-cutoff stock/sales) — getAreaAdvanceSales() deliberately excludes those
+      // (date > ADVANCE_SALE_USER_CUTOFF only), which made "Unlinked Sales" always show 0 here.
+      // getAllAdvanceSales() has no date bound, so filter it to this Area ourselves below.
       const [lotSnap, advSnap] = await Promise.all([
         getDocsCached('open:purchases', ['purchases'], qOpenLots('purchases')),
-        getAreaAdvanceSales(area)
+        getAllAdvanceSales()
       ]);
       const groups = {};
       const grp = (p) => (groups[p] = groups[p] || { product: p, move: [], inGodown: [], sales: [] });
@@ -11647,7 +11651,7 @@
       });
       if (doLink) advSnap.forEach(ds => {
         const d = ds.data();
-        if (!d.product || (d.date || '') > upTo) return;
+        if (d.area !== area || !d.product || (d.date || '') > upTo) return;
         if (prodF && d.product !== prodF) return;
         const need = (d.qty || 0) - (d.lots || []).reduce((t, l) => t + (l.qty || 0), 0);
         if (need > 0) grp(d.product).sales.push({ id: ds.id, date: d.date || '', customerName: d.customerName || '', need });
@@ -13064,7 +13068,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-10a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-11a</div>
 
 </body>
 </html>
