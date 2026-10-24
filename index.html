@@ -1137,6 +1137,7 @@
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">🏠 Home</button>
     <button id="tabAdminPurchaseBtn" onclick="switchAdminTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📝 Entry</button>
+    <button id="tabAdminStatusBtn" onclick="switchAdminTab('status')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📋 Status</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
     <button id="tabAdminReportBtn" onclick="switchAdminTab('report')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📈 Report</button>
@@ -1148,6 +1149,7 @@
       <button id="adminEntrySubTabSaleBtn" onclick="switchAdminEntrySubTab('sale')" style="width:auto; background:#1e3c72; color:#fff; padding:7px 14px; font-size:13px;">Sale</button>
       <button id="adminEntrySubTabPurchaseBtn" onclick="switchAdminEntrySubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="adminEntrySubTabCollectionBtn" onclick="switchAdminEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
+      <button id="adminEntrySubTabBillBtn" onclick="switchAdminEntrySubTab('bill')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Bill</button>
     </div>
 
     <div id="adminEntrySubSale">
@@ -1397,6 +1399,84 @@
           <tbody id="adminCollTableBody"><tr><td colspan="8">Loading...</td></tr></tbody>
         </table>
       </div>
+    </div>
+
+    <div id="adminEntrySubBill" style="display:none;">
+      <div class="add-user-form">
+        <h3>🧾 Bill Entry (Reference മാത്രം)</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:14px;">ഇവിടെ entry ചെയ്യുന്നത് <b>Sale list-ൽ save ആകില്ല</b> — വെറും reference-ന് മാത്രം. "📋 Status" tab-ൽ ഈ Bills അതത് ദിവസത്തെ Sale entry-യിൽ വന്നിട്ടുണ്ടോ എന്ന് cross-check ചെയ്യാം.</p>
+        <div class="error-msg" id="billErrorMsg"></div>
+        <div class="success-msg" id="billSuccessMsg"></div>
+
+        <label>📅 Date</label>
+        <input type="date" id="billDate" onchange="loadBillsList()" style="margin-bottom:14px;">
+
+        <label>Vehicle Number</label>
+        <input type="text" id="billVehicle" list="billVehicleList" placeholder="e.g. KL50D6463" autocomplete="off" style="margin-bottom:14px; text-transform:uppercase;">
+        <datalist id="billVehicleList"></datalist>
+
+        <label>Customer</label>
+        <div class="cust-search-box">
+          <input type="text" id="billCustSearchInput" placeholder="🔍 Customer search ചെയ്യുക..." autocomplete="off"
+            oninput="document.getElementById('billCustomer').value=''; renderBillCustOptions()" onfocus="renderBillCustOptions()">
+          <input type="hidden" id="billCustomer">
+          <div id="billCustOptionsBox" class="cust-options-box"></div>
+        </div>
+
+        <div class="form-grid">
+          <div>
+            <label>Item (Product)</label>
+            <select id="billProduct">
+              <option value="">-- Select Item --</option>
+            </select>
+          </div>
+          <div>
+            <label>Qty</label>
+            <input type="number" id="billQty" placeholder="0" onfocus="this.select()">
+          </div>
+        </div>
+
+        <button class="full-btn" id="addBillBtn" onclick="handleSaveBill()" style="margin-top:8px;">Save Bill</button>
+      </div>
+
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Bills — <span id="billListDateLabel"></span></h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Qty</th><th></th></tr></thead>
+          <tbody id="billTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabAdminStatus" style="display:none;">
+    <div class="add-user-form">
+      <h3>📋 Bill ↔ Sale Status</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:14px;">Entry → Bill-ൽ ചേർത്ത ഓരോ bill-ഉം, <b>അതേ ദിവസത്തെ</b> Sale entry-യിൽ (Vehicle + Customer + Item + Qty) വന്നിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു. ഇത് Sale list-ൽ ഒന്നും മാറ്റില്ല.</p>
+      <div class="form-grid">
+        <div>
+          <label>From</label>
+          <input type="date" id="billStatusFrom">
+        </div>
+        <div>
+          <label>To</label>
+          <input type="date" id="billStatusTo">
+        </div>
+      </div>
+      <label>Show</label>
+      <select id="billStatusFilter" onchange="renderBillStatus()" style="margin-bottom:14px;">
+        <option value="all">എല്ലാം</option>
+        <option value="problems">⚠️ / ❌ മാത്രം (ശ്രദ്ധിക്കേണ്ടവ)</option>
+      </select>
+      <button class="full-btn" onclick="generateBillStatus()">🔍 Check ചെയ്യുക</button>
+      <div id="billStatusMsg" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+    </div>
+    <div id="billStatusSummary" style="margin:10px 0;"></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Bill Qty</th><th>Sale Qty</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody id="billStatusBody"><tr><td colspan="8" style="color:#888;">Date select ചെയ്ത് "Check ചെയ്യുക" അമർത്തുക.</td></tr></tbody>
+      </table>
     </div>
   </div>
 
@@ -2953,7 +3033,7 @@
   // Bulk tools run inside withBulkAudit(): individual writes are only counted, and a single
   // summary entry is written at the end (so a 2,000-row CSV doesn't create 2,000 log entries).
   const AUDIT_SKIP = new Set(['auditLogs']);
-  const AUDIT_BEFORE = new Set(['sales', 'collections', 'purchases', 'customers', 'vehicleStock', 'users']);
+  const AUDIT_BEFORE = new Set(['sales', 'collections', 'purchases', 'customers', 'vehicleStock', 'users', 'bills']);
   let auditBulkDepth = 0;
   let auditBulkCounts = null;
 
@@ -3447,7 +3527,7 @@
     renderDriveBackupInfo();
   }
 
-  const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
+  const allAdminTabs = ['purchase', 'status', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
   window.switchAdminTab = function (tab) {
     // Abandoning the Entry tab without saving (navigating elsewhere manually) — don't leave
     // a stale "return to Customer Ledger" intent hanging around for some later, unrelated save.
@@ -3468,6 +3548,12 @@
     });
     if (tab === 'purchase') {
       switchAdminEntrySubTab('sale');
+    }
+    else if (tab === 'status') {
+      // Nothing is read until "Check ചെയ്യുക" is pressed (it reads every Sale in the range).
+      const todayStr = billTodayStr();
+      if (!document.getElementById('billStatusFrom').value) document.getElementById('billStatusFrom').value = todayStr;
+      if (!document.getElementById('billStatusTo').value) document.getElementById('billStatusTo').value = todayStr;
     }
     else if (tab === 'approvals') { loadApprovals(); loadEditedApprovals(); }
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
@@ -3516,7 +3602,7 @@
   };
 
   window.switchAdminEntrySubTab = function (sub) {
-    const subs = ['sale', 'purchase', 'collection'];
+    const subs = ['sale', 'purchase', 'collection', 'bill'];
     subs.forEach(s => {
       const panel = document.getElementById('adminEntrySub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('adminEntrySubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -3540,6 +3626,8 @@
       document.getElementById('adminCollDate').valueAsDate = new Date();
       onAdminCollAreaChange();
       loadAdminCollectionsToday();
+    } else if (sub === 'bill') {
+      initAdminBillTab();
     }
   };
 
@@ -9566,13 +9654,245 @@
   };
 
   // ---- ADMIN: BULK DELETE ----
+  // ---- ADMIN: BILL (reference only) + STATUS (Bill ↔ Sale cross-check) ----
+  // Bills live in their OWN "bills" collection — they are never written to "sales", never touch
+  // stock/lots, and never appear in any Sale report. They exist only so the Status tab can check
+  // that every bill written on paper was also entered as a Sale on the same day.
+  let billAllCustomers = [];
+  let billStatusRows = [];
+
+  // Local (IST) calendar date — valueAsDate/toISOString use UTC and would show yesterday early morning.
+  function billTodayStr() {
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+  }
+  function billEsc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function billFmtQty(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+  window.initAdminBillTab = async function () {
+    document.getElementById('billDate').value = billTodayStr();
+    document.getElementById('billErrorMsg').style.display = 'none';
+    document.getElementById('billSuccessMsg').style.display = 'none';
+    try {
+      const [cSnap, pSnap, vSnap] = await Promise.all([
+        getDocsCached('customers:all', ['customers'], collection(db, "customers"), 300000),
+        getDocsCached('bill:products', ['products'], collection(db, "products"), 300000),
+        getDocsCached('bill:vehicles', ['vehicles'], collection(db, "vehicles"), 300000)
+      ]);
+      billAllCustomers = [];
+      cSnap.forEach(ds => billAllCustomers.push({ id: ds.id, ...ds.data() }));
+      billAllCustomers.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+      const prodSel = document.getElementById('billProduct');
+      const prevProd = prodSel.value;
+      prodSel.innerHTML = '<option value="">-- Select Item --</option>';
+      const prods = [];
+      pSnap.forEach(ds => { const p = ds.data(); if (p.name) prods.push(p); });
+      prods.sort((a, b) => a.name.localeCompare(b.name));
+      prods.forEach(p => { const opt = document.createElement('option'); opt.value = p.name; opt.textContent = p.name + (p.unit ? ' (' + p.unit + ')' : ''); prodSel.appendChild(opt); });
+      if (prevProd) prodSel.value = prevProd;
+
+      const vehs = new Set();
+      vSnap.forEach(ds => { const n = normalizeVehicleNo(ds.data().number); if (n) vehs.add(n); });
+      document.getElementById('billVehicleList').innerHTML = [...vehs].sort().map(v => `<option value="${billEsc(v)}"></option>`).join('');
+    } catch (err) { console.error(err); }
+    loadBillsList();
+  };
+
+  window.renderBillCustOptions = function () {
+    const box = document.getElementById('billCustOptionsBox');
+    const term = document.getElementById('billCustSearchInput').value.trim().toLowerCase();
+    const matches = billAllCustomers.filter(c => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term)).slice(0, 80);
+    let html = matches.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectBillCustomer('${c.id}')">${billEsc(c.name)}${c.area ? ' [' + billEsc(c.area) + ']' : ''}</div>`).join('');
+    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    box.innerHTML = html;
+    box.style.display = 'block';
+  };
+
+  window.selectBillCustomer = function (id) {
+    const c = billAllCustomers.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('billCustomer').value = c.id;
+    document.getElementById('billCustSearchInput').value = c.name || '';
+    document.getElementById('billCustOptionsBox').style.display = 'none';
+  };
+
+  window.handleSaveBill = async function () {
+    const errEl = document.getElementById('billErrorMsg');
+    const okEl = document.getElementById('billSuccessMsg');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    const date = document.getElementById('billDate').value;
+    const vehicle = normalizeVehicleNo(document.getElementById('billVehicle').value);
+    const custId = document.getElementById('billCustomer').value;
+    const product = document.getElementById('billProduct').value;
+    const qty = parseFloat(document.getElementById('billQty').value) || 0;
+    const fail = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
+    if (!date) return fail("Date നൽകുക.");
+    if (!vehicle) return fail("Vehicle Number നൽകുക.");
+    if (!custId) return fail("Customer, list-ൽ നിന്ന് select ചെയ്യുക.");
+    if (!product) return fail("Item select ചെയ്യുക.");
+    if (qty <= 0) return fail("Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം.");
+    const cust = billAllCustomers.find(c => c.id === custId);
+    const btn = document.getElementById('addBillBtn');
+    btn.disabled = true;
+    try {
+      await addDoc(collection(db, "bills"), {
+        date: date, vehicle: vehicle, customerId: custId,
+        customerName: cust ? cust.name : document.getElementById('billCustSearchInput').value.trim(),
+        product: product, qty: qty,
+        enteredBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
+      });
+      okEl.textContent = `Bill saved: ${vehicle} · ${cust ? cust.name : ''} · ${product} · ${billFmtQty(qty)}`;
+      okEl.style.display = 'block';
+      // Keep Date + Vehicle (one vehicle usually has several bills in a row); clear the rest.
+      document.getElementById('billCustomer').value = '';
+      document.getElementById('billCustSearchInput').value = '';
+      document.getElementById('billQty').value = '';
+      loadBillsList();
+    } catch (err) {
+      console.error(err);
+      fail("Save ചെയ്യാൻ പറ്റിയില്ല. (Firestore rules-ൽ 'bills' collection allow ചെയ്തിട്ടുണ്ടോ എന്ന് നോക്കുക.)");
+    } finally { btn.disabled = false; }
+  };
+
+  window.loadBillsList = async function () {
+    const d = document.getElementById('billDate').value;
+    const tbody = document.getElementById('billTableBody');
+    document.getElementById('billListDateLabel').textContent = d ? fmtDate(d) : '';
+    if (!d) { tbody.innerHTML = '<tr><td colspan="6">Date select ചെയ്യുക.</td></tr>'; return; }
+    try {
+      const snap = await getDocs(query(collection(db, "bills"), where("date", "==", d)));
+      const rows = [];
+      snap.forEach(ds => rows.push({ id: ds.id, ...ds.data() }));
+      rows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">ഈ ദിവസം Bill entry ഒന്നും ഇല്ല.</td></tr>'; return; }
+      tbody.innerHTML = rows.map(r => `<tr>
+        <td>${fmtDate(r.date)}</td><td>${billEsc(r.vehicle)}</td><td>${billEsc(r.customerName)}</td>
+        <td>${billEsc(r.product)}</td><td>${billFmtQty(r.qty)}</td>
+        <td><button style="width:auto; background:#c62828; color:#fff; padding:4px 10px; font-size:12px;" onclick="deleteBillRow('${r.id}')">🗑</button></td>
+      </tr>`).join('');
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="6" style="color:#c62828;">Load ചെയ്യാൻ പറ്റിയില്ല.</td></tr>';
+    }
+  };
+
+  window.deleteBillRow = async function (id) {
+    if (!confirm("ഈ Bill delete ചെയ്യണോ? (Sale list-നെ ബാധിക്കില്ല)")) return;
+    try {
+      await deleteDoc(doc(db, "bills", id));
+      loadBillsList();
+    } catch (err) { console.error(err); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
+  // Reads Bills + Sales for the chosen dates (only when the button is pressed — it is a fresh,
+  // uncached read so a Sale entered a minute ago is already counted) and matches each Bill
+  // against the Sales of ITS OWN date: same Vehicle + same Customer + same Item.
+  window.generateBillStatus = async function () {
+    const from = document.getElementById('billStatusFrom').value;
+    const to = document.getElementById('billStatusTo').value;
+    const msgEl = document.getElementById('billStatusMsg');
+    if (!from || !to) { msgEl.style.color = '#c62828'; msgEl.textContent = "From / To date നൽകുക."; return; }
+    if (from > to) { msgEl.style.color = '#c62828'; msgEl.textContent = "From date, To date-ന് ശേഷം ആകരുത്."; return; }
+    msgEl.style.color = '#555'; msgEl.textContent = "Check ചെയ്യുന്നു...";
+    try {
+      const [bSnap, sSnap] = await Promise.all([
+        getDocs(query(collection(db, "bills"), where("date", ">=", from), where("date", "<=", to))),
+        getDocs(query(collection(db, "sales"), where("date", ">=", from), where("date", "<=", to)))
+      ]);
+      const bills = [];
+      bSnap.forEach(ds => bills.push({ id: ds.id, ...ds.data() }));
+      const salesByDate = {};
+      sSnap.forEach(ds => { const s = ds.data(); (salesByDate[s.date] = salesByDate[s.date] || []).push(s); });
+
+      // A bill can legitimately be split across several Sale entries (or several bills merged into
+      // one Sale), so Sale qty is compared with the TOTAL of all bills sharing the same
+      // date + customer + vehicle + item.
+      const groupKey = (b) => [b.date, normalizeName(b.customerName), normalizeVehicleNo(b.vehicle), b.product].join('|');
+      const groupQty = {}, groupCount = {};
+      bills.forEach(b => { const k = groupKey(b); groupQty[k] = (groupQty[k] || 0) + (Number(b.qty) || 0); groupCount[k] = (groupCount[k] || 0) + 1; });
+
+      const sameCust = (s, b) => (s.customerId && s.customerId === b.customerId) || (normalizeName(s.customerName) && normalizeName(s.customerName) === normalizeName(b.customerName));
+      const sum = (arr) => arr.reduce((t, s) => t + (Number(s.qty) || 0), 0);
+
+      billStatusRows = bills.map(b => {
+        const veh = normalizeVehicleNo(b.vehicle);
+        const daySales = salesByDate[b.date] || [];
+        const k = groupKey(b);
+        const gQty = groupQty[k];
+        const groupNote = groupCount[k] > 1 ? `ഇതേ Vehicle/Customer/Item-ന് ${groupCount[k]} bills, ആകെ ${billFmtQty(gQty)}` : '';
+        const exact = daySales.filter(s => s.product === b.product && sameCust(s, b) && normalizeVehicleNo(s.vehicle) === veh);
+        let r;
+        if (exact.length) {
+          const sQty = sum(exact);
+          const diff = sQty - gQty;
+          if (Math.abs(diff) < 0.0001) r = { cls: 'ok', label: '✅ Match', saleQty: sQty, note: groupNote };
+          else r = { cls: 'warn', label: diff > 0 ? '⚠️ Sale Qty കൂടുതൽ' : '⚠️ Sale Qty കുറവ്', saleQty: sQty, note: `Sale-ൽ ${billFmtQty(sQty)}, Bill(കൾ)-ൽ ${billFmtQty(gQty)}` + (groupNote ? ' · ' + groupNote : '') };
+        } else {
+          const loose = daySales.filter(s => s.product === b.product && sameCust(s, b));
+          if (loose.length) {
+            const vehs = [...new Set(loose.map(s => normalizeVehicleNo(s.vehicle) || 'Vehicle ഇല്ല'))];
+            r = { cls: 'warn', label: '⚠️ Vehicle വ്യത്യാസം', saleQty: sum(loose), note: `Sale-ൽ Vehicle: ${vehs.join(', ')}` + (groupNote ? ' · ' + groupNote : '') };
+          } else {
+            const custSales = daySales.filter(s => sameCust(s, b));
+            const vehSales = daySales.filter(s => s.product === b.product && normalizeVehicleNo(s.vehicle) === veh);
+            const notes = [];
+            if (custSales.length) {
+              const agg = {}; custSales.forEach(s => { agg[s.product || '-'] = (agg[s.product || '-'] || 0) + (Number(s.qty) || 0); });
+              notes.push('ഈ Customer-ന് അന്നത്തെ Sale: ' + Object.keys(agg).map(p => `${p} ${billFmtQty(agg[p])}`).join(', '));
+            } else notes.push('ആ ദിവസം ഈ Customer-ന് Sale entry തന്നെ ഇല്ല');
+            if (vehSales.length) notes.push('ഇതേ Vehicle+Item Sale വേറെ Customer-ന്: ' + [...new Set(vehSales.map(s => s.customerName || '-'))].join(', '));
+            r = { cls: 'bad', label: '❌ Sale entry ഇല്ല', saleQty: 0, note: notes.join(' · ') };
+          }
+        }
+        return { bill: b, ...r };
+      });
+      billStatusRows.sort((x, y) => (x.bill.date || '').localeCompare(y.bill.date || '') || (x.bill.createdAt || '').localeCompare(y.bill.createdAt || ''));
+
+      msgEl.style.color = '#2e7d32';
+      msgEl.textContent = `${bills.length} bills, ${sSnap.size} sales പരിശോധിച്ചു.`;
+      renderBillStatus();
+    } catch (err) {
+      console.error(err);
+      msgEl.style.color = '#c62828';
+      msgEl.textContent = "Check ചെയ്യാൻ പറ്റിയില്ല.";
+    }
+  };
+
+  window.renderBillStatus = function () {
+    const body = document.getElementById('billStatusBody');
+    const sum = document.getElementById('billStatusSummary');
+    const onlyProblems = document.getElementById('billStatusFilter').value === 'problems';
+    const ok = billStatusRows.filter(r => r.cls === 'ok').length;
+    const warn = billStatusRows.filter(r => r.cls === 'warn').length;
+    const bad = billStatusRows.filter(r => r.cls === 'bad').length;
+    sum.innerHTML = billStatusRows.length === 0 ? '' :
+      `<span style="display:inline-block; background:#eceff1; border-radius:8px; padding:5px 10px; margin:0 6px 6px 0; font-size:13px;">ആകെ Bills: <b>${billStatusRows.length}</b></span>` +
+      `<span style="display:inline-block; background:#e8f5e9; border-radius:8px; padding:5px 10px; margin:0 6px 6px 0; font-size:13px;">✅ Match: <b>${ok}</b></span>` +
+      `<span style="display:inline-block; background:#fff8e1; border-radius:8px; padding:5px 10px; margin:0 6px 6px 0; font-size:13px;">⚠️ Check: <b>${warn}</b></span>` +
+      `<span style="display:inline-block; background:#ffebee; border-radius:8px; padding:5px 10px; margin:0 6px 6px 0; font-size:13px;">❌ ഇല്ല: <b>${bad}</b></span>`;
+    const rows = onlyProblems ? billStatusRows.filter(r => r.cls !== 'ok') : billStatusRows;
+    if (rows.length === 0) {
+      body.innerHTML = `<tr><td colspan="8" style="color:#888;">${billStatusRows.length === 0 ? 'ഈ കാലയളവിൽ Bill entry ഒന്നും ഇല്ല.' : '🎉 എല്ലാ Bills-ഉം Sale-ൽ match ആയിട്ടുണ്ട്.'}</td></tr>`;
+      return;
+    }
+    const bg = { ok: '#f1f8f1', warn: '#fffbea', bad: '#fdecea' };
+    body.innerHTML = rows.map(r => `<tr style="background:${bg[r.cls]};">
+      <td>${fmtDate(r.bill.date)}</td><td>${billEsc(r.bill.vehicle)}</td><td>${billEsc(r.bill.customerName)}</td>
+      <td>${billEsc(r.bill.product)}</td><td>${billFmtQty(r.bill.qty)}</td><td>${r.saleQty ? billFmtQty(r.saleQty) : '-'}</td>
+      <td style="white-space:nowrap; font-weight:600;">${r.label}</td><td style="font-size:12px; color:#555;">${billEsc(r.note)}</td>
+    </tr>`).join('');
+  };
+
   // ---- ADMIN: DATA BACKUP ----
   window.handleDataBackup = async function () {
     const statusEl = document.getElementById('backupStatus');
     statusEl.style.color = '#555';
     statusEl.textContent = "Backup ready ആക്കുന്നു...";
 
-    const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'settings'];
+    const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'bills', 'settings'];
     const backup = {};
 
     try {
@@ -9627,7 +9947,7 @@
       const text = await file.text();
       const backup = JSON.parse(text);
 
-      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'settings'];
+      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'bills', 'settings'];
       let totalRestored = 0;
       let totalRecords = 0;
       collections.forEach(c => { if (Array.isArray(backup[c])) totalRecords += backup[c].length; });
@@ -13068,7 +13388,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-11a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-24a</div>
 
 </body>
 </html>
