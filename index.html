@@ -1137,7 +1137,6 @@
   <div style="display:flex; gap:10px; margin-bottom:20px; border-bottom:2px solid #eee; flex-wrap:wrap;">
     <button id="tabAdminReportsBtn" onclick="switchAdminTab('reports')" style="background:none; color:#1e3c72; border-bottom:3px solid #1e3c72; border-radius:0; padding:10px 6px;">🏠 Home</button>
     <button id="tabAdminPurchaseBtn" onclick="switchAdminTab('purchase')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📝 Entry</button>
-    <button id="tabAdminStatusBtn" onclick="switchAdminTab('status')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📋 Status</button>
     <button id="tabAdminApprovalsBtn" onclick="switchAdminTab('approvals')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">✅ Approvals</button>
     <button id="tabAdminOldadvanceBtn" onclick="switchAdminTab('oldadvance')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">🔗 Old Advance</button>
     <button id="tabAdminReportBtn" onclick="switchAdminTab('report')" style="background:none; color:#888; border-bottom:3px solid transparent; border-radius:0; padding:10px 6px;">📈 Report</button>
@@ -1150,6 +1149,7 @@
       <button id="adminEntrySubTabPurchaseBtn" onclick="switchAdminEntrySubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="adminEntrySubTabCollectionBtn" onclick="switchAdminEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
       <button id="adminEntrySubTabBillBtn" onclick="switchAdminEntrySubTab('bill')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Bill</button>
+      <button id="adminEntrySubTabStatusBtn" onclick="switchAdminEntrySubTab('status')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">📋 Status</button>
     </div>
 
     <div id="adminEntrySubSale">
@@ -1401,6 +1401,40 @@
       </div>
     </div>
 
+  <div id="adminEntrySubStatus" style="display:none;">
+    <div class="add-user-form">
+      <h3>📋 Bill ↔ Sale Status</h3>
+      <p style="font-size:12px; color:#777; margin-bottom:14px;">Entry → Bill-ൽ ചേർത്ത ഓരോ bill-ഉം, <b>അതേ ദിവസത്തെ</b> Sale entry-യിൽ (Vehicle + Customer + Item + Qty) വന്നിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു. ഇത് Sale list-ൽ ഒന്നും മാറ്റില്ല.</p>
+      <div class="form-grid">
+        <div>
+          <label>From</label>
+          <input type="date" id="billStatusFrom">
+        </div>
+        <div>
+          <label>To</label>
+          <input type="date" id="billStatusTo">
+        </div>
+      </div>
+      <label>Show</label>
+      <select id="billStatusFilter" onchange="renderBillStatus()" style="margin-bottom:14px;">
+        <option value="all">എല്ലാം</option>
+        <option value="problems">⚠️ / ❌ മാത്രം (ശ്രദ്ധിക്കേണ്ടവ)</option>
+      </select>
+      <button class="full-btn" onclick="generateBillStatus()">🔍 Check ചെയ്യുക</button>
+      <div id="billStatusMsg" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
+    </div>
+    <div id="billStatusSummary" style="margin:10px 0;"></div>
+    <div style="display:flex; gap:8px; margin-bottom:10px;">
+      <button style="flex:1; background:#c62828; padding:9px; font-size:13px;" onclick="billStatusPdf()">📄 PDF</button>
+      <button style="flex:1; background:#25d366; padding:9px; font-size:13px;" onclick="billStatusWhatsApp()">💬 WhatsApp</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Bill Qty</th><th>Sale Qty</th><th>Status</th><th>Note</th></tr></thead>
+        <tbody id="billStatusBody"><tr><td colspan="8" style="color:#888;">Date select ചെയ്ത് "Check ചെയ്യുക" അമർത്തുക.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
     <div id="adminEntrySubBill" style="display:none;">
       <div class="add-user-form">
         <h3>🧾 Bill Entry (Reference മാത്രം)</h3>
@@ -1446,37 +1480,6 @@
           <tbody id="billTableBody"><tr><td colspan="6">Loading...</td></tr></tbody>
         </table>
       </div>
-    </div>
-  </div>
-
-  <div id="tabAdminStatus" style="display:none;">
-    <div class="add-user-form">
-      <h3>📋 Bill ↔ Sale Status</h3>
-      <p style="font-size:12px; color:#777; margin-bottom:14px;">Entry → Bill-ൽ ചേർത്ത ഓരോ bill-ഉം, <b>അതേ ദിവസത്തെ</b> Sale entry-യിൽ (Vehicle + Customer + Item + Qty) വന്നിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു. ഇത് Sale list-ൽ ഒന്നും മാറ്റില്ല.</p>
-      <div class="form-grid">
-        <div>
-          <label>From</label>
-          <input type="date" id="billStatusFrom">
-        </div>
-        <div>
-          <label>To</label>
-          <input type="date" id="billStatusTo">
-        </div>
-      </div>
-      <label>Show</label>
-      <select id="billStatusFilter" onchange="renderBillStatus()" style="margin-bottom:14px;">
-        <option value="all">എല്ലാം</option>
-        <option value="problems">⚠️ / ❌ മാത്രം (ശ്രദ്ധിക്കേണ്ടവ)</option>
-      </select>
-      <button class="full-btn" onclick="generateBillStatus()">🔍 Check ചെയ്യുക</button>
-      <div id="billStatusMsg" style="font-size:13px; color:#555; margin-top:10px; text-align:center;"></div>
-    </div>
-    <div id="billStatusSummary" style="margin:10px 0;"></div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Bill Qty</th><th>Sale Qty</th><th>Status</th><th>Note</th></tr></thead>
-        <tbody id="billStatusBody"><tr><td colspan="8" style="color:#888;">Date select ചെയ്ത് "Check ചെയ്യുക" അമർത്തുക.</td></tr></tbody>
-      </table>
     </div>
   </div>
 
@@ -3527,7 +3530,7 @@
     renderDriveBackupInfo();
   }
 
-  const allAdminTabs = ['purchase', 'status', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
+  const allAdminTabs = ['purchase', 'approvals', 'oldadvance', 'report', 'settings', 'reports'];
   window.switchAdminTab = function (tab) {
     // Abandoning the Entry tab without saving (navigating elsewhere manually) — don't leave
     // a stale "return to Customer Ledger" intent hanging around for some later, unrelated save.
@@ -3548,12 +3551,6 @@
     });
     if (tab === 'purchase') {
       switchAdminEntrySubTab('sale');
-    }
-    else if (tab === 'status') {
-      // Nothing is read until "Check ചെയ്യുക" is pressed (it reads every Sale in the range).
-      const todayStr = billTodayStr();
-      if (!document.getElementById('billStatusFrom').value) document.getElementById('billStatusFrom').value = todayStr;
-      if (!document.getElementById('billStatusTo').value) document.getElementById('billStatusTo').value = todayStr;
     }
     else if (tab === 'approvals') { loadApprovals(); loadEditedApprovals(); }
     else if (tab === 'oldadvance') loadAdminOldAdvanceSales();
@@ -3602,7 +3599,7 @@
   };
 
   window.switchAdminEntrySubTab = function (sub) {
-    const subs = ['sale', 'purchase', 'collection', 'bill'];
+    const subs = ['sale', 'purchase', 'collection', 'bill', 'status'];
     subs.forEach(s => {
       const panel = document.getElementById('adminEntrySub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('adminEntrySubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -5255,6 +5252,7 @@
         } else {
           saleData.status = 'pending'; // still pending — normal re-submit flow
         }
+        delete saleData.enteredBy; // original entry-ചെയ്തയാളെ edit മാറ്റരുത്
         saleData.lastEditedBy = currentUserData.username || 'unknown';
         saleData.lastEditedAt = new Date().toISOString();
         saleData.updatedAt = new Date().toISOString();
@@ -6319,6 +6317,7 @@
         } else {
           saleData.status = 'pending';
         }
+        delete saleData.enteredBy; // original entry-ചെയ്തയാളെ edit മാറ്റരുത്
         saleData.updatedAt = new Date().toISOString();
         await updateDoc(doc(db, "sales", adminEditingSaleId), saleData);
       } else {
@@ -9886,6 +9885,45 @@
     </tr>`).join('');
   };
 
+
+  function billStatusVisibleRows() {
+    const onlyProblems = document.getElementById('billStatusFilter').value === 'problems';
+    return onlyProblems ? billStatusRows.filter(r => r.cls !== 'ok') : billStatusRows;
+  }
+  function billStatusRangeLabel() {
+    const f = document.getElementById('billStatusFrom').value, t = document.getElementById('billStatusTo').value;
+    return f === t ? fmtDate(f) : fmtDate(f) + ' → ' + fmtDate(t);
+  }
+  window.billStatusPdf = function () {
+    if (!billStatusRows.length) { alert('ആദ്യം "Check ചെയ്യുക" അമർത്തുക.'); return; }
+    const rows = billStatusVisibleRows();
+    const bg = { ok: '#f1f8f1', warn: '#fffbea', bad: '#fdecea' };
+    const cnt = c => billStatusRows.filter(r => r.cls === c).length;
+    const w = window.open('', '_blank');
+    if (!w) { alert('Pop-up block ആയി. Browser-ൽ pop-up allow ചെയ്യുക.'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bill Status ${billEsc(billStatusRangeLabel())}</title>
+<style>body{font-family:Arial,sans-serif;padding:16px;font-size:12px}h2{margin:0 0 4px}table{border-collapse:collapse;width:100%;margin-top:10px}th,td{border:1px solid #999;padding:5px 6px;text-align:left}th{background:#1e3c72;color:#fff}</style></head><body>
+<h2>Alpha &amp; Noble — Bill ↔ Sale Status</h2>
+<div>${billEsc(billStatusRangeLabel())} &nbsp;|&nbsp; ആകെ Bills: <b>${billStatusRows.length}</b> &nbsp; ✅ ${cnt('ok')} &nbsp; ⚠️ ${cnt('warn')} &nbsp; ❌ ${cnt('bad')}</div>
+<table><thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Bill Qty</th><th>Sale Qty</th><th>Status</th><th>Note</th></tr></thead><tbody>` +
+      rows.map(r => `<tr style="background:${bg[r.cls]}"><td>${fmtDate(r.bill.date)}</td><td>${billEsc(r.bill.vehicle)}</td><td>${billEsc(r.bill.customerName)}</td><td>${billEsc(r.bill.product)}</td><td>${billFmtQty(r.bill.qty)}</td><td>${r.saleQty ? billFmtQty(r.saleQty) : '-'}</td><td><b>${r.label}</b></td><td>${billEsc(r.note)}</td></tr>`).join('') +
+      `</tbody></table></body></html>`);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
+  };
+  window.billStatusWhatsApp = function () {
+    if (!billStatusRows.length) { alert('ആദ്യം "Check ചെയ്യുക" അമർത്തുക.'); return; }
+    const rows = billStatusVisibleRows();
+    const cnt = c => billStatusRows.filter(r => r.cls === c).length;
+    const lines = [`*Bill ↔ Sale Status*`, billStatusRangeLabel(),
+      `ആകെ ${billStatusRows.length} | ✅ ${cnt('ok')} | ⚠️ ${cnt('warn')} | ❌ ${cnt('bad')}`, ''];
+    rows.forEach((r, i) => {
+      lines.push(`${i + 1}. ${fmtDate(r.bill.date)} ${r.bill.vehicle} | ${r.bill.customerName} | ${r.bill.product} ${billFmtQty(r.bill.qty)}`);
+      lines.push(`   ${r.label}` + (r.saleQty ? ` (Sale ${billFmtQty(r.saleQty)})` : '') + (r.note ? ` — ${r.note}` : ''));
+    });
+    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+  };
+
   // ---- ADMIN: DATA BACKUP ----
   window.handleDataBackup = async function () {
     const statusEl = document.getElementById('backupStatus');
@@ -13388,7 +13426,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-24a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-24b</div>
 
 </body>
 </html>
