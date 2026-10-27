@@ -9,6 +9,12 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
+/* USER section: only Sale + Collection (+ reports). Stock / Lot / Linking / Advance hidden.
+   Kept in the DOM (not deleted) so existing JS still resolves; remove this block to bring them back. */
+#tabLinkingBtn, #homeUnlinkedSummary, #homePendingLotsCard, #userStockDetails,
+#entrySubTabCustomersBtn, #entrySubTabVehicleBtn, #saleAdvanceLotWrap,
+#repSubTabPurchaseBtn, #repSubTabStockbookBtn, #repSubTabTripsheetBtn { display: none !important; }
+
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
     font-family: 'Segoe UI', Arial, sans-serif;
@@ -486,7 +492,7 @@
         </div>
       </div>
 
-      <div style="margin: 10px 0 16px;">
+      <div id="saleAdvanceLotWrap" style="margin: 10px 0 16px;">
         <label style="display:flex; align-items:center; gap:8px; font-weight:400; font-size:14px; margin-bottom:12px;">
           <input type="checkbox" id="saleIsAdvance" style="width:auto; margin:0;" onchange="toggleAdvanceSale()">
           Advance Sale <span style="color:#999; font-weight:400;">(Purchase ഇതുവരെ ചെയ്തിട്ടില്ല)</span>
@@ -633,7 +639,7 @@
       <span style="color:#1565c0; font-size:13px;">Linking tab-ൽ →</span>
     </div>
 
-    <div style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchTab('linking')">
+    <div id="homePendingLotsCard" style="background:#fff3e0; border-radius:10px; padding:14px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer;" onclick="switchTab('linking')">
       <strong style="color:#e65100;">📦 Pending Lots</strong>
       <span style="color:#1565c0; font-size:13px;">Linking tab-ൽ →</span>
     </div>
@@ -5163,7 +5169,9 @@
       return;
     }
 
-    const isAdvance = document.getElementById('saleIsAdvance').checked;
+    // Users no longer choose Advance / Purchase Lots. Every user Sale is saved without a lot
+    // (isAdvance=true internally) so Admin can still link it to stock later from the Admin panel.
+    const isAdvance = true;
     let lotAllocations = [];
 
     if (!isAdvance) {
@@ -5282,7 +5290,7 @@
         });
       }
 
-      okEl.textContent = (editingSaleId ? 'Sale updated: ' : 'Sale saved: ') + `${cust ? cust.name : ''} — ₹${amount}` + (isAdvance ? ' (Advance Sale)' : '');
+      okEl.textContent = (editingSaleId ? 'Sale updated: ' : 'Sale saved: ') + `${cust ? cust.name : ''} — ₹${amount}` + '';
       okEl.style.display = 'block';
 
       editingSaleId = null;
@@ -13532,7 +13540,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-27b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-27c</div>
 
 </body>
 </html>
