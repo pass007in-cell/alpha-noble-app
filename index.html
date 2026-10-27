@@ -1474,6 +1474,10 @@
       </div>
 
       <h3 style="color:#1e3c72; margin-bottom:8px;">Bills — <span id="billListDateLabel"></span></h3>
+      <div style="display:flex; gap:8px; margin-bottom:10px;">
+        <button style="flex:1; background:#c62828; padding:9px; font-size:13px;" onclick="billListPdf()">📄 PDF</button>
+        <button style="flex:1; background:#25d366; padding:9px; font-size:13px;" onclick="billListWhatsApp()">💬 WhatsApp</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Qty</th><th></th></tr></thead>
@@ -9756,16 +9760,19 @@
     } finally { btn.disabled = false; }
   };
 
+  let billListRows = [];
   window.loadBillsList = async function () {
     const d = document.getElementById('billDate').value;
     const tbody = document.getElementById('billTableBody');
     document.getElementById('billListDateLabel').textContent = d ? fmtDate(d) : '';
+    billListRows = [];
     if (!d) { tbody.innerHTML = '<tr><td colspan="6">Date select ചെയ്യുക.</td></tr>'; return; }
     try {
       const snap = await getDocs(query(collection(db, "bills"), where("date", "==", d)));
       const rows = [];
       snap.forEach(ds => rows.push({ id: ds.id, ...ds.data() }));
       rows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
+      billListRows = rows;
       if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">ഈ ദിവസം Bill entry ഒന്നും ഇല്ല.</td></tr>'; return; }
       tbody.innerHTML = rows.map(r => `<tr>
         <td>${fmtDate(r.date)}</td><td>${billEsc(r.vehicle)}</td><td>${billEsc(r.customerName)}</td>
@@ -9776,6 +9783,31 @@
       console.error(err);
       tbody.innerHTML = '<tr><td colspan="6" style="color:#c62828;">Load ചെയ്യാൻ പറ്റിയില്ല.</td></tr>';
     }
+  };
+
+
+  window.billListPdf = function () {
+    if (!billListRows.length) { alert('ഈ ദിവസം Bill entry ഒന്നും ഇല്ല.'); return; }
+    const d = document.getElementById('billDate').value;
+    const total = billListRows.reduce((t, r) => t + (Number(r.qty) || 0), 0);
+    const w = window.open('', '_blank');
+    if (!w) { alert('Pop-up block ആയി. Browser-ൽ pop-up allow ചെയ്യുക.'); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bills ${billEsc(fmtDate(d))}</title>
+<style>body{font-family:Arial,sans-serif;padding:16px;font-size:13px}h2{margin:0 0 4px}table{border-collapse:collapse;width:100%;margin-top:10px}th,td{border:1px solid #999;padding:6px 8px;text-align:left}th{background:#1e3c72;color:#fff}</style></head><body>
+<h2>Alpha &amp; Noble — Bills</h2><div>${billEsc(fmtDate(d))} &nbsp;|&nbsp; ആകെ Bills: <b>${billListRows.length}</b> &nbsp;|&nbsp; ആകെ Qty: <b>${billFmtQty(total)}</b></div>
+<table><thead><tr><th>#</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Qty</th></tr></thead><tbody>` +
+      billListRows.map((r, i) => `<tr><td>${i + 1}</td><td>${billEsc(r.vehicle)}</td><td>${billEsc(r.customerName)}</td><td>${billEsc(r.product)}</td><td>${billFmtQty(r.qty)}</td></tr>`).join('') +
+      `</tbody></table></body></html>`);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 400);
+  };
+  window.billListWhatsApp = function () {
+    if (!billListRows.length) { alert('ഈ ദിവസം Bill entry ഒന്നും ഇല്ല.'); return; }
+    const d = document.getElementById('billDate').value;
+    const total = billListRows.reduce((t, r) => t + (Number(r.qty) || 0), 0);
+    const lines = [`*Bills — ${fmtDate(d)}*`, `ആകെ ${billListRows.length} bills | Qty ${billFmtQty(total)}`, ''];
+    billListRows.forEach((r, i) => lines.push(`${i + 1}. ${r.vehicle} | ${r.customerName} | ${r.product} ${billFmtQty(r.qty)}`));
+    window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
   };
 
   window.deleteBillRow = async function (id) {
@@ -13426,7 +13458,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-24b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-27a</div>
 
 </body>
 </html>
