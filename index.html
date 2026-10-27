@@ -1405,6 +1405,8 @@
     <div class="add-user-form">
       <h3>📋 Bill ↔ Sale Status</h3>
       <p style="font-size:12px; color:#777; margin-bottom:14px;">Entry → Bill-ൽ ചേർത്ത ഓരോ bill-ഉം, <b>അതേ ദിവസത്തെ</b> Sale entry-യിൽ (Vehicle + Customer + Item + Qty) വന്നിട്ടുണ്ടോ എന്ന് പരിശോധിക്കുന്നു. ഇത് Sale list-ൽ ഒന്നും മാറ്റില്ല.</p>
+      <label>📍 Area</label>
+      <select id="billStatusArea" style="margin-bottom:14px;"><option value="MKD">MKD</option><option value="PKD">PKD</option><option value="MLT">MLT</option><option value="NLB">NLB</option></select>
       <div class="form-grid">
         <div>
           <label>From</label>
@@ -1442,6 +1444,9 @@
         <div class="error-msg" id="billErrorMsg"></div>
         <div class="success-msg" id="billSuccessMsg"></div>
 
+        <label>📍 Area</label>
+        <select id="billArea" onchange="onBillAreaChange()" style="margin-bottom:14px;"><option value="MKD">MKD</option><option value="PKD">PKD</option><option value="MLT">MLT</option><option value="NLB">NLB</option></select>
+
         <label>📅 Date</label>
         <input type="date" id="billDate" onchange="loadBillsList()" style="margin-bottom:14px;">
 
@@ -1471,6 +1476,7 @@
         </div>
 
         <button class="full-btn" id="addBillBtn" onclick="handleSaveBill()" style="margin-top:8px;">Save Bill</button>
+        <button id="cancelBillEditBtn" onclick="cancelBillEdit()" style="display:none; margin-top:8px; background:#777;">✖ Edit റദ്ദാക്കുക</button>
       </div>
 
       <h3 style="color:#1e3c72; margin-bottom:8px;">Bills — <span id="billListDateLabel"></span></h3>
@@ -9674,7 +9680,19 @@
   }
   function billFmtQty(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
+  const BILL_UNKNOWN = '__UNKNOWN__', BILL_UNKNOWN_NAME = 'UNKNOWN CUSTOMER';
+  let billEditingId = null;
+  const billAreaOf = (b) => b.area || 'MKD'; // old bills (before Area existed) were all MKD
+
+  window.onBillAreaChange = function () {
+    cancelBillEdit();
+    document.getElementById('billCustomer').value = '';
+    document.getElementById('billCustSearchInput').value = '';
+    loadBillsList();
+  };
+
   window.initAdminBillTab = async function () {
+    billEditingId = null;
     document.getElementById('billDate').value = billTodayStr();
     document.getElementById('billErrorMsg').style.display = 'none';
     document.getElementById('billSuccessMsg').style.display = 'none';
@@ -9707,14 +9725,22 @@
   window.renderBillCustOptions = function () {
     const box = document.getElementById('billCustOptionsBox');
     const term = document.getElementById('billCustSearchInput').value.trim().toLowerCase();
-    const matches = billAllCustomers.filter(c => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term)).slice(0, 80);
-    let html = matches.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectBillCustomer('${c.id}')">${billEsc(c.name)}${c.area ? ' [' + billEsc(c.area) + ']' : ''}</div>`).join('');
-    if (matches.length === 0) html = '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
+    const area = document.getElementById('billArea').value;
+    const matches = billAllCustomers.filter(c => (!c.area || c.area === area)).filter(c => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term)).slice(0, 80);
+    let html = `<div class="cust-opt" style="background:#fff3e0; font-weight:600;" onmousedown="selectBillCustomer('${BILL_UNKNOWN}')">❔ ${BILL_UNKNOWN_NAME} (താത്കാലികം)</div>`;
+    html += matches.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectBillCustomer('${c.id}')">${billEsc(c.name)}${c.area ? ' [' + billEsc(c.area) + ']' : ''}</div>`).join('');
+    if (matches.length === 0) html += '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
     box.innerHTML = html;
     box.style.display = 'block';
   };
 
   window.selectBillCustomer = function (id) {
+    if (id === BILL_UNKNOWN) {
+      document.getElementById('billCustomer').value = BILL_UNKNOWN;
+      document.getElementById('billCustSearchInput').value = BILL_UNKNOWN_NAME;
+      document.getElementById('billCustOptionsBox').style.display = 'none';
+      return;
+    }
     const c = billAllCustomers.find(x => x.id === id);
     if (!c) return;
     document.getElementById('billCustomer').value = c.id;
@@ -9734,20 +9760,29 @@
     const fail = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
     if (!date) return fail("Date നൽകുക.");
     if (!vehicle) return fail("Vehicle Number നൽകുക.");
-    if (!custId) return fail("Customer, list-ൽ നിന്ന് select ചെയ്യുക.");
+    if (!custId) return fail("Customer select ചെയ്യുക (അറിയില്ലെങ്കിൽ UNKNOWN CUSTOMER).");
     if (!product) return fail("Item select ചെയ്യുക.");
     if (qty <= 0) return fail("Qty 0-ൽ കൂടുതൽ ആയിരിക്കണം.");
-    const cust = billAllCustomers.find(c => c.id === custId);
+    const isUnknown = custId === BILL_UNKNOWN;
+    const cust = isUnknown ? null : billAllCustomers.find(c => c.id === custId);
+    const custName = isUnknown ? BILL_UNKNOWN_NAME : (cust ? cust.name : document.getElementById('billCustSearchInput').value.trim());
+    const area = document.getElementById('billArea').value;
     const btn = document.getElementById('addBillBtn');
     btn.disabled = true;
     try {
-      await addDoc(collection(db, "bills"), {
-        date: date, vehicle: vehicle, customerId: custId,
-        customerName: cust ? cust.name : document.getElementById('billCustSearchInput').value.trim(),
-        product: product, qty: qty,
-        enteredBy: currentUserData.username || 'admin', createdAt: new Date().toISOString()
-      });
-      okEl.textContent = `Bill saved: ${vehicle} · ${cust ? cust.name : ''} · ${product} · ${billFmtQty(qty)}`;
+      const data = { date: date, area: area, vehicle: vehicle, customerId: isUnknown ? '' : custId, customerName: custName, unknown: isUnknown, product: product, qty: qty };
+      if (billEditingId) {
+        data.lastEditedBy = currentUserData.username || 'admin';
+        data.lastEditedAt = new Date().toISOString();
+        await updateDoc(doc(db, "bills", billEditingId), data);
+        okEl.textContent = `Bill updated: ${vehicle} · ${custName} · ${product} · ${billFmtQty(qty)}`;
+        cancelBillEdit();
+      } else {
+        data.enteredBy = currentUserData.username || 'admin';
+        data.createdAt = new Date().toISOString();
+        await addDoc(collection(db, "bills"), data);
+        okEl.textContent = `Bill saved: ${vehicle} · ${custName} · ${product} · ${billFmtQty(qty)}`;
+      }
       okEl.style.display = 'block';
       // Keep Date + Vehicle (one vehicle usually has several bills in a row); clear the rest.
       document.getElementById('billCustomer').value = '';
@@ -9770,14 +9805,15 @@
     try {
       const snap = await getDocs(query(collection(db, "bills"), where("date", "==", d)));
       const rows = [];
-      snap.forEach(ds => rows.push({ id: ds.id, ...ds.data() }));
+      const area = document.getElementById('billArea').value;
+      snap.forEach(ds => { const r = { id: ds.id, ...ds.data() }; if (billAreaOf(r) === area) rows.push(r); });
       rows.sort((a, b) => (a.createdAt || '').localeCompare(b.createdAt || ''));
       billListRows = rows;
       if (rows.length === 0) { tbody.innerHTML = '<tr><td colspan="6" style="color:#888;">ഈ ദിവസം Bill entry ഒന്നും ഇല്ല.</td></tr>'; return; }
       tbody.innerHTML = rows.map(r => `<tr>
-        <td>${fmtDate(r.date)}</td><td>${billEsc(r.vehicle)}</td><td>${billEsc(r.customerName)}</td>
+        <td>${fmtDate(r.date)}</td><td>${billEsc(r.vehicle)}</td><td${r.unknown ? ' style="color:#e65100; font-weight:600;"' : ''}>${billEsc(r.customerName)}</td>
         <td>${billEsc(r.product)}</td><td>${billFmtQty(r.qty)}</td>
-        <td><button style="width:auto; background:#c62828; color:#fff; padding:4px 10px; font-size:12px;" onclick="deleteBillRow('${r.id}')">🗑</button></td>
+        <td style="white-space:nowrap;"><button style="width:auto; background:#1e3c72; color:#fff; padding:4px 10px; font-size:12px; margin-right:4px;" onclick="editBillRow('${r.id}')">✏️</button><button style="width:auto; background:#c62828; color:#fff; padding:4px 10px; font-size:12px;" onclick="deleteBillRow('${r.id}')">🗑</button></td>
       </tr>`).join('');
     } catch (err) {
       console.error(err);
@@ -9794,7 +9830,7 @@
     if (!w) { alert('Pop-up block ആയി. Browser-ൽ pop-up allow ചെയ്യുക.'); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bills ${billEsc(fmtDate(d))}</title>
 <style>body{font-family:Arial,sans-serif;padding:16px;font-size:13px}h2{margin:0 0 4px}table{border-collapse:collapse;width:100%;margin-top:10px}th,td{border:1px solid #999;padding:6px 8px;text-align:left}th{background:#1e3c72;color:#fff}</style></head><body>
-<h2>Alpha &amp; Noble — Bills</h2><div>${billEsc(fmtDate(d))} &nbsp;|&nbsp; ആകെ Bills: <b>${billListRows.length}</b> &nbsp;|&nbsp; ആകെ Qty: <b>${billFmtQty(total)}</b></div>
+<h2>Alpha &amp; Noble — Bills (${billEsc(document.getElementById('billArea').value)})</h2><div>${billEsc(fmtDate(d))} &nbsp;|&nbsp; ആകെ Bills: <b>${billListRows.length}</b> &nbsp;|&nbsp; ആകെ Qty: <b>${billFmtQty(total)}</b></div>
 <table><thead><tr><th>#</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Qty</th></tr></thead><tbody>` +
       billListRows.map((r, i) => `<tr><td>${i + 1}</td><td>${billEsc(r.vehicle)}</td><td>${billEsc(r.customerName)}</td><td>${billEsc(r.product)}</td><td>${billFmtQty(r.qty)}</td></tr>`).join('') +
       `</tbody></table></body></html>`);
@@ -9805,9 +9841,34 @@
     if (!billListRows.length) { alert('ഈ ദിവസം Bill entry ഒന്നും ഇല്ല.'); return; }
     const d = document.getElementById('billDate').value;
     const total = billListRows.reduce((t, r) => t + (Number(r.qty) || 0), 0);
-    const lines = [`*Bills — ${fmtDate(d)}*`, `ആകെ ${billListRows.length} bills | Qty ${billFmtQty(total)}`, ''];
+    const lines = [`*Bills — ${document.getElementById('billArea').value} — ${fmtDate(d)}*`, `ആകെ ${billListRows.length} bills | Qty ${billFmtQty(total)}`, ''];
     billListRows.forEach((r, i) => lines.push(`${i + 1}. ${r.vehicle} | ${r.customerName} | ${r.product} ${billFmtQty(r.qty)}`));
     window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
+  };
+
+  window.editBillRow = function (id) {
+    const r = billListRows.find(x => x.id === id);
+    if (!r) return;
+    billEditingId = id;
+    document.getElementById('billDate').value = r.date;
+    document.getElementById('billVehicle').value = r.vehicle || '';
+    document.getElementById('billCustomer').value = r.unknown ? BILL_UNKNOWN : (r.customerId || '');
+    document.getElementById('billCustSearchInput').value = r.customerName || '';
+    document.getElementById('billProduct').value = r.product || '';
+    document.getElementById('billQty').value = r.qty;
+    document.getElementById('addBillBtn').textContent = '💾 Update Bill';
+    document.getElementById('cancelBillEditBtn').style.display = 'block';
+    document.getElementById('billErrorMsg').style.display = 'none';
+    document.getElementById('billSuccessMsg').style.display = 'none';
+    document.getElementById('billVehicle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+  window.cancelBillEdit = function () {
+    billEditingId = null;
+    document.getElementById('addBillBtn').textContent = 'Save Bill';
+    document.getElementById('cancelBillEditBtn').style.display = 'none';
+    document.getElementById('billCustomer').value = '';
+    document.getElementById('billCustSearchInput').value = '';
+    document.getElementById('billQty').value = '';
   };
 
   window.deleteBillRow = async function (id) {
@@ -9834,9 +9895,11 @@
         getDocs(query(collection(db, "sales"), where("date", ">=", from), where("date", "<=", to)))
       ]);
       const bills = [];
-      bSnap.forEach(ds => bills.push({ id: ds.id, ...ds.data() }));
+      const area = document.getElementById('billStatusArea').value;
+      bSnap.forEach(ds => { const b = { id: ds.id, ...ds.data() }; if (billAreaOf(b) === area) bills.push(b); });
       const salesByDate = {};
-      sSnap.forEach(ds => { const s = ds.data(); (salesByDate[s.date] = salesByDate[s.date] || []).push(s); });
+      let areaSaleCount = 0;
+      sSnap.forEach(ds => { const s = ds.data(); if (s.area !== area) return; areaSaleCount++; (salesByDate[s.date] = salesByDate[s.date] || []).push(s); });
 
       // A bill can legitimately be split across several Sale entries (or several bills merged into
       // one Sale), so Sale qty is compared with the TOTAL of all bills sharing the same
@@ -9854,8 +9917,19 @@
         const k = groupKey(b);
         const gQty = groupQty[k];
         const groupNote = groupCount[k] > 1 ? `ഇതേ Vehicle/Customer/Item-ന് ${groupCount[k]} bills, ആകെ ${billFmtQty(gQty)}` : '';
-        const exact = daySales.filter(s => s.product === b.product && sameCust(s, b) && normalizeVehicleNo(s.vehicle) === veh);
         let r;
+        if (b.unknown) {
+          // Customer not known yet: can only be matched on Vehicle + Item (any customer).
+          const vm = daySales.filter(s => s.product === b.product && normalizeVehicleNo(s.vehicle) === veh);
+          if (vm.length) {
+            const sQty = sum(vm), names = [...new Set(vm.map(s => s.customerName || '-'))].join(', ');
+            r = { cls: 'warn', label: '❔ Customer അറിയില്ല', saleQty: sQty, note: `Sale-ൽ: ${names} (Qty ${billFmtQty(sQty)}, Bill ${billFmtQty(gQty)})` + (groupNote ? ' · ' + groupNote : '') };
+          } else {
+            r = { cls: 'bad', label: '❌ Sale entry ഇല്ല', saleQty: 0, note: 'Customer അറിയില്ല; ഈ Vehicle+Item-ന് അന്ന് Sale ഇല്ല' };
+          }
+          return { bill: b, ...r };
+        }
+        const exact = daySales.filter(s => s.product === b.product && sameCust(s, b) && normalizeVehicleNo(s.vehicle) === veh);
         if (exact.length) {
           const sQty = sum(exact);
           const diff = sQty - gQty;
@@ -9883,7 +9957,7 @@
       billStatusRows.sort((x, y) => (x.bill.date || '').localeCompare(y.bill.date || '') || (x.bill.createdAt || '').localeCompare(y.bill.createdAt || ''));
 
       msgEl.style.color = '#2e7d32';
-      msgEl.textContent = `${bills.length} bills, ${sSnap.size} sales പരിശോധിച്ചു.`;
+      msgEl.textContent = `${area}: ${bills.length} bills, ${areaSaleCount} sales പരിശോധിച്ചു.`;
       renderBillStatus();
     } catch (err) {
       console.error(err);
@@ -9935,7 +10009,7 @@
     if (!w) { alert('Pop-up block ആയി. Browser-ൽ pop-up allow ചെയ്യുക.'); return; }
     w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bill Status ${billEsc(billStatusRangeLabel())}</title>
 <style>body{font-family:Arial,sans-serif;padding:16px;font-size:12px}h2{margin:0 0 4px}table{border-collapse:collapse;width:100%;margin-top:10px}th,td{border:1px solid #999;padding:5px 6px;text-align:left}th{background:#1e3c72;color:#fff}</style></head><body>
-<h2>Alpha &amp; Noble — Bill ↔ Sale Status</h2>
+<h2>Alpha &amp; Noble — Bill ↔ Sale Status (${billEsc(document.getElementById('billStatusArea').value)})</h2>
 <div>${billEsc(billStatusRangeLabel())} &nbsp;|&nbsp; ആകെ Bills: <b>${billStatusRows.length}</b> &nbsp; ✅ ${cnt('ok')} &nbsp; ⚠️ ${cnt('warn')} &nbsp; ❌ ${cnt('bad')}</div>
 <table><thead><tr><th>Date</th><th>Vehicle</th><th>Customer</th><th>Item</th><th>Bill Qty</th><th>Sale Qty</th><th>Status</th><th>Note</th></tr></thead><tbody>` +
       rows.map(r => `<tr style="background:${bg[r.cls]}"><td>${fmtDate(r.bill.date)}</td><td>${billEsc(r.bill.vehicle)}</td><td>${billEsc(r.bill.customerName)}</td><td>${billEsc(r.bill.product)}</td><td>${billFmtQty(r.bill.qty)}</td><td>${r.saleQty ? billFmtQty(r.saleQty) : '-'}</td><td><b>${r.label}</b></td><td>${billEsc(r.note)}</td></tr>`).join('') +
@@ -9947,7 +10021,7 @@
     if (!billStatusRows.length) { alert('ആദ്യം "Check ചെയ്യുക" അമർത്തുക.'); return; }
     const rows = billStatusVisibleRows();
     const cnt = c => billStatusRows.filter(r => r.cls === c).length;
-    const lines = [`*Bill ↔ Sale Status*`, billStatusRangeLabel(),
+    const lines = [`*Bill ↔ Sale Status — ${document.getElementById('billStatusArea').value}*`, billStatusRangeLabel(),
       `ആകെ ${billStatusRows.length} | ✅ ${cnt('ok')} | ⚠️ ${cnt('warn')} | ❌ ${cnt('bad')}`, ''];
     rows.forEach((r, i) => {
       lines.push(`${i + 1}. ${fmtDate(r.bill.date)} ${r.bill.vehicle} | ${r.bill.customerName} | ${r.bill.product} ${billFmtQty(r.bill.qty)}`);
@@ -13458,7 +13532,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-27a</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-27b</div>
 
 </body>
 </html>
