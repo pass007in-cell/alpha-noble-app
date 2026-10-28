@@ -9,11 +9,12 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-/* USER section: only Sale + Collection (+ reports). Stock / Lot / Linking / Advance hidden.
-   Kept in the DOM (not deleted) so existing JS still resolves; remove this block to bring them back. */
-#tabLinkingBtn, #homeUnlinkedSummary, #homePendingLotsCard, #userStockDetails,
-#entrySubTabCustomersBtn, #entrySubTabVehicleBtn, #saleAdvanceLotWrap,
-#repSubTabPurchaseBtn, #repSubTabStockbookBtn, #repSubTabTripsheetBtn { display: none !important; }
+/* Stock is now Opening + Purchase - Sale. Lot / Linking / Advance-Sale screens are not used any more:
+   hidden (kept in the DOM so old JS still resolves). Remove this block to bring them back. */
+#tabLinkingBtn, #homeUnlinkedSummary, #homePendingLotsCard, #saleAdvanceLotWrap,
+#repSubTabTripsheetBtn, #repSubTabAgeingBtn, #repLotDetails,
+#tabAdminOldadvanceBtn, #adminHomeAlertBox, #adminHomeLotsDetails, #adminRepLotDetails,
+#adminSaleAdvanceLabel, #adminSaleLotSection, #adminRepSubTabTripsheetBtn { display: none !important; }
 
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
@@ -648,8 +649,8 @@
       <summary style="color:#1565c0; font-size:15px; font-weight:700; cursor:pointer;">📊 Stock Details</summary>
       <div class="table-wrap" style="margin-top:10px;">
         <table>
-          <thead><tr><th>Product</th><th>Total Purchase</th><th>Total Sale</th><th>Remaining</th></tr></thead>
-          <tbody id="repTopStockBody"><tr><td colspan="4">Loading...</td></tr></tbody>
+          <thead><tr><th>Product</th><th>Opening</th><th>Purchase</th><th>Sale</th><th>Closing</th></tr></thead>
+          <tbody id="repTopStockBody"><tr><td colspan="5">Loading...</td></tr></tbody>
         </table>
       </div>
     </details>
@@ -772,12 +773,12 @@
     </p>
     <div class="table-wrap" style="margin-bottom:24px;">
       <table>
-        <thead><tr><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
-        <tbody id="repStockBookBody"><tr><td colspan="4">—</td></tr></tbody>
+        <thead><tr><th>Product</th><th>Opening Stock</th><th>Purchase Qty (range)</th><th>Sale Qty (range)</th><th>Closing Stock</th></tr></thead>
+        <tbody id="repStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
       </table>
     </div>
 
-    <details style="margin-bottom:20px;" ontoggle="if (this.open) loadRepLotBalance()">
+    <details style="margin-bottom:20px;" id="repLotDetails" ontoggle="if (this.open) loadRepLotBalance()">
       <summary style="color:#1e3c72; font-weight:700; cursor:pointer; font-size:16px;">📦 Lot Balance (Godown Stock) — തുറക്കുമ്പോൾ മാത്രം load ആകും</summary>
       <p style="font-size:12px; color:#777; margin:10px 0;">
         Godown-വാരിയായി (Vehicle number സഹിതം), ഇപ്പോൾ remaining ആയ purchase lots — date range-ന് ബാധകമല്ല, ഇപ്പോഴത്തെ stock ആണ്.
@@ -1155,6 +1156,7 @@
       <button id="adminEntrySubTabPurchaseBtn" onclick="switchAdminEntrySubTab('purchase')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Purchase</button>
       <button id="adminEntrySubTabCollectionBtn" onclick="switchAdminEntrySubTab('collection')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Collection</button>
       <button id="adminEntrySubTabBillBtn" onclick="switchAdminEntrySubTab('bill')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">Bill</button>
+      <button id="adminEntrySubTabOpeningBtn" onclick="switchAdminEntrySubTab('opening')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">📦 Opening Stock</button>
       <button id="adminEntrySubTabStatusBtn" onclick="switchAdminEntrySubTab('status')" style="width:auto; background:#eee; color:#333; padding:7px 14px; font-size:13px;">📋 Status</button>
     </div>
 
@@ -1245,7 +1247,7 @@
         <label>Net Amount (₹)</label>
         <input type="number" id="adminSaleAmount" placeholder="0" value="0" style="margin-bottom:14px;">
 
-        <label style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:400;">
+        <label id="adminSaleAdvanceLabel" style="display:flex; align-items:center; gap:8px; margin-bottom:12px; font-weight:400;">
           <input type="checkbox" id="adminSaleIsAdvance" style="width:auto; margin:0;" onchange="toggleAdminAdvanceSale()">
           Advance Sale (Purchase ഇതുവരെ ചെയ്തിട്ടില്ല)
         </label>
@@ -1443,6 +1445,37 @@
       </table>
     </div>
   </div>
+    <div id="adminEntrySubOpening" style="display:none;">
+      <div class="add-user-form">
+        <h3>📦 Opening Stock</h3>
+        <p style="font-size:12px; color:#777; margin-bottom:14px;">Stock കണക്ക്: <b>Opening + Purchase − Sale = Closing</b>. ഇവിടെ ഓരോ Area + Item-ന്റെ Opening Stock, ഏത് തീയതി മുതൽ (ആ ദിവസത്തിന്റെ തുടക്കത്തിൽ) എന്നിവ നൽകുക. ആ തീയതിക്കും അതിനു ശേഷവും ഉള്ള Purchase/Sale മാത്രമേ Opening-നോട് ചേർത്ത് കണക്കാക്കൂ. ഒരു Area+Item-ന് ഒരു Opening മാത്രം — വീണ്ടും save ചെയ്താൽ പുതുക്കപ്പെടും.</p>
+        <div class="error-msg" id="openStockErrorMsg"></div>
+        <div class="success-msg" id="openStockSuccessMsg"></div>
+        <label>📍 Area</label>
+        <select id="openStockArea" style="margin-bottom:14px;"><option value="MKD">MKD</option><option value="PKD">PKD</option><option value="MLT">MLT</option><option value="NLB">NLB</option></select>
+        <label>Item (Product)</label>
+        <select id="openStockProduct" style="margin-bottom:14px;"><option value="">-- Select Item --</option></select>
+        <div class="form-grid">
+          <div>
+            <label>Opening Qty</label>
+            <input type="number" id="openStockQty" placeholder="0" onfocus="this.select()">
+          </div>
+          <div>
+            <label>📅 Stock as on (Date)</label>
+            <input type="date" id="openStockDate">
+          </div>
+        </div>
+        <button class="full-btn" id="openStockSaveBtn" onclick="handleSaveOpeningStock()" style="margin-top:8px;">Save Opening Stock</button>
+      </div>
+      <h3 style="color:#1e3c72; margin-bottom:8px;">Opening Stock List</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Area</th><th>Item</th><th>Qty</th><th>As on</th><th></th></tr></thead>
+          <tbody id="openStockTableBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div id="adminEntrySubBill" style="display:none;">
       <div class="add-user-form">
         <h3>🧾 Bill Entry (Reference മാത്രം)</h3>
@@ -2542,8 +2575,8 @@
       <summary style="color:#1565c0; font-size:15px; font-weight:700; cursor:pointer;">📊 Stock Details (All Areas)</summary>
       <div class="table-wrap" style="margin-top:10px;">
         <table>
-          <thead><tr><th>Area</th><th>Product</th><th>Total Purchase</th><th>Total Sale</th><th>Remaining</th></tr></thead>
-          <tbody id="adminHomeStockBody"><tr><td colspan="5">Loading...</td></tr></tbody>
+          <thead><tr><th>Area</th><th>Product</th><th>Opening</th><th>Purchase</th><th>Sale</th><th>Closing</th></tr></thead>
+          <tbody id="adminHomeStockBody"><tr><td colspan="6">Loading...</td></tr></tbody>
         </table>
       </div>
     </details>
@@ -2684,12 +2717,12 @@
       </p>
       <div class="table-wrap" style="margin-bottom:24px;">
         <table>
-          <thead><tr><th>Area</th><th>Product</th><th>Purchase Qty</th><th>Sale Qty</th><th>Remaining Stock</th></tr></thead>
-          <tbody id="adminRepStockBookBody"><tr><td colspan="5">—</td></tr></tbody>
+          <thead><tr><th>Area</th><th>Product</th><th>Opening Stock</th><th>Purchase Qty (range)</th><th>Sale Qty (range)</th><th>Closing Stock</th></tr></thead>
+          <tbody id="adminRepStockBookBody"><tr><td colspan="6">—</td></tr></tbody>
         </table>
       </div>
 
-      <details style="margin-bottom:20px;" ontoggle="if (this.open) loadAdminRepLotBalance()">
+      <details style="margin-bottom:20px;" id="adminRepLotDetails" ontoggle="if (this.open) loadAdminRepLotBalance()">
         <summary style="color:#1e3c72; font-weight:700; cursor:pointer; font-size:16px;">📦 Lot Balance (Godown Stock, Vehicle സഹിതം — Area-wise) — തുറക്കുമ്പോൾ മാത്രം load ആകും</summary>
         <div id="adminRepLotContainer" style="margin-top:10px;">—</div>
       </details>
@@ -3026,19 +3059,60 @@
     }
   }
 
+  // Lot-linking based stock is switched off: Stock = Opening + Purchase - Sale (never Lot remainingQty).
+  const USE_LOT_STOCK = false;
+
   // True "available to sell" stock = all-time Purchase Qty − all-time Sale Qty, per Area+Product.
   // Deliberately NOT the sum of purchase-lot remainingQty (that only drops once a sale is
   // manually LINKED to a lot — with thousands of sales still unlinked, remainingQty overstates
   // real stock). Tries the cheap server-side aggregate first; falls back to a cached full read.
   async function getAllTimeStockTotals() {
-    const agg = await stockTotalsByAggregate();
-    if (agg) return agg;
-    const purchAll = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
-    const salesAll = await getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000);
-    const out = { p: {}, s: {} };
-    purchAll.forEach(ds => { const d = ds.data(); const k = (d.area || '-') + '|' + (d.product || '-'); out.p[k] = (out.p[k] || 0) + (d.qty || 0); });
-    salesAll.forEach(ds => { const d = ds.data(); const k = (d.area || '-') + '|' + (d.product || '-'); out.s[k] = (out.s[k] || 0) + (d.qty || 0); });
+    const openMap = await loadOpeningStockMap();
+    let out = await stockTotalsByAggregate();
+    let fullP = null, fullS = null;
+    const loadFull = async () => {
+      if (!fullP) {
+        fullP = await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
+        fullS = await getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000);
+      }
+    };
+    if (!out) {
+      await loadFull();
+      out = { p: {}, s: {} };
+      fullP.forEach(ds => { const d = ds.data(); const k = (d.area || '-') + '|' + (d.product || '-'); out.p[k] = (out.p[k] || 0) + (d.qty || 0); });
+      fullS.forEach(ds => { const d = ds.data(); const k = (d.area || '-') + '|' + (d.product || '-'); out.s[k] = (out.s[k] || 0) + (d.qty || 0); });
+    }
+    // Opening Stock: for each Area+Product that has one, only Purchases/Sales from its "as on" date
+    // onward are counted, so  Closing = Opening + Purchase - Sale.
+    out.open = {}; out.openDate = {};
+    for (const [k, o] of Object.entries(openMap)) {
+      out.open[k] = o.qty; out.openDate[k] = o.date;
+      if (!o.date) continue;
+      const [a, pr] = k.split('|');
+      try {
+        const [rp, rs] = await Promise.all(['purchases', 'sales'].map(col =>
+          getAggregateFromServer(query(collection(db, col), where("area", "==", a), where("product", "==", pr), where("date", ">=", o.date)), { t: sum("qty") })));
+        out.p[k] = rp.data().t || 0; out.s[k] = rs.data().t || 0;
+      } catch (e) {
+        console.warn('Opening-stock aggregate failed, using full read', e);
+        await loadFull();
+        let p = 0, sl = 0;
+        fullP.forEach(ds => { const d = ds.data(); if (d.area === a && d.product === pr && (d.date || '') >= o.date) p += d.qty || 0; });
+        fullS.forEach(ds => { const d = ds.data(); if (d.area === a && d.product === pr && (d.date || '') >= o.date) sl += d.qty || 0; });
+        out.p[k] = p; out.s[k] = sl;
+      }
+    }
     return out;
+  }
+
+  // Opening Stock per Area+Product (Admin → Entry → Opening Stock): { 'MKD|ACC-C+': {id, qty, date} }.
+  async function loadOpeningStockMap() {
+    try {
+      const snap = await getDocsCached('openingStock:all', ['openingStock'], collection(db, "openingStock"), 600000);
+      const m = {};
+      snap.forEach(ds => { const d = ds.data(); if (d.area && d.product) m[d.area + '|' + d.product] = { id: ds.id, qty: Number(d.qty) || 0, date: d.date || '' }; });
+      return m;
+    } catch (e) { console.warn('openingStock read failed', e); return {}; }
   }
   function addDaysIso(dateStr, n) {
     const dt = new Date(dateStr + 'T00:00:00'); dt.setDate(dt.getDate() + n); return dt.toISOString().slice(0, 10);
@@ -3052,7 +3126,7 @@
   // Bulk tools run inside withBulkAudit(): individual writes are only counted, and a single
   // summary entry is written at the end (so a 2,000-row CSV doesn't create 2,000 log entries).
   const AUDIT_SKIP = new Set(['auditLogs']);
-  const AUDIT_BEFORE = new Set(['sales', 'collections', 'purchases', 'customers', 'vehicleStock', 'users', 'bills']);
+  const AUDIT_BEFORE = new Set(['sales', 'collections', 'purchases', 'customers', 'vehicleStock', 'users', 'bills', 'openingStock']);
   let auditBulkDepth = 0;
   let auditBulkCounts = null;
 
@@ -3615,7 +3689,7 @@
   };
 
   window.switchAdminEntrySubTab = function (sub) {
-    const subs = ['sale', 'purchase', 'collection', 'bill', 'status'];
+    const subs = ['sale', 'purchase', 'collection', 'bill', 'status', 'opening'];
     subs.forEach(s => {
       const panel = document.getElementById('adminEntrySub' + s.charAt(0).toUpperCase() + s.slice(1));
       const btn = document.getElementById('adminEntrySubTab' + s.charAt(0).toUpperCase() + s.slice(1) + 'Btn');
@@ -3641,6 +3715,13 @@
       loadAdminCollectionsToday();
     } else if (sub === 'bill') {
       initAdminBillTab();
+    } else if (sub === 'status') {
+      // Nothing is read until "Check ചെയ്യുക" is pressed (it reads every Sale in the range).
+      const todayStr = billTodayStr();
+      if (!document.getElementById('billStatusFrom').value) document.getElementById('billStatusFrom').value = todayStr;
+      if (!document.getElementById('billStatusTo').value) document.getElementById('billStatusTo').value = todayStr;
+    } else if (sub === 'opening') {
+      initOpeningStockTab();
     }
   };
 
@@ -5169,12 +5250,12 @@
       return;
     }
 
-    // Users no longer choose Advance / Purchase Lots. Every user Sale is saved without a lot
-    // (isAdvance=true internally) so Admin can still link it to stock later from the Admin panel.
-    const isAdvance = true;
+    // Stock = Opening + Purchase - Sale (see getAllTimeStockTotals). Sales no longer pick Purchase Lots
+    // and never reduce lot remainingQty, so there is nothing to link afterwards.
+    const isAdvance = false;
     let lotAllocations = [];
 
-    if (!isAdvance) {
+    if (USE_LOT_STOCK && !isAdvance) {
       const lotSelects = document.querySelectorAll('.lotSelect');
       const lotQtyInputs = document.querySelectorAll('.lotQty');
 
@@ -6278,7 +6359,7 @@
     const qty = parseFloat(document.getElementById('adminSaleQty').value) || 0;
     const rate = parseFloat(document.getElementById('adminSaleRate').value) || 0;
     const amount = parseFloat(document.getElementById('adminSaleAmount').value) || 0;
-    const isAdvance = document.getElementById('adminSaleIsAdvance').checked;
+    const isAdvance = false; // lots/advance not used any more (stock = Opening + Purchase - Sale)
     const errEl = document.getElementById('adminSaleErrorMsg');
     const okEl = document.getElementById('adminSaleSuccessMsg');
     errEl.style.display = 'none'; okEl.style.display = 'none';
@@ -6290,7 +6371,7 @@
     const cust = adminSaleAllCustomers.find(c => c.id === custId);
     let lotAllocations = [];
 
-    if (!isAdvance) {
+    if (USE_LOT_STOCK && !isAdvance) {
       const lotSelects = document.querySelectorAll('.adminSaleLotSelect');
       const lotQtyInputs = document.querySelectorAll('.adminSaleLotQty');
       if (lotSelects.length === 0) {
@@ -7872,34 +7953,21 @@
   // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
   // to a lot would otherwise be missing from the subtraction, overstating stock.
   window.loadUserStockDetails = async function () {
-    document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="4">Loading...</td></tr>';
+    document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
     try {
-      const [purchSnap, salesSnap] = await Promise.all([
-        getDocsCached('stock:p:' + currentWorkingArea, ['purchases'], query(collection(db, "purchases"), where("area", "==", currentWorkingArea)), 600000),
-        getDocsCached('stock:s:' + currentWorkingArea, ['sales'], query(collection(db, "sales"), where("area", "==", currentWorkingArea)), 600000)
-      ]);
-      const purchByProduct = {};
-      purchSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        const key = d.product || '-';
-        purchByProduct[key] = (purchByProduct[key] || 0) + (d.qty || 0);
-      });
-      const saleByProduct = {};
-      salesSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        const key = d.product || '-';
-        saleByProduct[key] = (saleByProduct[key] || 0) + (d.qty || 0);
-      });
-      const allProducts = Array.from(new Set([...Object.keys(purchByProduct), ...Object.keys(saleByProduct)])).sort();
-      const rows2 = allProducts.map(product => {
-        const purchTotal = purchByProduct[product] || 0;
-        const saleTotal = saleByProduct[product] || 0;
-        return `<tr><td>${product}</td><td>${purchTotal}</td><td>${saleTotal}</td><td><strong>${purchTotal - saleTotal}</strong></td></tr>`;
+      const agg = await getAllTimeStockTotals();
+      const keys = Array.from(new Set([...Object.keys(agg.p), ...Object.keys(agg.s), ...Object.keys(agg.open)]))
+        .filter(k => k.startsWith(currentWorkingArea + '|')).sort();
+      const rows2 = keys.map(k => {
+        const product = k.split('|')[1];
+        const o = agg.open[k] || 0, p = agg.p[k] || 0, sl = agg.s[k] || 0;
+        const dt = agg.openDate[k] ? ` <span style="font-size:11px; color:#888;">(${fmtDate(agg.openDate[k])})</span>` : '';
+        return `<tr><td>${product}</td><td>${o}${o ? dt : ''}</td><td>${p}</td><td>${sl}</td><td><strong>${o + p - sl}</strong></td></tr>`;
       }).join('');
-      document.getElementById('repTopStockBody').innerHTML = rows2 || '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+      document.getElementById('repTopStockBody').innerHTML = rows2 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
-      document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="4">Error loading.</td></tr>';
+      document.getElementById('repTopStockBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
     }
   }
 
@@ -8318,7 +8386,7 @@
         saleByDate[d.date] = (saleByDate[d.date] || 0) + (d.qty || 0);
       });
 
-      renderDailyStockBook(purchByDate, saleByDate, from, to, container);
+      renderDailyStockBook(purchByDate, saleByDate, from, to, container, (await loadOpeningStockMap())[currentWorkingArea + '|' + product]);
 
     } catch (err) {
       console.error(err);
@@ -8326,8 +8394,11 @@
     }
   };
 
-  function renderDailyStockBook(purchByDate, saleByDate, from, to, container) {
-    const allDates = Array.from(new Set([...Object.keys(purchByDate), ...Object.keys(saleByDate)])).sort();
+  function renderDailyStockBook(purchByDate, saleByDate, from, to, container, opening) {
+    const asOf = opening && opening.date ? opening.date : '';
+    const allDates = Array.from(new Set([...Object.keys(purchByDate), ...Object.keys(saleByDate)])).filter(d => !asOf || d >= asOf).sort();
+    const openNote = opening ? `<p style="font-size:13px; margin-bottom:8px;">📦 Opening Stock${asOf ? ' (' + fmtDate(asOf) + ' മുതൽ)' : ''}: <b>${opening.qty}</b></p>` : '';
+    if (allDates.length === 0 && opening) { container.innerHTML = openNote + '<p style="color:#999; font-size:13px;">ഈ Opening-ന് ശേഷം Purchase/Sale ഒന്നും ഇല്ല.</p>'; return; }
     if (allDates.length === 0) {
       container.innerHTML = '<p style="color:#999; font-size:13px;">Data ഒന്നും ഇല്ല.</p>';
       return;
@@ -8335,7 +8406,7 @@
 
     // Running balance carried from the very first transaction date, so Opening/Closing
     // shown for the range is accurate even if earlier activity happened before "From Date".
-    let runningBalance = 0;
+    let runningBalance = opening ? opening.qty : 0;
     let rows = '';
     allDates.forEach(date => {
       const p = purchByDate[date] || 0;
@@ -8348,7 +8419,7 @@
       }
     });
 
-    container.innerHTML = `<div class="table-wrap">
+    container.innerHTML = openNote + `<div class="table-wrap">
       <table>
         <thead><tr><th>Date</th><th>Opening</th><th>Purchase</th><th>Sale</th><th>Closing</th></tr></thead>
         <tbody>${rows || '<tr><td colspan="5">ഈ range-ൽ ഒന്നും ഇല്ല.</td></tr>'}</tbody>
@@ -8538,12 +8609,13 @@
       // Stock Book — Purchase Qty (in range), Sale Qty (in range),
       // Remaining Stock = all-time Purchase − all-time Sale for this area (see getAllTimeStockTotals).
       const stockAgg = await getAllTimeStockTotals();
-      const remainingByItem = {};
-      Array.from(new Set([...Object.keys(stockAgg.p), ...Object.keys(stockAgg.s)]))
+      const remainingByItem = {}, openingByItem = {};
+      Array.from(new Set([...Object.keys(stockAgg.p), ...Object.keys(stockAgg.s), ...Object.keys(stockAgg.open)]))
         .filter(k => k.startsWith(currentWorkingArea + '|'))
         .forEach(k => {
           const product = k.split('|')[1];
-          remainingByItem[product] = (stockAgg.p[k] || 0) - (stockAgg.s[k] || 0);
+          openingByItem[product] = stockAgg.open[k] || 0;
+          remainingByItem[product] = (stockAgg.open[k] || 0) + (stockAgg.p[k] || 0) - (stockAgg.s[k] || 0);
         });
       const purchQtyByItem = {};
       purchases.forEach(d => {
@@ -8558,12 +8630,13 @@
       ])).sort();
       let stockBookRows = allItems.map(item => `<tr>
         <td>${item}</td>
+        <td>${openingByItem[item] || 0}</td>
         <td>${purchQtyByItem[item] || 0}</td>
         <td>${saleQtyByItem[item] || 0}</td>
         <td><strong>${remainingByItem[item] || 0}</strong></td>
       </tr>`).join('');
       document.getElementById('repStockBookBody').innerHTML = stockBookRows ||
-        '<tr><td colspan="4">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
 
     } catch (err) {
       console.error(err);
@@ -9157,7 +9230,7 @@
         saleByDate[d.date] = (saleByDate[d.date] || 0) + (d.qty || 0);
       });
 
-      renderDailyStockBook(purchByDate, saleByDate, from, to, container);
+      renderDailyStockBook(purchByDate, saleByDate, from, to, container, (await loadOpeningStockMap())[area + '|' + product]);
 
     } catch (err) {
       console.error(err);
@@ -9393,39 +9466,21 @@
 
   // Stock Details (all areas, all history) — heavy, so only when opened, cached 10 min.
   window.loadAdminHomeStock = async function () {
-    document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="5">Loading...</td></tr>';
+    document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
     try {
-      const agg = await stockTotalsByAggregate(); // null => index missing, falls back to the old full read
-      const emptySnap = { forEach() { } };
-      const purchaseSnap = agg ? emptySnap : await getDocsCached('all:purchases', ['purchases'], collection(db, "purchases"), 600000);
-      // Stock Details — simple Area+Product-wise Total Purchase − Total Sale.
-      // Deliberately NOT based on Lot remainingQty/linking — Advance Sales not yet linked
-      // to a lot would otherwise be missing from the subtraction, overstating stock.
-      const purchTotalMap = {};
-      purchaseSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        const k = (d.area || '-') + '|' + (d.product || '-');
-        purchTotalMap[k] = (purchTotalMap[k] || 0) + (d.qty || 0);
-      });
-      const saleTotalMap = {};
-      const allSalesSnap = agg ? emptySnap : await getDocsCached('all:sales', ['sales'], collection(db, "sales"), 600000);
-      allSalesSnap.forEach(docSnap => {
-        const d = docSnap.data();
-        const k = (d.area || '-') + '|' + (d.product || '-');
-        saleTotalMap[k] = (saleTotalMap[k] || 0) + (d.qty || 0);
-      });
-      if (agg) { Object.assign(purchTotalMap, agg.p); Object.assign(saleTotalMap, agg.s); }
-      const allKeys = Array.from(new Set([...Object.keys(purchTotalMap), ...Object.keys(saleTotalMap)])).sort();
+      // Stock = Opening + Purchase - Sale per Area+Product (not Lot remainingQty / linking).
+      const agg = await getAllTimeStockTotals();
+      const allKeys = Array.from(new Set([...Object.keys(agg.p), ...Object.keys(agg.s), ...Object.keys(agg.open)])).sort();
       const rows3 = allKeys.map(key => {
         const [area, product] = key.split('|');
-        const purchTotal = purchTotalMap[key] || 0;
-        const saleTotal = saleTotalMap[key] || 0;
-        return `<tr><td>${area}</td><td>${product}</td><td>${purchTotal}</td><td>${saleTotal}</td><td><strong>${purchTotal - saleTotal}</strong></td></tr>`;
+        const o = agg.open[key] || 0, p = agg.p[key] || 0, sl = agg.s[key] || 0;
+        const dt = agg.openDate[key] ? ` <span style="font-size:11px; color:#888;">(${fmtDate(agg.openDate[key])})</span>` : '';
+        return `<tr><td>${area}</td><td>${product}</td><td>${o}${o ? dt : ''}</td><td>${p}</td><td>${sl}</td><td><strong>${o + p - sl}</strong></td></tr>`;
       }).join('');
-      document.getElementById('adminHomeStockBody').innerHTML = rows3 || '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
+      document.getElementById('adminHomeStockBody').innerHTML = rows3 || '<tr><td colspan="6">Stock ഒന്നും ഇല്ല.</td></tr>';
     } catch (err) {
       console.error(err);
-      document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="5">Error loading.</td></tr>';
+      document.getElementById('adminHomeStockBody').innerHTML = '<tr><td colspan="6">Error loading.</td></tr>';
     }
   };
 
@@ -9634,8 +9689,8 @@
       // Remaining Stock = all-time Purchase − all-time Sale (see getAllTimeStockTotals).
       const stockAgg = await getAllTimeStockTotals();
       const remainingByAreaItem = {};
-      new Set([...Object.keys(stockAgg.p), ...Object.keys(stockAgg.s)]).forEach(k => {
-        remainingByAreaItem[k] = (stockAgg.p[k] || 0) - (stockAgg.s[k] || 0);
+      new Set([...Object.keys(stockAgg.p), ...Object.keys(stockAgg.s), ...Object.keys(stockAgg.open)]).forEach(k => {
+        remainingByAreaItem[k] = (stockAgg.open[k] || 0) + (stockAgg.p[k] || 0) - (stockAgg.s[k] || 0);
       });
       const purchQtyByAreaItem = {};
       purchases.forEach(d => {
@@ -9654,13 +9709,14 @@
         const [area, product] = k.split('|');
         return `<tr>
           <td>${area}</td><td>${product}</td>
+          <td>${stockAgg.open[k] || 0}</td>
           <td>${purchQtyByAreaItem[k] || 0}</td>
           <td>${saleQtyByAreaItem[k] || 0}</td>
           <td><strong>${remainingByAreaItem[k] || 0}</strong></td>
         </tr>`;
       }).join('');
       document.getElementById('adminRepStockBookBody').innerHTML = stockBookRows ||
-        '<tr><td colspan="5">Stock ഒന്നും ഇല്ല.</td></tr>';
+        '<tr><td colspan="6">Stock ഒന്നും ഇല്ല.</td></tr>';
 
       lastAdminReport = { sales, purchases, colls, areas, from, to };
 
@@ -10038,13 +10094,100 @@
     window.open('https://wa.me/?text=' + encodeURIComponent(lines.join('\n')), '_blank');
   };
 
+
+  // ---- ADMIN: OPENING STOCK  (Stock = Opening + Purchase - Sale) ----
+  let openStockEditingId = null;
+  window.initOpeningStockTab = async function () {
+    document.getElementById('openStockErrorMsg').style.display = 'none';
+    document.getElementById('openStockSuccessMsg').style.display = 'none';
+    try {
+      const pSnap = await getDocsCached('bill:products', ['products'], collection(db, "products"), 300000);
+      const sel = document.getElementById('openStockProduct');
+      const prev = sel.value;
+      sel.innerHTML = '<option value="">-- Select Item --</option>';
+      const names = [];
+      pSnap.forEach(ds => { const p = ds.data(); if (p.name) names.push(p.name); });
+      names.sort().forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+      if (prev) sel.value = prev;
+    } catch (e) { console.error(e); }
+    if (!document.getElementById('openStockDate').value) document.getElementById('openStockDate').value = billTodayStr();
+    loadOpeningStockList();
+  };
+
+  window.loadOpeningStockList = async function () {
+    const tbody = document.getElementById('openStockTableBody');
+    try {
+      invalidateReadCache('openingStock');
+      const m = await loadOpeningStockMap();
+      const keys = Object.keys(m).sort();
+      if (!keys.length) { tbody.innerHTML = '<tr><td colspan="5" style="color:#888;">Opening Stock ഒന്നും നൽകിയിട്ടില്ല.</td></tr>'; return; }
+      tbody.innerHTML = keys.map(k => {
+        const [a, p] = k.split('|'), o = m[k];
+        return `<tr><td>${billEsc(a)}</td><td>${billEsc(p)}</td><td><b>${o.qty}</b></td><td>${o.date ? fmtDate(o.date) : '-'}</td>
+          <td style="white-space:nowrap;"><button style="width:auto; background:#1e3c72; color:#fff; padding:4px 10px; font-size:12px; margin-right:4px;" onclick="editOpeningStock('${billEsc(k)}')">✏️</button><button style="width:auto; background:#c62828; color:#fff; padding:4px 10px; font-size:12px;" onclick="deleteOpeningStock('${billEsc(k)}')">🗑</button></td></tr>`;
+      }).join('');
+    } catch (e) { console.error(e); tbody.innerHTML = '<tr><td colspan="5" style="color:#c62828;">Load ചെയ്യാൻ പറ്റിയില്ല.</td></tr>'; }
+  };
+
+  window.editOpeningStock = async function (key) {
+    const m = await loadOpeningStockMap();
+    const o = m[key]; if (!o) return;
+    const [a, p] = key.split('|');
+    document.getElementById('openStockArea').value = a;
+    document.getElementById('openStockProduct').value = p;
+    document.getElementById('openStockQty').value = o.qty;
+    document.getElementById('openStockDate').value = o.date || '';
+    document.getElementById('openStockQty').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  window.handleSaveOpeningStock = async function () {
+    const errEl = document.getElementById('openStockErrorMsg'), okEl = document.getElementById('openStockSuccessMsg');
+    errEl.style.display = 'none'; okEl.style.display = 'none';
+    const area = document.getElementById('openStockArea').value;
+    const product = document.getElementById('openStockProduct').value;
+    const qtyRaw = document.getElementById('openStockQty').value;
+    const qty = parseFloat(qtyRaw);
+    const date = document.getElementById('openStockDate').value;
+    const fail = (m) => { errEl.textContent = m; errEl.style.display = 'block'; };
+    if (!product) return fail("Item select ചെയ്യുക.");
+    if (qtyRaw === '' || isNaN(qty)) return fail("Opening Qty നൽകുക (0 ആകാം).");
+    if (!date) return fail("'Stock as on' Date നൽകുക.");
+    const btn = document.getElementById('openStockSaveBtn');
+    btn.disabled = true;
+    try {
+      const m = await loadOpeningStockMap();
+      const existing = m[area + '|' + product];
+      const data = { area, product, qty, date, updatedBy: currentUserData.username || 'admin', updatedAt: new Date().toISOString() };
+      if (existing) await updateDoc(doc(db, "openingStock", existing.id), data);
+      else { data.createdAt = new Date().toISOString(); await addDoc(collection(db, "openingStock"), data); }
+      invalidateReadCache('openingStock');
+      okEl.textContent = `Opening Stock saved: ${area} · ${product} · ${qty} (${fmtDate(date)})`;
+      okEl.style.display = 'block';
+      document.getElementById('openStockQty').value = '';
+      loadOpeningStockList();
+    } catch (e) {
+      console.error(e);
+      fail("Save ചെയ്യാൻ പറ്റിയില്ല. (Firestore rules-ൽ 'openingStock' collection allow ചെയ്തിട്ടുണ്ടോ എന്ന് നോക്കുക.)");
+    } finally { btn.disabled = false; }
+  };
+
+  window.deleteOpeningStock = async function (key) {
+    if (!confirm("ഈ Opening Stock delete ചെയ്യണോ?")) return;
+    try {
+      const m = await loadOpeningStockMap();
+      if (m[key]) await deleteDoc(doc(db, "openingStock", m[key].id));
+      invalidateReadCache('openingStock');
+      loadOpeningStockList();
+    } catch (e) { console.error(e); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
+  };
+
   // ---- ADMIN: DATA BACKUP ----
   window.handleDataBackup = async function () {
     const statusEl = document.getElementById('backupStatus');
     statusEl.style.color = '#555';
     statusEl.textContent = "Backup ready ആക്കുന്നു...";
 
-    const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'bills', 'settings'];
+    const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'bills', 'openingStock', 'settings'];
     const backup = {};
 
     try {
@@ -10099,7 +10242,7 @@
       const text = await file.text();
       const backup = JSON.parse(text);
 
-      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'bills', 'settings'];
+      const collections = ['users', 'customers', 'sales', 'purchases', 'collections', 'godowns', 'products', 'vehicles', 'vehicleStock', 'accounts', 'monthlyTargets', 'statementChecks', 'bills', 'openingStock', 'settings'];
       let totalRestored = 0;
       let totalRecords = 0;
       collections.forEach(c => { if (Array.isArray(backup[c])) totalRecords += backup[c].length; });
@@ -13540,7 +13683,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-27c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-28b</div>
 
 </body>
 </html>
