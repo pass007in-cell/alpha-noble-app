@@ -9790,7 +9790,7 @@
     const box = document.getElementById('billCustOptionsBox');
     const term = document.getElementById('billCustSearchInput').value.trim().toLowerCase();
     const area = document.getElementById('billArea').value;
-    const matches = billAllCustomers.filter(c => (!c.area || c.area === area)).filter(c => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term)).slice(0, 80);
+    const matches = billAllCustomers.slice().sort((x, y) => ((y.area === area || !y.area) - (x.area === area || !x.area))).filter(c => !term || (c.name || '').toLowerCase().includes(term) || (c.phone || '').toLowerCase().includes(term)).slice(0, 80);
     let html = `<div class="cust-opt" style="background:#fff3e0; font-weight:600;" onmousedown="selectBillCustomer('${BILL_UNKNOWN}')">❔ ${BILL_UNKNOWN_NAME} (താത്കാലികം)</div>`;
     html += matches.map(c => `<div class="cust-opt cust-opt-own" onmousedown="selectBillCustomer('${c.id}')">${billEsc(c.name)}${c.area ? ' [' + billEsc(c.area) + ']' : ''}</div>`).join('');
     if (matches.length === 0) html += '<div style="padding:10px 12px; color:#999; font-size:13px;">Match ആയില്ല.</div>';
@@ -13683,7 +13683,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-28b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-28c</div>
 
 </body>
 </html>
