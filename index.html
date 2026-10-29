@@ -9,12 +9,11 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
-/* Stock is now Opening + Purchase - Sale. Lot / Linking / Advance-Sale screens are not used any more:
-   hidden (kept in the DOM so old JS still resolves). Remove this block to bring them back. */
+/* Stock = Opening + Purchase - Sale. Users do not see Lot / Linking / Advance-Sale screens (hidden, kept in the DOM).
+   Admin keeps Old Advance / Unlinked Sales / Pending Lots / Trip Sheet to link Sales to Purchases. */
 #tabLinkingBtn, #homeUnlinkedSummary, #homePendingLotsCard, #saleAdvanceLotWrap,
 #repSubTabTripsheetBtn, #repSubTabAgeingBtn, #repLotDetails,
-#tabAdminOldadvanceBtn, #adminHomeAlertBox, #adminHomeLotsDetails, #adminRepLotDetails,
-#adminSaleAdvanceLabel, #adminSaleLotSection, #adminRepSubTabTripsheetBtn { display: none !important; }
+#adminSaleAdvanceLabel, #adminSaleLotSection { display: none !important; }
 
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
@@ -5252,7 +5251,7 @@
 
     // Stock = Opening + Purchase - Sale (see getAllTimeStockTotals). Sales no longer pick Purchase Lots
     // and never reduce lot remainingQty, so there is nothing to link afterwards.
-    const isAdvance = false;
+    const isAdvance = true; // every Sale is saved as an Advance (unlinked) Sale; Admin links it to a Purchase lot later
     let lotAllocations = [];
 
     if (USE_LOT_STOCK && !isAdvance) {
@@ -6359,7 +6358,7 @@
     const qty = parseFloat(document.getElementById('adminSaleQty').value) || 0;
     const rate = parseFloat(document.getElementById('adminSaleRate').value) || 0;
     const amount = parseFloat(document.getElementById('adminSaleAmount').value) || 0;
-    const isAdvance = false; // lots/advance not used any more (stock = Opening + Purchase - Sale)
+    const isAdvance = true; // every Sale is saved as an Advance (unlinked) Sale; Admin links it to a Purchase lot later (stock itself = Opening + Purchase - Sale)
     const errEl = document.getElementById('adminSaleErrorMsg');
     const okEl = document.getElementById('adminSaleSuccessMsg');
     errEl.style.display = 'none'; okEl.style.display = 'none';
@@ -10181,6 +10180,99 @@
     } catch (e) { console.error(e); alert("Delete ചെയ്യാൻ പറ്റിയില്ല."); }
   };
 
+
+  // ---- 💬 WhatsApp (text) next to every Print / PDF button in the report sections ----
+  window.shareSectionWhatsApp = function (btn) {
+    const sec = btn.closest('[id^="repSub"], [id^="adminRepSub"], [id^="tabAdmin"], [id^="tab"]');
+    if (!sec) { alert('Share ചെയ്യാൻ ഭാഗം കണ്ടെത്താനായില്ല.'); return; }
+    const tmp = sec.cloneNode(true);
+    tmp.querySelectorAll('button, input, select, textarea, script, style, .cust-options-box, datalist').forEach(n => n.remove());
+    tmp.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(n => n.remove());
+    tmp.querySelectorAll('details:not([open]) > :not(summary)').forEach(n => n.remove());
+    tmp.style.cssText = 'position:fixed; left:-99999px; top:0; width:900px; display:block;';
+    document.body.appendChild(tmp);
+    let txt = tmp.innerText || tmp.textContent || '';
+    document.body.removeChild(tmp);
+    txt = txt.replace(/\t+/g, ' | ').replace(/[  ]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (!txt) { alert('ആദ്യം "Generate" അമർത്തി report തയ്യാറാക്കുക.'); return; }
+    const MAX = 3500;
+    if (txt.length > MAX) txt = txt.slice(0, MAX).replace(/\n[^\n]*$/, '') + '\n…(ബാക്കി ഭാഗം PDF-ൽ)';
+    window.open('https://wa.me/?text=' + encodeURIComponent('*Alpha & Noble*\n' + txt), '_blank');
+  };
+
+  // ---- 💬 WhatsApp as a PDF file (all report sections except Bill / Status, which send text) ----
+  function loadHtml2Pdf() {
+    return new Promise((res, rej) => {
+      if (window.html2pdf) return res();
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+      sc.onload = () => res(); sc.onerror = () => rej(new Error('html2pdf load failed'));
+      document.head.appendChild(sc);
+    });
+  }
+  window.shareSectionPdf = async function (btn) {
+    const sec = btn.closest('[id^="repSub"], [id^="adminRepSub"], [id^="tabAdmin"], [id^="tab"]');
+    if (!sec) { alert('Share ചെയ്യാൻ ഭാഗം കണ്ടെത്താനായില്ല.'); return; }
+    const old = btn.textContent; btn.disabled = true; btn.textContent = '⏳ PDF...';
+    try {
+      const body = sec.cloneNode(true);
+      body.querySelectorAll('button, input, select, textarea, script, style, .cust-options-box, datalist, .add-user-form').forEach(n => n.remove());
+      body.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(n => n.remove());
+      body.querySelectorAll('details:not([open]) > :not(summary)').forEach(n => n.remove());
+      body.querySelectorAll('.table-wrap').forEach(n => { n.style.overflow = 'visible'; });
+      const tables = body.querySelectorAll('table');
+      if (!body.textContent.trim() || !tables.length && body.textContent.trim().length < 20) { alert('ആദ്യം "Generate" അമർത്തി report തയ്യാറാക്കുക.'); return; }
+      let maxCols = 0; tables.forEach(t => { const r = t.querySelector('tr'); if (r) maxCols = Math.max(maxCols, r.children.length); });
+      const landscape = maxCols > 7;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = `font-family:Arial,sans-serif; font-size:11px; color:#222; padding:6px; width:${landscape ? 1040 : 720}px; background:#fff;`;
+      const title = (sec.querySelector('h3') || {}).textContent || 'Report';
+      wrap.innerHTML = `<div style="border-bottom:2px solid #1e3c72; margin-bottom:8px; padding-bottom:4px;"><b style="font-size:16px; color:#1e3c72;">Alpha &amp; Noble</b> <span style="float:right;">${new Date().toLocaleDateString('en-GB')}</span></div>`;
+      wrap.appendChild(body);
+      const st = document.createElement('style');
+      st.textContent = 'table{border-collapse:collapse;width:100%;margin:6px 0} th,td{border:1px solid #888;padding:3px 5px;text-align:left;font-size:10.5px} th{background:#e8edf5} h3,h4{margin:8px 0 4px;color:#1e3c72}';
+      wrap.appendChild(st);
+      await loadHtml2Pdf();
+      const fname = 'AlphaNoble-' + title.replace(/[^\wഀ-ൿ]+/g, '_').slice(0, 30) + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
+      const blob = await window.html2pdf().set({
+        margin: 8, filename: fname, image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' },
+        pagebreak: { mode: ['css', 'legacy'] }
+      }).from(wrap).outputPdf('blob');
+      const file = new File([blob], fname, { type: 'application/pdf' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Alpha & Noble Report' });
+      } else {
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = fname;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+        alert('PDF download ആയി. WhatsApp തുറന്ന് ആ file attach ചെയ്ത് അയക്കുക.');
+        window.open('https://wa.me/', '_blank');
+      }
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // user closed the share sheet
+      console.error(err);
+      if (confirm('PDF ഉണ്ടാക്കാൻ പറ്റിയില്ല. Text ആയി WhatsApp-ൽ അയക്കട്ടെ?')) shareSectionWhatsApp(btn);
+    } finally { btn.disabled = false; btn.textContent = old; }
+  };
+
+  (function addWhatsAppButtons() {
+    const run = () => {
+      document.querySelectorAll('button[onclick*="window.print"], button[onclick*="printAgeingReport"], button[onclick*="printCustomerStatement"]').forEach(b => {
+        if (b.dataset.waAdded) return;
+        b.dataset.waAdded = '1';
+        const w = document.createElement('button');
+        w.type = 'button';
+        w.textContent = '💬 WhatsApp (PDF)';
+        w.setAttribute('style', (b.getAttribute('style') || 'flex:1;').replace(/background:[^;]+;?/, '') + ' background:#25d366;');
+        w.onclick = function () { shareSectionPdf(w); };
+        b.insertAdjacentElement('afterend', w);
+      });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run); else run();
+  })();
+
   // ---- ADMIN: DATA BACKUP ----
   window.handleDataBackup = async function () {
     const statusEl = document.getElementById('backupStatus');
@@ -13683,7 +13775,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-28c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-29b</div>
 
 </body>
 </html>
