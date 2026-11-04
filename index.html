@@ -143,7 +143,11 @@
     #centerWrap, [style*="border-bottom:2px solid #eee"] { display: none !important; }
     body { background: #fff !important; padding: 0; }
     .admin-box { box-shadow: none !important; max-width: 100% !important; }
+    label, .print-hide, #appVersionTag { display: none !important; }
+    #printStamp { display: block !important; }
   }
+  #printStamp { display: none; font-size: 12px; color: #333; border-bottom: 2px solid #1e3c72; padding: 0 0 4px; margin: 0 0 10px; }
+  @page { margin: 12mm 10mm 14mm; }
   .lot-row { display:flex; gap:8px; margin-bottom:8px; align-items:center; }
   .lot-row select { flex:1; margin-bottom:0; width:auto; }
   .lot-row input { flex:0 0 80px; margin-bottom:0; width:80px; }
@@ -10220,6 +10224,9 @@
       body.querySelectorAll('[style*="display:none"], [style*="display: none"]').forEach(n => n.remove());
       body.querySelectorAll('details:not([open]) > :not(summary)').forEach(n => n.remove());
       body.querySelectorAll('.table-wrap').forEach(n => { n.style.overflow = 'visible'; });
+      // Form leftovers: labels of the removed filter inputs and long explanatory help paragraphs.
+      body.querySelectorAll('label').forEach(n => n.remove());
+      body.querySelectorAll('p').forEach(n => { if (n.textContent.trim().length > 70 || /color:\s*#777/.test(n.getAttribute('style') || '')) n.remove(); });
       const tables = body.querySelectorAll('table');
       if (!body.textContent.trim() || !tables.length && body.textContent.trim().length < 20) { alert('ആദ്യം "Generate" അമർത്തി report തയ്യാറാക്കുക.'); return; }
       let maxCols = 0; tables.forEach(t => { const r = t.querySelector('tr'); if (r) maxCols = Math.max(maxCols, r.children.length); });
@@ -10227,19 +10234,29 @@
       const wrap = document.createElement('div');
       wrap.style.cssText = `font-family:Arial,sans-serif; font-size:11px; color:#222; padding:6px; width:${landscape ? 1040 : 720}px; background:#fff;`;
       const title = (sec.querySelector('h3') || {}).textContent || 'Report';
-      wrap.innerHTML = `<div style="border-bottom:2px solid #1e3c72; margin-bottom:8px; padding-bottom:4px;"><b style="font-size:16px; color:#1e3c72;">Alpha &amp; Noble</b> <span style="float:right;">${new Date().toLocaleDateString('en-GB')}</span></div>`;
+      wrap.innerHTML = `<div style="border-bottom:2px solid #1e3c72; margin-bottom:8px; padding-bottom:4px;"><b style="font-size:16px; color:#1e3c72;">Alpha &amp; Noble</b> </div>`;
       wrap.appendChild(body);
       const st = document.createElement('style');
       st.textContent = 'table{border-collapse:collapse;width:100%;margin:6px 0} th,td{border:1px solid #888;padding:3px 5px;text-align:left;font-size:10.5px} th{background:#e8edf5} h3,h4{margin:8px 0 4px;color:#1e3c72}';
       wrap.appendChild(st);
       await loadHtml2Pdf();
       const fname = 'AlphaNoble-' + title.replace(/[^\wഀ-ൿ]+/g, '_').slice(0, 30) + '-' + new Date().toISOString().slice(0, 10) + '.pdf';
+      const printedAt = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(',', '').toUpperCase();
       const blob = await window.html2pdf().set({
-        margin: 8, filename: fname, image: { type: 'jpeg', quality: 0.95 },
+        margin: [8, 8, 14, 8], filename: fname, image: { type: 'jpeg', quality: 0.95 },
         html2canvas: { scale: 2, backgroundColor: '#ffffff' },
         jsPDF: { unit: 'mm', format: 'a4', orientation: landscape ? 'landscape' : 'portrait' },
         pagebreak: { mode: ['css', 'legacy'] }
-      }).from(wrap).outputPdf('blob');
+      }).from(wrap).toPdf().get('pdf').then(pdf => {
+        const n = pdf.internal.getNumberOfPages();
+        const pw = pdf.internal.pageSize.getWidth(), ph = pdf.internal.pageSize.getHeight();
+        pdf.setFontSize(8); pdf.setTextColor(110);
+        for (let i = 1; i <= n; i++) {
+          pdf.setPage(i);
+          pdf.text('Printed: ' + printedAt, 8, ph - 6);
+          pdf.text('Page ' + i + ' of ' + n, pw - 8, ph - 6, { align: 'right' });
+        }
+      }).outputPdf('blob');
       const file = new File([blob], fname, { type: 'application/pdf' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({ files: [file], title: 'Alpha & Noble Report' });
@@ -10256,6 +10273,55 @@
       if (confirm('PDF ഉണ്ടാക്കാൻ പറ്റിയില്ല. Text ആയി WhatsApp-ൽ അയക്കട്ടെ?')) shareSectionWhatsApp(btn);
     } finally { btn.disabled = false; btn.textContent = old; }
   };
+
+
+  // ---- Print / PDF clean-up: drop form labels + long help text, add "Printed: date time" and page numbers ----
+  (function setupPrintExtras() {
+    const stamp = document.createElement('div');
+    stamp.id = 'printStamp';
+    document.body.insertBefore(stamp, document.body.firstChild);
+    const pageStyle = document.createElement('style');
+    pageStyle.id = 'printPageStyle';
+    document.head.appendChild(pageStyle);
+    window.addEventListener('beforeprint', () => {
+      const at = new Date().toLocaleString('en-GB', { timeZone: 'Asia/Kolkata', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }).replace(',', '').toUpperCase();
+      stamp.innerHTML = '<b style="color:#1e3c72; font-size:15px;">Alpha &amp; Noble</b> &nbsp; Printed: ' + at;
+      pageStyle.textContent = '@page { margin: 12mm 10mm 14mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 9px; color: #666; } @bottom-left { content: "Printed: ' + at + '"; font-size: 9px; color: #666; } }';
+      document.querySelectorAll('p').forEach(p => {
+        if (p.closest('#printStamp')) return;
+        if (p.textContent.trim().length > 70 || /color:\s*#777/.test(p.getAttribute('style') || '')) p.classList.add('print-hide');
+      });
+    });
+    window.addEventListener('afterprint', () => {
+      document.querySelectorAll('p.print-hide').forEach(p => p.classList.remove('print-hide'));
+    });
+  })();
+
+
+  // ---- Visual gap between different Areas in any table that has an "Area" column ----
+  (function setupAreaGaps() {
+    let timer = null;
+    const apply = () => {
+      document.querySelectorAll('table').forEach(t => {
+        const ths = t.querySelectorAll('thead th');
+        let ai = -1;
+        ths.forEach((th, i) => { if (ai < 0 && th.textContent.trim().toLowerCase() === 'area') ai = i; });
+        if (ai < 0) return;
+        t.querySelectorAll('tbody').forEach(tb => {
+          let prev = null;
+          Array.from(tb.rows).forEach(tr => {
+            if (tr.cells.length <= ai || tr.cells.length < 3) return;
+            const cur = tr.cells[ai].textContent.trim();
+            const gap = prev !== null && cur && prev && cur !== prev;
+            tr.style.borderTop = gap ? '14px solid #dfe6f2' : '';
+            if (cur) prev = cur;
+          });
+        });
+      });
+    };
+    const mo = new MutationObserver(() => { clearTimeout(timer); timer = setTimeout(apply, 150); });
+    mo.observe(document.body, { childList: true, subtree: true });
+  })();
 
   (function addWhatsAppButtons() {
     const run = () => {
@@ -13775,7 +13841,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-10-29b</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-11-04c</div>
 
 </body>
 </html>
