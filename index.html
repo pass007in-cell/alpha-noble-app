@@ -2763,7 +2763,10 @@
         <button style="flex:1; background:#2e7d32;" onclick="exportTripSheetExcel()">⬇️ Excel (.xlsx)</button>
         <button style="flex:1; background:#555;" onclick="window.print()">🖨️ Print / PDF</button>
       </div>
-      <button class="del-btn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
+      <label style="display:flex; align-items:center; gap:8px; font-weight:600; font-size:14px; margin-bottom:8px; color:#c62828;">
+        <input type="checkbox" style="width:auto; margin:0;" onchange="toggleAllTripUnlink(this.checked)"> ☑ Select All (ഈ page-ലെ എല്ലാ Links) — <span id="tripUnlinkSelCount">0</span> selected
+      </label>
+      <button class="del-btn" id="tripUnlinkBtn" style="background:#ffebee; color:#c62828; width:100%; margin-bottom:14px;" onclick="unlinkSelectedTripSales()">🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക</button>
       <div id="tripSheetContainer">Date range select ചെയ്ത് "Generate" ക്ലിക്ക് ചെയ്യുക.</div>
     </div>
 
@@ -5943,21 +5946,48 @@
     }
   };
 
-  window.unlinkSelectedTripSales = async function () {
-    const checked = document.querySelectorAll('.tripUnlinkCheck:checked');
-    if (checked.length === 0) { alert("ഒരു link എങ്കിലും select ചെയ്യുക."); return; }
-    if (!confirm(`⚠️ Select ചെയ്ത ${checked.length} links Unlink ചെയ്യണോ? Stock എല്ലാം അതത് lot-ലേക്ക് തിരിച്ച് ചേർക്കും.`)) return;
+  window.toggleAllTripUnlink = function (on) {
+    document.querySelectorAll('.tripUnlinkCheck').forEach(c => { c.checked = on; });
+    updateTripUnlinkCount();
+  };
+  function updateTripUnlinkCount() {
+    const n = document.querySelectorAll('.tripUnlinkCheck:checked').length;
+    document.querySelectorAll('#tripUnlinkSelCount').forEach(e => { e.textContent = n; });
+  }
+  document.addEventListener('change', (e) => { if (e.target && e.target.classList && e.target.classList.contains('tripUnlinkCheck')) updateTripUnlinkCount(); });
 
-    try {
-      for (const cb of checked) {
-        await performUnlinkOneSale(cb.dataset.saleId, cb.dataset.lotId, parseFloat(cb.dataset.qty));
+  window.unlinkSelectedTripSales = async function () {
+    const checked = Array.from(document.querySelectorAll('.tripUnlinkCheck:checked'));
+    if (checked.length === 0) { alert("ഒരു link എങ്കിലും select ചെയ്യുക."); return; }
+    if (!confirm(`⚠️ Select ചെയ്ത ${checked.length} links Unlink ചെയ്യണോ? Stock എല്ലാം അതത് lot-ലേക്ക് തിരിച്ച് ചേർക്കും, ആ Sales വീണ്ടും Unlinked ആകും.\n\nതുടങ്ങിയാൽ ഈ page അടയ്ക്കരുത്. (ആദ്യം Data Backup എടുത്തിട്ടുണ്ടോ?)`)) return;
+
+    // One Sale can carry several links, so links of the SAME sale run one after another;
+    // different sales run a few at a time to keep a big batch fast.
+    const bySale = {};
+    checked.forEach(cb => { (bySale[cb.dataset.saleId] = bySale[cb.dataset.saleId] || []).push(cb); });
+    const groups = Object.values(bySale);
+    const btns = [document.getElementById('tripUnlinkBtn'), ...document.querySelectorAll('button[onclick="unlinkSelectedTripSales()"]')].filter(Boolean);
+    const setLabel = (t) => btns.forEach(b => { b.textContent = t; b.disabled = true; });
+    let done = 0, failed = 0, gi = 0;
+    const worker = async () => {
+      while (gi < groups.length) {
+        const g = groups[gi++];
+        for (const cb of g) {
+          try { await performUnlinkOneSale(cb.dataset.saleId, cb.dataset.lotId, parseFloat(cb.dataset.qty)); }
+          catch (err) { console.error(err); failed++; }
+          done++;
+          if (done % 5 === 0 || done === checked.length) setLabel(`⏳ ${done} / ${checked.length} Unlink ചെയ്തു...`);
+        }
       }
-      alert(`${checked.length} links Unlink ചെയ്തു.`);
-      refreshAfterUnlink();
-    } catch (err) {
-      console.error(err);
-      alert("Unlink ചെയ്യാൻ പറ്റിയില്ല.");
+    };
+    setLabel(`⏳ 0 / ${checked.length} Unlink ചെയ്തു...`);
+    try {
+      await Promise.all([worker(), worker(), worker(), worker(), worker()]);
+    } finally {
+      btns.forEach(b => { b.disabled = false; b.textContent = '🗑️ Select ചെയ്ത Links Unlink ചെയ്യുക'; });
     }
+    alert(`${checked.length - failed} links Unlink ചെയ്തു.` + (failed ? `\n❌ ${failed} എണ്ണം പരാജയപ്പെട്ടു — "Generate" വീണ്ടും അമർത്തി ബാക്കിയുള്ളവ ആവർത്തിക്കുക.` : ''));
+    refreshAfterUnlink();
   };
 
   // ---- TRIP SHEET → STOCK TRANSFER (remaining stock of a lot, to another Godown or Vehicle) ----
@@ -13841,7 +13871,7 @@
 </script>
 
 <!-- App version tag: bump on every release so it's obvious at a glance which build a phone loaded. -->
-<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-11-04c</div>
+<div id="appVersionTag" style="position:fixed; bottom:4px; right:8px; font-size:10px; color:#fff; opacity:0.75; background:rgba(0,0,0,0.35); padding:2px 6px; border-radius:6px; z-index:2000; pointer-events:none;">v2026-11-12a</div>
 
 </body>
 </html>
